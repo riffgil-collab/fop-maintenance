@@ -288,14 +288,14 @@ const selectedPerformer=document.getElementById('pmDashboardPerformer')?.value||
 const dashboardFilter=t=>(!selectedDepartment||t.department===selectedDepartment)&&(!selectedMachine||t.machine===selectedMachine)&&(!selectedPerformer||t.performer===selectedPerformer);
 
   const dep=pmDashboardDepartment.value;
-  const active=activeFiltered(dep);
+  const active=activeFiltered(dep).filter(dashboardFilter);
   const rows=active.map(t=>({t,s:stateOf(t)}));
   const over=rows.filter(x=>x.s.state==='overdue'), due=rows.filter(x=>x.s.state==='today'), up=rows.filter(x=>x.s.state==='upcoming');
-  const doneToday=history.filter(h=>h.date===today()&&(!dep||h.department===dep));
+  const doneToday=history.filter(h=>h.date===today()&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&(!selectedPerformer||h.performer===selectedPerformer));
   pmOverdueCount.textContent=over.length; pmDueTodayCount.textContent=due.length; pmCompletedTodayCount.textContent=doneToday.length; pmUpcomingCount.textContent=up.length;
 
   const [mStart,mEnd]=monthBounds();
-  const monthDone=history.filter(h=>h.date>=mStart&&h.date<=mEnd&&(!dep||h.department===dep));
+  const monthDone=history.filter(h=>h.date>=mStart&&h.date<=mEnd&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&(!selectedPerformer||h.performer===selectedPerformer));
   const monthTaskIds=new Set(monthDone.map(h=>h.taskId));
   const plannedMonth=active.filter(t=>(t.nextDue>=mStart&&t.nextDue<=mEnd)||monthTaskIds.has(t.id));
   const compliance=plannedMonth.length?Math.round(monthTaskIds.size/plannedMonth.length*100):0;
