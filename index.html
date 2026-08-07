@@ -113,8 +113,8 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <section id="pmDashboard" class="pm-panel active">
     <div class="toolbar">
       <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();fillDashboardPerformers();renderDashboard()"></select></div>
-      <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">כל המכונות</option></select></div>
-      <div class="field"><label>מבצע</label><select id="pmDashboardPerformer" onchange="renderDashboard()"><option value="">כל המבצעים</option></select></div>
+      <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">מכונות</option></select></div>
+      <div class="field"><label>מבצע</label><select id="pmDashboardPerformer" onchange="renderDashboard()"><option value="">מבצעים</option></select></div>
     </div>
 
     <div class="pm-kpis">
@@ -165,7 +165,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     <div class="toolbar">
       <div class="field report-date"><label>תאריך ביצוע</label><input id="pmReportDate" type="date"></div>
       <div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();renderReport()"></select></div>
-      <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">כל המכונות</option></select></div>
+      <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
     </div>
     <div class="report-summary">
       <div class="report-chip" id="repOpen">0 משימות פתוחות</div>
@@ -183,7 +183,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <section id="pmHistory" class="pm-panel">
     <div class="history-filters">
       <div class="field"><label>מחלקה</label><select id="pmHistoryDepartment" onchange="fillHistoryMachines();renderHistory()"></select></div>
-      <div class="field"><label>מכונה</label><select id="pmHistoryMachine" onchange="renderHistory()"><option value="">כל המכונות</option></select></div>
+      <div class="field"><label>מכונה</label><select id="pmHistoryMachine" onchange="renderHistory()"><option value="">מכונות</option></select></div>
       <div class="field"><label>מתאריך</label><input id="pmHistoryFrom" type="date" onchange="renderHistory()"></div>
       <div class="field"><label>עד תאריך</label><input id="pmHistoryTo" type="date" onchange="renderHistory()"></div>
       <div class="field"><label>חיפוש</label><input id="pmHistorySearch" type="text" placeholder="מכונה / טיפול / מבצע" oninput="renderHistory()"></div>
@@ -281,6 +281,12 @@ function showTab(tab){
   if(tab==='settings')renderSettingsTaskList();
 }
 function renderDashboard(){
+
+const selectedDepartment=document.getElementById('pmDashboardDepartment')?.value||'';
+const selectedMachine=document.getElementById('pmDashboardMachine')?.value||'';
+const selectedPerformer=document.getElementById('pmDashboardPerformer')?.value||'';
+const dashboardFilter=t=>(!selectedDepartment||t.department===selectedDepartment)&&(!selectedMachine||t.machine===selectedMachine)&&(!selectedPerformer||t.performer===selectedPerformer);
+
   const dep=pmDashboardDepartment.value;
   const active=activeFiltered(dep);
   const rows=active.map(t=>({t,s:stateOf(t)}));
@@ -356,7 +362,7 @@ function renderPlannerDay(date,dep){
 function fillReportMachines(){
   const dep=pmReportDepartment.value, sel=pmReportMachine, old=sel.value;
   const machines=[...new Set(activeFiltered(dep).map(t=>t.machine))].sort((a,b)=>a.localeCompare(b,'he'));
-  sel.innerHTML='<option value="">כל המכונות</option>'+machines.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  sel.innerHTML='<option value="">מכונות</option>'+machines.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
   if([...sel.options].some(o=>o.value===old))sel.value=old;
 }
 function renderReport(){
@@ -390,7 +396,7 @@ function completeTask(id){
 function fillHistoryMachines(){
   const dep=pmHistoryDepartment.value, sel=pmHistoryMachine, old=sel.value;
   const machines=[...new Set(tasks.filter(t=>!dep||t.department===dep).map(t=>t.machine))].sort((a,b)=>a.localeCompare(b,'he'));
-  sel.innerHTML='<option value="">כל המכונות</option>'+machines.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  sel.innerHTML='<option value="">מכונות</option>'+machines.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
   if([...sel.options].some(o=>o.value===old))sel.value=old
 }
 function filteredHistory(){
@@ -490,7 +496,7 @@ function fillDashboardMachines(){
  if(!sel)return;
  const current=sel.value;
  const machines=[...new Set(TASK_SEED.filter(t=>!dep||t.department===dep).map(t=>t.machine))].sort();
- sel.innerHTML='<option value="">כל המכונות</option>'+machines.map(m=>`<option value="${m}">${m}</option>`).join('');
+ sel.innerHTML='<option value="">מכונות</option>'+machines.map(m=>`<option value="${m}">${m}</option>`).join('');
  if(machines.includes(current)) sel.value=current;
 }
 function fillDashboardPerformers(){
@@ -500,7 +506,7 @@ function fillDashboardPerformers(){
  if(!sel)return;
  const current=sel.value;
  const perfs=[...new Set(TASK_SEED.filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)).map(t=>t.performer))].sort();
- sel.innerHTML='<option value="">כל המבצעים</option>'+perfs.map(p=>`<option value="${p}">${p}</option>`).join('');
+ sel.innerHTML='<option value="">מבצעים</option>'+perfs.map(p=>`<option value="${p}">${p}</option>`).join('');
  if(perfs.includes(current)) sel.value=current;
 }
 document.addEventListener('DOMContentLoaded',()=>{
