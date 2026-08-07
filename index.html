@@ -278,6 +278,56 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   .pm-auth-brand .right img{height:32px;max-width:125px}
 }
 
+
+/* ===== FOP MAINTENANCE V2 — WORK PLANNING ===== */
+.pm-plan-periods{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 14px}
+.pm-plan-period{border:1px solid #d7e0eb;background:#fff;color:#40516d;border-radius:12px;padding:10px 13px;font-weight:900}
+.pm-plan-period.active{background:var(--navy2);border-color:var(--navy2);color:#fff}
+.pm-plan-summary{display:grid;grid-template-columns:repeat(5,1fr);gap:9px;margin:12px 0 15px}
+.pm-plan-stat{border:1px solid var(--line);border-radius:16px;padding:13px 9px;text-align:center;background:#fbfcfe}
+.pm-plan-stat strong{display:block;color:var(--navy2);font-size:24px;line-height:1.1}
+.pm-plan-stat span{display:block;color:var(--muted);font-size:9px;font-weight:850;margin-top:5px}
+.pm-plan-stat.coverage strong{color:var(--green)}
+.pm-plan-actions{display:grid;grid-template-columns:1.1fr 1fr 1fr 1fr auto auto;gap:9px;align-items:end;margin:12px 0}
+.pm-plan-list{display:grid;gap:8px}
+.pm-plan-row{display:grid;grid-template-columns:34px minmax(0,1.5fr) minmax(0,.9fr) 86px 86px 92px;gap:9px;align-items:center;border:1px solid var(--line);border-radius:15px;padding:11px;background:#fff}
+.pm-plan-row.planned{border-color:#9cc8fb;background:#f8fbff}
+.pm-plan-row.late-plan{border-color:#f0c477;background:#fffbf3}
+.pm-plan-row.done-plan{border-color:#9ed9b5;background:#f7fff9}
+.pm-plan-check{width:22px;height:22px;margin:auto}
+.pm-plan-main strong{display:block;color:var(--navy2);font-size:12px}
+.pm-plan-main small,.pm-plan-meta{display:block;color:var(--muted);font-size:9px;line-height:1.45;margin-top:3px}
+.pm-plan-badge{display:inline-block;border-radius:999px;padding:5px 7px;font-size:9px;font-weight:900;white-space:nowrap}
+.pm-plan-badge.open{background:#edf2f8;color:#52657e}
+.pm-plan-badge.planned{background:#eaf3ff;color:#0967e5}
+.pm-plan-badge.done{background:#eaf8ef;color:#12733b}
+.pm-plan-badge.risk{background:#fff2d8;color:#8a5900}
+.pm-plan-note{font-size:10px;color:var(--muted);margin:5px 0 12px;line-height:1.5}
+.pm-plan-pager{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:12px 0}
+.pm-plan-pager button{border:0;border-radius:10px;padding:9px 11px;background:#edf2f8;color:var(--navy2);font-weight:850}
+.pm-plan-today{border:1px solid #cfe1f7;background:linear-gradient(180deg,#fbfdff,#f5f9ff);border-radius:19px;padding:14px;margin-bottom:15px}
+.pm-plan-today-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:10px}
+.pm-plan-today-head h3{margin:0;color:var(--navy2);font-size:17px}
+.pm-plan-today-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.pm-plan-today-kpi{background:#fff;border:1px solid #e0e8f2;border-radius:13px;padding:10px;text-align:center}
+.pm-plan-today-kpi strong{display:block;color:var(--navy2);font-size:20px}
+.pm-plan-today-kpi span{font-size:9px;color:var(--muted);font-weight:850}
+.pm-plan-mini-list{display:grid;gap:6px;margin-top:10px}
+.pm-plan-mini-item{display:flex;justify-content:space-between;gap:10px;align-items:center;background:#fff;border:1px solid #e5ebf3;border-radius:11px;padding:9px 10px;font-size:10px}
+.pm-plan-mini-item strong{color:var(--navy2)}
+.pm-plan-capacity{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}
+.pm-plan-capacity input{width:100%;height:42px;border:1px solid #d7e0eb;border-radius:11px;padding:0 9px}
+.pm-report-mode{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:850;color:#52657e;margin:0 0 10px}
+.pm-report-mode input{width:20px;height:20px}
+@media(max-width:760px){
+  .pm-plan-summary{grid-template-columns:1fr 1fr}
+  .pm-plan-actions{grid-template-columns:1fr 1fr}
+  .pm-plan-actions .field{min-width:0}
+  .pm-plan-row{grid-template-columns:30px minmax(0,1fr) 76px}
+  .pm-plan-row .pm-plan-hide-mobile{display:none}
+  .pm-plan-today-kpis{grid-template-columns:1fr 1fr}
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -318,13 +368,23 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </div>
 <div class="pm-tabs">
 <button class="pm-tab active" data-pm="dashboard" onclick="showTab('dashboard')">דשבורד</button>
-<button class="pm-tab" data-pm="planner" onclick="showTab('planner')">תכנון שבועי</button>
+<button class="pm-tab" data-pm="planner" onclick="showTab('planner')">תכנון עבודה</button>
 <button class="pm-tab" data-pm="report" onclick="showTab('report')">דיווח טיפול</button>
 <button class="pm-tab" data-pm="history" onclick="showTab('history')">היסטוריה</button>
 <button class="pm-tab" data-pm="settings" onclick="showTab('settings')">הגדרות</button>
 <button class="pm-tab" data-pm="users" id="pmUsersTabButton" onclick="showTab('users')" style="display:none">ניהול משתמשים</button>
-<button class="pm-tab" data-tab="planning">תכנון עבודה</button></div>
+</div>
 <section class="pm-panel active" id="pmDashboard">
+<div class="pm-plan-today">
+  <div class="pm-plan-today-head"><h3>תוכנית העבודה להיום</h3><button type="button" class="secondary-btn" onclick="showTab('planner');setPlanningPeriod('day')">פתיחת התכנון</button></div>
+  <div class="pm-plan-today-kpis">
+    <div class="pm-plan-today-kpi"><strong id="pmTodayPlanned">0</strong><span>מתוכננות</span></div>
+    <div class="pm-plan-today-kpi"><strong id="pmTodayDone">0</strong><span>בוצעו</span></div>
+    <div class="pm-plan-today-kpi"><strong id="pmTodayPending">0</strong><span>נותרו לביצוע</span></div>
+    <div class="pm-plan-today-kpi"><strong id="pmTodayPlanHours">0</strong><span>שעות מתוכננות</span></div>
+  </div>
+  <div class="pm-plan-mini-list" id="pmTodayPlanList"></div>
+</div>
 <div class="toolbar">
 <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();fillDashboardPerformers();renderDashboard()"></select></div>
 <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">מכונות</option></select></div>
@@ -332,7 +392,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </div>
 <div class="pm-kpis">
 <div class="kpi overdue"><strong id="pmOverdueCount">0</strong><span>משימות באיחור</span></div>
-<div class="kpi today"><strong id="pmDueTodayCount">0</strong><span>נדרש היום</span></div>
+<div class="kpi today"><strong id="pmDueTodayCount">0</strong><span>נדרש היום לפי תוכנית PM</span></div>
 <div class="kpi done"><strong id="pmCompletedTodayCount">0</strong><span>בוצע היום</span></div>
 <div class="kpi upcoming"><strong id="pmUpcomingCount">0</strong><span>7 ימים קדימה</span></div>
 </div>
@@ -360,12 +420,57 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="task-list" id="pmUpcomingTasks"></div>
 </section>
 <section class="pm-panel" id="pmPlanner">
-<div class="toolbar">
-<div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="renderPlanner()"></select></div>
-<div class="field"><label>שבוע שמתחיל בתאריך</label><input id="pmPlannerStart" onchange="renderPlanner()" type="date"/></div>
-</div>
-<div class="planner-grid" id="pmPlannerGrid"></div>
-<div class="planner-detail" id="pmPlannerDetail"></div>
+  <div class="section-title"><h3>תכנון עבודה</h3><small id="pmPlanRangeLabel">—</small></div>
+  <div class="pm-plan-note">בחר תקופה, ראה את כל דרישות האחזקה, ושבץ אותן לתאריך ביצוע. תאריך היעד נשאר ללא שינוי; התאריך המתוכנן הוא החלטת מנהל האחזקה.</div>
+
+  <div class="pm-plan-periods">
+    <button type="button" class="pm-plan-period" data-period="day" onclick="setPlanningPeriod('day')">יום</button>
+    <button type="button" class="pm-plan-period active" data-period="week" onclick="setPlanningPeriod('week')">שבוע</button>
+    <button type="button" class="pm-plan-period" data-period="month" onclick="setPlanningPeriod('month')">חודש</button>
+    <button type="button" class="pm-plan-period" data-period="half" onclick="setPlanningPeriod('half')">חצי שנה</button>
+    <button type="button" class="pm-plan-period" data-period="year" onclick="setPlanningPeriod('year')">שנה</button>
+  </div>
+
+  <div class="toolbar">
+    <div class="field"><label>תאריך עוגן</label><input id="pmPlannerStart" type="date" onchange="renderPlanner()"/></div>
+    <div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="renderPlanner()"></select></div>
+    <div class="field"><label>מבצע</label><select id="pmPlannerPerformer" onchange="renderPlanner()"><option value="">כל המבצעים</option></select></div>
+    <div class="field"><label>חיפוש</label><input id="pmPlannerSearch" type="text" placeholder="מכונה / טיפול" oninput="renderPlanner()"/></div>
+  </div>
+
+  <div class="pm-plan-summary">
+    <div class="pm-plan-stat"><strong id="pmPlanRequired">0</strong><span>דרישות בתקופה</span></div>
+    <div class="pm-plan-stat"><strong id="pmPlanScheduled">0</strong><span>שובצו לתוכנית</span></div>
+    <div class="pm-plan-stat coverage"><strong id="pmPlanCoverage">0%</strong><span>כיסוי תכנון</span></div>
+    <div class="pm-plan-stat"><strong id="pmPlanHours">0</strong><span>שעות ששובצו</span></div>
+    <div class="pm-plan-stat"><strong id="pmPlanDone">0%</strong><span>ביצוע מול תוכנית</span></div>
+  </div>
+
+  <div class="panel-box">
+    <h3>קיבולת צוות</h3>
+    <div class="pm-plan-capacity">
+      <div class="field"><label>מספר עובדים זמינים</label><input id="pmPlanPeople" type="number" min="0" step="1" value="2" onchange="savePlanningCapacity();renderPlanner()"/></div>
+      <div class="field"><label>שעות עבודה לעובד ביום</label><input id="pmPlanHoursPerDay" type="number" min="0" step="0.5" value="8" onchange="savePlanningCapacity();renderPlanner()"/></div>
+    </div>
+    <div id="pmPlanCapacityText" class="pm-plan-note"></div>
+  </div>
+
+  <div class="pm-plan-actions">
+    <div class="field"><label>תאריך מתוכנן</label><input id="pmPlanDate" type="date"/></div>
+    <div class="field"><label>עדיפות</label><select id="pmPlanPriority"><option value="גבוהה">גבוהה</option><option value="בינונית" selected>בינונית</option><option value="נמוכה">נמוכה</option></select></div>
+    <div class="field"><label>שיבוץ למבצע</label><input id="pmPlanAssignee" type="text" placeholder="למשל: טכנאי אחזקה"/></div>
+    <div class="field"><label>בחירה</label><button type="button" class="secondary-btn" onclick="toggleAllPlanRows(true)">בחר הכל המוצג</button></div>
+    <button type="button" class="btn" onclick="saveSelectedPlanning()">שבץ לתוכנית</button>
+    <button type="button" class="danger-btn" onclick="unplanSelected()">הסר מתוכנית</button>
+  </div>
+
+  <div class="pm-plan-note" id="pmPlanSelectionInfo">לא נבחרו משימות.</div>
+  <div class="pm-plan-list" id="pmPlannerDetail"></div>
+  <div class="pm-plan-pager">
+    <button type="button" onclick="changePlanPage(-1)">הקודם</button>
+    <span id="pmPlanPageInfo">—</span>
+    <button type="button" onclick="changePlanPage(1)">הבא</button>
+  </div>
 </section>
 <section class="pm-panel" id="pmReport">
 <div class="toolbar">
@@ -374,6 +479,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
 <div class="field"><label>מבצע</label><select id="pmReportPerformer" onchange="renderReport()"><option value="">מבצעים</option></select></div>
 </div>
+<label class="pm-report-mode"><input id="pmReportIncludeUnplanned" type="checkbox" onchange="renderReport()"/> הצג גם טיפולים פתוחים שלא שובצו לתוכנית העבודה</label>
 <div class="report-summary">
 <div class="report-chip" id="repOpen">0 משימות פתוחות</div>
 <div class="report-chip" id="repLate">0 באיחור</div>
@@ -399,12 +505,12 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </section>
 <section class="pm-panel" id="pmSettings">
 <div class="panel-box" style="margin-bottom:14px">
-<h3>Preventive Maintenance Plan</h3>
-<div id="pmCloudModeLabel" style="margin-bottom:8px;color:#11865b;font-weight:800">☁️ Cloud Mode — Supabase</div>
-<div id="pmInitStatus">🔴 Status: Not Initialized</div>
+<h3>תוכנית אחזקה מונעת</h3>
+<div id="pmCloudModeLabel" style="margin-bottom:8px;color:#11865b;font-weight:800">☁️ עבודה בענן — Supabase</div>
+<div id="pmInitStatus">🔴 סטטוס: לא אותחל</div>
 <div id="pmInitDate" style="margin:6px 0 12px;color:#6d7b91"></div>
-<button class="btn" id="pmInitBtn" onclick="initializePMPlan()">Initialize PM Plan</button>
-<button class="secondary-btn" id="pmImportBtn" onclick="importPMPlanToSupabase()" style="margin-inline-start:8px">⬆️ Import PM Plan to Supabase</button>
+<button class="btn" id="pmInitBtn" onclick="initializePMPlan()" style="display:none">אתחול תוכנית</button>
+<button class="secondary-btn" id="pmImportBtn" onclick="importPMPlanToSupabase()" style="margin-inline-start:8px">⬆️ ייבוא תוכנית אחזקה לענן</button>
 </div>
 <div class="add-box">
 <h3>הוספת משימת טיפול</h3>
@@ -811,8 +917,8 @@ function hours(mins){return (Number(mins||0)/60).toFixed(1)}
 function statusLine(msg,type=''){const e=document.getElementById('pmStatus');e.textContent=msg||'';e.className='status-line '+type}
 
 function cleanAuditValue(v){return String(v??'').replace(/\|/g,'/').replace(/\r?\n/g,' ').trim()}
-function taskAuditLines(notes){return String(notes||'').split(/\r?\n/).filter(x=>/^\[PM_(POSTPONE|UNDO)\|/.test(x.trim()))}
-function visibleTaskNotes(notes){return String(notes||'').split(/\r?\n/).filter(x=>!/^\[PM_(POSTPONE|UNDO)\|/.test(x.trim())).join('\n').trim()}
+function taskAuditLines(notes){return String(notes||'').split(/\r?\n/).filter(x=>/^\[PM_(POSTPONE|UNDO|PLAN|UNPLAN)\|/.test(x.trim()))}
+function visibleTaskNotes(notes){return String(notes||'').split(/\r?\n/).filter(x=>!/^\[PM_(POSTPONE|UNDO|PLAN|UNPLAN)\|/.test(x.trim())).join('\n').trim()}
 function preserveAuditNotes(oldNotes,newVisible){
   const audits=taskAuditLines(oldNotes);
   const clean=String(newVisible||'').trim();
@@ -847,6 +953,278 @@ function allHistoryEvents(){
     String(b.date||'').localeCompare(String(a.date||'')) ||
     String(b.reportedAt||'').localeCompare(String(a.reportedAt||''))
   );
+}
+
+
+/* ============================================================
+   WORK PLANNING V2
+   Planning is persisted in pm_tasks.notes using audited markers.
+   No database migration is required.
+   ============================================================ */
+let pmPlanningPeriod='week';
+let pmPlanPage=0;
+const PM_PLAN_PAGE_SIZE=80;
+
+function parsePlanActions(t){
+  return taskAuditLines(t.notes).filter(x=>x.startsWith('[PM_PLAN|')||x.startsWith('[PM_UNPLAN|')).map(line=>{
+    if(line.startsWith('[PM_PLAN|')){
+      const p=line.replace(/^\[PM_PLAN\|/,'').replace(/\]$/,'').split('|');
+      return {type:'plan',due:p[0]||'',plannedDate:p[1]||'',priority:p[2]||'בינונית',assignee:p[3]||'',actor:p[4]||'',stamp:p[5]||''};
+    }
+    const p=line.replace(/^\[PM_UNPLAN\|/,'').replace(/\]$/,'').split('|');
+    return {type:'unplan',due:p[0]||'',plannedDate:'',priority:'',assignee:'',actor:p[1]||'',stamp:p[2]||''};
+  });
+}
+function planForOccurrence(t,due){
+  const actions=parsePlanActions(t).filter(a=>String(a.due)===String(due)).sort((a,b)=>String(a.stamp).localeCompare(String(b.stamp)));
+  const last=actions[actions.length-1];
+  return last&&last.type==='plan'?last:null;
+}
+function latestPlansForTask(t){
+  const byDue={};
+  parsePlanActions(t).forEach(a=>{
+    const prev=byDue[a.due];
+    if(!prev||String(a.stamp)>=String(prev.stamp))byDue[a.due]=a;
+  });
+  return Object.values(byDue).filter(a=>a.type==='plan');
+}
+function isPlanItemDone(item){
+  const p=item.plan;
+  if(!p)return false;
+  // A completion on the planned date is exact. If it was performed later,
+  // accept the first completion after the planned date but before the next
+  // planned occurrence of the same task.
+  const laterPlans=latestPlansForTask(item.t).filter(x=>x.plannedDate>p.plannedDate).sort((a,b)=>a.plannedDate.localeCompare(b.plannedDate));
+  const nextPlanDate=laterPlans[0]?.plannedDate||'9999-12-31';
+  return history.some(h=>String(h.taskId)===String(item.t.id)&&h.date>=p.plannedDate&&h.date<nextPlanDate);
+}
+function planningBounds(){
+  const anchor=document.getElementById('pmPlannerStart')?.value||today();
+  const d=dObj(anchor)||dObj(today());
+  let start,end,label;
+  if(pmPlanningPeriod==='day'){
+    start=end=dateStr(d); label=fDate(start);
+  }else if(pmPlanningPeriod==='week'){
+    start=weekStartFrom(anchor); end=addDays(start,6); label=`${fDate(start)} – ${fDate(end)}`;
+  }else if(pmPlanningPeriod==='month'){
+    start=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
+    end=dateStr(new Date(d.getFullYear(),d.getMonth()+1,0,12));
+    label=d.toLocaleDateString('he-IL',{month:'long',year:'numeric'});
+  }else if(pmPlanningPeriod==='half'){
+    const sm=d.getMonth()<6?0:6;
+    start=`${d.getFullYear()}-${String(sm+1).padStart(2,'0')}-01`;
+    end=dateStr(new Date(d.getFullYear(),sm+6,0,12));
+    label=`חצי ${sm===0?'ראשון':'שני'} ${d.getFullYear()}`;
+  }else{
+    start=`${d.getFullYear()}-01-01`; end=`${d.getFullYear()}-12-31`; label=String(d.getFullYear());
+  }
+  return {start,end,label};
+}
+function planningWorkDays(start,end){
+  let n=0,d=dObj(start),last=dObj(end),guard=0;
+  while(d<=last&&guard++<370){const day=d.getDay();if(day!==6)n++;d.setDate(d.getDate()+1)}
+  return n;
+}
+function occurrenceItems(start,end){
+  const items=[];
+  for(const t of tasks.filter(x=>x.active!==false)){
+    const step=Math.max(1,Number(FREQ_DAYS[t.frequency]||30));
+    let due=t.nextDue||today();
+    if(!due)continue;
+    // Keep one overdue backlog occurrence visible in current/future periods.
+    if(due<start){
+      const p=planForOccurrence(t,due);
+      if(!p || (p.plannedDate>=start&&p.plannedDate<=end)) items.push({t,due,plan:p,backlog:true});
+      // Project the periodic stream forward from the current due date.
+      let guard=0;
+      while(due<start&&guard++<5000)due=addDays(due,step);
+    }
+    let guard=0;
+    while(due<=end&&guard++<5000){
+      if(due>=start){
+        const p=planForOccurrence(t,due);
+        items.push({t,due,plan:p,backlog:false});
+      }
+      due=addDays(due,step);
+    }
+    // Include a task planned into this period even if its due date lies outside it.
+    latestPlansForTask(t).forEach(p=>{
+      if(p.plannedDate>=start&&p.plannedDate<=end&&!items.some(x=>String(x.t.id)===String(t.id)&&x.due===p.due)){
+        items.push({t,due:p.due,plan:p,backlog:p.due<start});
+      }
+    });
+  }
+  return items;
+}
+function setPlanningPeriod(period){
+  pmPlanningPeriod=period;
+  pmPlanPage=0;
+  document.querySelectorAll('.pm-plan-period').forEach(b=>b.classList.toggle('active',b.dataset.period===period));
+  const anchor=document.getElementById('pmPlannerStart'); if(anchor&&!anchor.value)anchor.value=today();
+  renderPlanner();
+}
+function fillPlanningPerformers(){
+  const sel=document.getElementById('pmPlannerPerformer');if(!sel)return;
+  const old=sel.value;
+  const vals=[...new Set(tasks.map(t=>t.performer).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  sel.innerHTML='<option value="">כל המבצעים</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if(vals.includes(old))sel.value=old;
+}
+function savePlanningCapacity(){
+  const people=document.getElementById('pmPlanPeople')?.value||'2';
+  const hrs=document.getElementById('pmPlanHoursPerDay')?.value||'8';
+  try{localStorage.setItem('fop_pm_capacity',JSON.stringify({people,hrs}))}catch(_e){}
+}
+function loadPlanningCapacity(){
+  try{
+    const c=JSON.parse(localStorage.getItem('fop_pm_capacity')||'{}');
+    if(c.people)document.getElementById('pmPlanPeople').value=c.people;
+    if(c.hrs)document.getElementById('pmPlanHoursPerDay').value=c.hrs;
+  }catch(_e){}
+}
+function filteredPlanningItems(){
+  const {start,end}=planningBounds();
+  const dep=document.getElementById('pmPlannerDepartment')?.value||'';
+  const perf=document.getElementById('pmPlannerPerformer')?.value||'';
+  const q=(document.getElementById('pmPlannerSearch')?.value||'').trim().toLowerCase();
+  return occurrenceItems(start,end).filter(x=>
+    (!dep||x.t.department===dep)&&
+    (!perf||x.t.performer===perf)&&
+    (!q||`${x.t.machine} ${x.t.task} ${x.t.department} ${x.t.performer}`.toLowerCase().includes(q))
+  ).sort((a,b)=>(a.plan?.plannedDate||a.due).localeCompare(b.plan?.plannedDate||b.due)||a.due.localeCompare(b.due)||String(a.t.machine).localeCompare(String(b.t.machine),'he'));
+}
+function planKey(item){return `${String(item.t.id)}@@${item.due}`}
+function selectedPlanKeys(){return [...document.querySelectorAll('.pm-plan-check:checked')].map(x=>x.value)}
+function updatePlanSelectionInfo(){
+  const n=selectedPlanKeys().length;
+  const el=document.getElementById('pmPlanSelectionInfo');if(el)el.textContent=n?`${n} משימות נבחרו.`:'לא נבחרו משימות.';
+}
+function toggleAllPlanRows(on=true){
+  document.querySelectorAll('.pm-plan-check').forEach(x=>x.checked=on);
+  updatePlanSelectionInfo();
+}
+function changePlanPage(delta){
+  const count=filteredPlanningItems().length;
+  const pages=Math.max(1,Math.ceil(count/PM_PLAN_PAGE_SIZE));
+  pmPlanPage=Math.max(0,Math.min(pages-1,pmPlanPage+delta));
+  renderPlanner();
+}
+async function appendPlanningMarker(t,marker){
+  const notes=[String(t.notes||'').trim(),marker].filter(Boolean).join('\n');
+  const res=await supabaseClient.from('pm_tasks').update({notes}).eq('id',t.id);
+  if(res.error)throw res.error;
+  t.notes=notes;
+}
+async function saveSelectedPlanning(){
+  if(!pmCan('manageExceptions'))return statusLine('תכנון עבודה זמין למנהל אחזקה בלבד.','error');
+  const keys=selectedPlanKeys(); if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
+  const plannedDate=document.getElementById('pmPlanDate').value;
+  if(!plannedDate)return statusLine('יש לבחור תאריך מתוכנן.','error');
+  const priority=document.getElementById('pmPlanPriority').value||'בינונית';
+  const assignee=(document.getElementById('pmPlanAssignee').value||'').trim();
+  const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
+  const stamp=new Date().toISOString();
+  statusLine(`שומר ${keys.length} משימות בתוכנית…`);
+  try{
+    const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
+    for(const key of keys){
+      const item=lookup.get(key);if(!item)continue;
+      const marker=`[PM_PLAN|${cleanAuditValue(item.due)}|${cleanAuditValue(plannedDate)}|${cleanAuditValue(priority)}|${cleanAuditValue(assignee||item.t.performer||'')}|${cleanAuditValue(actor)}|${stamp}]`;
+      await appendPlanningMarker(item.t,marker);
+    }
+    await reloadCloudData();
+    renderPlanner();
+    statusLine(`${keys.length} משימות שובצו לתוכנית העבודה.`, 'success');
+  }catch(err){statusLine('שמירת התכנון נכשלה: '+(err?.message||'שגיאה לא ידועה'),'error')}
+}
+async function unplanSelected(){
+  if(!pmCan('manageExceptions'))return statusLine('שינוי תוכנית זמין למנהל אחזקה בלבד.','error');
+  const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
+  if(!confirm(`להסיר ${keys.length} משימות מתוכנית העבודה?`))return;
+  const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
+  const stamp=new Date().toISOString();
+  try{
+    const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
+    for(const key of keys){
+      const item=lookup.get(key);if(!item)continue;
+      await appendPlanningMarker(item.t,`[PM_UNPLAN|${cleanAuditValue(item.due)}|${cleanAuditValue(actor)}|${stamp}]`);
+    }
+    await reloadCloudData(); renderPlanner();
+    statusLine(`${keys.length} משימות הוסרו מתוכנית העבודה.`, 'success');
+  }catch(err){statusLine('הסרת התכנון נכשלה: '+(err?.message||'שגיאה לא ידועה'),'error')}
+}
+function plannedItemsForDate(date){
+  const out=[];
+  tasks.filter(t=>t.active!==false).forEach(t=>{
+    latestPlansForTask(t).forEach(p=>{if(p.plannedDate===date)out.push({t,due:p.due,plan:p})});
+  });
+  return out;
+}
+function renderTodayWorkPlan(){
+  const date=today();
+  const items=plannedItemsForDate(date);
+  const done=items.filter(isPlanItemDone);
+  const pending=items.filter(x=>!isPlanItemDone(x));
+  const mins=items.reduce((a,x)=>a+Number(x.t.duration||0),0);
+  const a=document.getElementById('pmTodayPlanned'),b=document.getElementById('pmTodayDone'),c=document.getElementById('pmTodayPending'),d=document.getElementById('pmTodayPlanHours');
+  if(a)a.textContent=items.length;if(b)b.textContent=done.length;if(c)c.textContent=pending.length;if(d)d.textContent=hours(mins);
+  const list=document.getElementById('pmTodayPlanList');if(!list)return;
+  list.innerHTML=pending.length?pending.slice(0,6).map(x=>`<div class="pm-plan-mini-item"><div><strong>${esc(x.t.machine)}</strong><div>${esc(x.t.task)}</div></div><span>${esc(x.plan.assignee||x.t.performer||'')}</span></div>`).join(''):
+    (items.length?'<div class="empty">כל המשימות המתוכננות להיום בוצעו.</div>':'<div class="empty">עדיין לא נבנתה תוכנית עבודה להיום.</div>');
+}
+function renderPlanner(){
+  const startInput=document.getElementById('pmPlannerStart');if(!startInput)return;
+  if(!startInput.value)startInput.value=today();
+  fillPlanningPerformers();
+  const {start,end,label}=planningBounds();
+  const labelEl=document.getElementById('pmPlanRangeLabel');if(labelEl)labelEl.textContent=label;
+  const items=filteredPlanningItems();
+  const scheduled=items.filter(x=>x.plan&&x.plan.plannedDate>=start&&x.plan.plannedDate<=end);
+  const done=scheduled.filter(isPlanItemDone);
+  const required=items.length;
+  const coverage=required?Math.round(scheduled.length/required*100):100;
+  const execution=scheduled.length?Math.round(done.length/scheduled.length*100):0;
+  const mins=scheduled.reduce((a,x)=>a+Number(x.t.duration||0),0);
+  pmPlanRequired.textContent=required;
+  pmPlanScheduled.textContent=scheduled.length;
+  pmPlanCoverage.textContent=coverage+'%';
+  pmPlanHours.textContent=hours(mins);
+  pmPlanDone.textContent=execution+'%';
+
+  const people=Number(document.getElementById('pmPlanPeople')?.value||0);
+  const hrs=Number(document.getElementById('pmPlanHoursPerDay')?.value||0);
+  const days=planningWorkDays(start,end);
+  const capacity=people*hrs*days;
+  const load=capacity?Math.round((mins/60)/capacity*100):0;
+  const cap=document.getElementById('pmPlanCapacityText');
+  if(cap)cap.textContent=`קיבולת מחושבת לתקופה: ${capacity.toFixed(1)} שעות · עומס מתוכנן: ${load}% (${days} ימי עבודה לפי ההגדרה).`;
+
+  if(!document.getElementById('pmPlanDate').value){
+    document.getElementById('pmPlanDate').value=pmPlanningPeriod==='day'?start:Math.max(start,today());
+  }
+
+  const pages=Math.max(1,Math.ceil(items.length/PM_PLAN_PAGE_SIZE));
+  pmPlanPage=Math.min(pmPlanPage,pages-1);
+  const pageItems=items.slice(pmPlanPage*PM_PLAN_PAGE_SIZE,(pmPlanPage+1)*PM_PLAN_PAGE_SIZE);
+  pmPlanPageInfo.textContent=`עמוד ${pmPlanPage+1} מתוך ${pages} · ${items.length} דרישות`;
+
+  pmPlannerDetail.innerHTML=pageItems.length?pageItems.map(item=>{
+    const doneNow=isPlanItemDone(item);
+    const planned=item.plan;
+    const latePlan=planned&&planned.plannedDate>item.due;
+    const status=doneNow?'בוצע':planned?'מתוכנן':'לא תוכנן';
+    const badge=doneNow?'done':latePlan?'risk':planned?'planned':'open';
+    const cls=doneNow?'done-plan':latePlan?'late-plan':planned?'planned':'';
+    return `<div class="pm-plan-row ${cls}">
+      <input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/>
+      <div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · פיגור קודם':''}</small>${planned?`<small>שובץ: ${esc(fDate(planned.plannedDate))}${planned.assignee?' · '+esc(planned.assignee):''} · עדיפות ${esc(planned.priority)}</small>`:''}</div>
+      <div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div>
+      <div class="pm-plan-meta">${esc(fDate(item.due))}</div>
+      <div class="pm-plan-meta pm-plan-hide-mobile">${planned?esc(fDate(planned.plannedDate)):'—'}</div>
+      <span class="pm-plan-badge ${badge}">${status}${latePlan?' · אחרי היעד':''}</span>
+    </div>`;
+  }).join(''):'<div class="empty">אין דרישות אחזקה בתקופה ובסינון שנבחרו.</div>';
+  updatePlanSelectionInfo();
 }
 
 function normalize(t){
@@ -903,6 +1281,7 @@ function showTab(name){
   if(name==='users')loadPMUsers();
 }
 function renderDashboard(){
+  renderTodayWorkPlan();
 
 const selectedDepartment=document.getElementById('pmDashboardDepartment')?.value||'';
 const selectedMachine=document.getElementById('pmDashboardMachine')?.value||'';
@@ -999,13 +1378,22 @@ function fillReportMachines(){
 function renderReport(){
   const dep=pmReportDepartment.value, machine=pmReportMachine.value;
   const performer=document.getElementById('pmReportPerformer')?.value||'';
-  const list=openTasks(dep)
-    .filter(x=>(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer))
-    .sort((a,b)=>a.s.n-b.s.n||a.t.machine.localeCompare(b.t.machine,'he'));
+  const reportDate=pmReportDate.value||today();
+  const includeUnplanned=document.getElementById('pmReportIncludeUnplanned')?.checked===true;
+  const planned=plannedItemsForDate(reportDate)
+    .filter(x=>!isPlanItemDone(x))
+    .filter(x=>(!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer))
+    .map(x=>({t:x.t,s:stateOf({...x.t,nextDue:x.due}),plan:x.plan,plannedDue:x.due}));
+  const plannedIds=new Set(planned.map(x=>String(x.t.id)));
+  const extras=includeUnplanned?openTasks(dep)
+    .filter(x=>!plannedIds.has(String(x.t.id)))
+    .filter(x=>(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer)):[];
+  const list=[...planned,...extras]
+    .sort((a,b)=>(a.plan?0:1)-(b.plan?0:1)||a.s.n-b.s.n||a.t.machine.localeCompare(b.t.machine,'he'));
 
-  repOpen.textContent=list.length+' משימות פתוחות';
+  repOpen.textContent=list.length+' משימות להצגה';
   repLate.textContent=list.filter(x=>x.s.state==='overdue').length+' באיחור';
-  repToday.textContent=list.filter(x=>x.s.state==='today').length+' להיום';
+  repToday.textContent=planned.length+' בתוכנית העבודה';
 
   const done=history.filter(h=>h.date===today()&&(!dep||h.department===dep)&&(!machine||h.machine===machine)&&(!performer||h.performer===performer)).length;
   const total=list.length+done;
@@ -1016,8 +1404,8 @@ function renderReport(){
   const canManage=pmCan('manageExceptions');
   pmOpenTasks.innerHTML=list.map(x=>`<div class="open-task ${x.s.state} ${x.s.state==='overdue'?'topbar-red':'topbar-orange'}" id="open-${x.t.id}">
     <div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div>
-    <div class="big-late">${x.s.state==='overdue'?Math.abs(x.s.n)+' ימי איחור':'לביצוע היום'}</div>
-    <div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(x.t.performer)}<br>יעד: ${esc(fDate(x.t.nextDue))}${x.t.lastDone?`<br>טיפול אחרון: ${esc(fDate(x.t.lastDone))}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div>
+    <div class="big-late">${x.plan?'בתוכנית העבודה':(x.s.state==='overdue'?Math.abs(x.s.n)+' ימי איחור':'לביצוע היום')}</div>
+    <div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(x.plan?.assignee||x.t.performer)}<br>יעד: ${esc(fDate(x.plannedDue||x.t.nextDue))}${x.plan?`<br>תאריך מתוכנן: ${esc(fDate(x.plan.plannedDate))}<br>עדיפות: ${esc(x.plan.priority)}`:''}${x.t.lastDone?`<br>טיפול אחרון: ${esc(fDate(x.t.lastDone))}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div>
     ${x.t.parts?`<div class="meta"><strong>חלקים:</strong> ${esc(x.t.parts)}</div>`:''}
     ${visibleTaskNotes(x.t.notes)?`<div class="meta"><strong>הערות:</strong> ${esc(visibleTaskNotes(x.t.notes))}</div>`:''}</div>
     <div class="pm-task-actions">
@@ -1489,6 +1877,7 @@ async function sendPMPasswordReset(email){
 function refillAll(){
   fillSelect('pmDashboardDepartment',true);
   fillSelect('pmPlannerDepartment',true);
+  fillPlanningPerformers();
   fillSelect('pmReportDepartment',false);
   fillSelect('pmHistoryDepartment',true);
   fillSelect('pmSettingsDepartment',false);
@@ -1505,7 +1894,7 @@ function init(){
   refillAll();
   if(!pmReportDepartment.value&&pmReportDepartment.options.length)pmReportDepartment.selectedIndex=0;
   if(!pmSettingsDepartment.value&&pmSettingsDepartment.options.length)pmSettingsDepartment.selectedIndex=0;
-  pmReportDate.value=today(); pmPlannerStart.value=weekStartFrom();
+  pmReportDate.value=today(); pmPlannerStart.value=today(); loadPlanningCapacity();
   const [mStart,mEnd]=monthBounds(); pmHistoryFrom.value=mStart; pmHistoryTo.value=mEnd;
   newFrequency.innerHTML=Object.keys(FREQ_DAYS).map(f=>`<option>${f}</option>`).join(''); newFrequency.value='חודשי'; newDue.value=today();
   fillReportMachines(); fillHistoryMachines(); refreshAll()
