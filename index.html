@@ -128,6 +128,30 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 #pmAuthEmail{direction:ltr;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pm-auth-logout{border:0;background:#edf2f8;color:var(--navy2);border-radius:10px;padding:8px 10px;font-weight:850}
 
+
+/* ===== FOP USER MANAGEMENT + ROLE PERMISSIONS ===== */
+.pm-role-badge{font-size:10px;font-weight:900;padding:5px 8px;border-radius:999px;background:#edf2f8;color:#52657e;white-space:nowrap}
+.pm-role-badge.admin{background:#fff0f3;color:#b60029}
+.pm-role-badge.maintenance_manager{background:#eaf3ff;color:#0967e5}
+.pm-role-badge.technician{background:#eaf8ef;color:#12733b}
+.pm-role-badge.viewer{background:#f1f3f6;color:#6f7b8e}
+.user-admin-toolbar{display:flex;gap:9px;flex-wrap:wrap;margin-bottom:14px}
+.user-admin-toolbar button{border:0;border-radius:12px;padding:11px 14px;font-weight:900}
+.user-admin-toolbar .main{background:#7042d4;color:#fff}.user-admin-toolbar .soft{background:#edf2f8;color:#203858}
+.pm-user-table{display:grid;gap:10px}
+.pm-user-row{display:grid;grid-template-columns:minmax(0,1.4fr) 190px 110px 150px;gap:10px;align-items:center;border:1px solid var(--line);border-radius:16px;padding:12px;background:#fbfcfe}
+.pm-user-name{min-width:0}.pm-user-name strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pm-user-name small{display:block;color:var(--muted);margin-top:4px;direction:ltr;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pm-role-select{height:42px;border:1px solid #d7e0eb;border-radius:10px;background:#fff;padding:0 9px;font-weight:800;width:100%}
+.pm-user-active{display:flex;align-items:center;justify-content:center;gap:6px;font-size:11px;font-weight:900}.pm-user-active input{width:21px;height:21px;margin:0}
+.pm-user-btn{border:0;border-radius:10px;padding:10px;background:#edf2f8;color:#203858;font-weight:850}
+.pm-user-status{min-height:22px;font-size:12px;color:var(--muted);margin-top:10px}.pm-user-status.error{color:#b60029}.pm-user-status.success{color:#12733b}
+.pm-modal-backdrop{display:none;position:fixed;z-index:10000;inset:0;background:rgba(4,17,35,.58);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:18px}.pm-modal-backdrop.open{display:flex}
+.pm-modal-card{width:min(520px,100%);background:#fff;border-radius:24px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.28)}.pm-modal-card h3{margin:0 0 8px;color:var(--navy2)}.pm-modal-card p{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.5}
+.pm-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}.pm-modal-actions button{border:0;border-radius:12px;padding:13px;font-weight:900}.pm-modal-actions .create{background:#7042d4;color:#fff}.pm-modal-actions .cancel{background:#edf2f8;color:#203858}
+.pm-modal-status{min-height:20px;margin-top:10px;font-size:12px;color:var(--muted)}.pm-modal-status.error{color:#b60029}.pm-modal-status.success{color:#12733b}
+.pm-access-denied{padding:22px;border:1px solid #f1d38c;border-radius:15px;background:#fff9e9;color:#725500;text-align:center;font-size:12px;font-weight:800}
+@media(max-width:760px){.pm-user-row{grid-template-columns:1fr}.pm-role-select,.pm-user-btn{width:100%}.pm-user-active{justify-content:flex-start}}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -147,7 +171,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </div>
 </div>
 <div class="pm-auth-userbar" id="pmAuthUserbar">
-<div class="pm-auth-identity"><span id="pmAuthEmail"></span></div>
+<div class="pm-auth-identity"><span id="pmAuthEmail"></span><span id="pmRoleBadge" class="pm-role-badge">—</span></div>
 <button class="pm-auth-logout" id="pmAuthLogoutButton" type="button">התנתקות</button>
 </div>
 <div class="shell"><div class="card">
@@ -161,6 +185,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <button class="pm-tab" data-pm="report" onclick="showTab('report')">דיווח טיפול</button>
 <button class="pm-tab" data-pm="history" onclick="showTab('history')">היסטוריה</button>
 <button class="pm-tab" data-pm="settings" onclick="showTab('settings')">הגדרות</button>
+<button class="pm-tab" id="pmUsersTabButton" data-pm="users" onclick="showTab('users')" style="display:none">ניהול משתמשים</button>
 </div>
 <section class="pm-panel active" id="pmDashboard">
 <div class="toolbar">
@@ -267,10 +292,40 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <button class="danger-btn" onclick="toggleCurrentTask()">הפעלה / ביטול משימה</button>
 </div>
 <div class="editor" id="pmSettingsEditor"></div>
-<div style="margin-top:12px"><button class="back" onclick="resetData()">איפוס לנתוני האקסל</button></div>
+<div style="margin-top:12px"><button class="back" id="pmResetDataBtn" onclick="resetData()">טעינה מחדש מהענן</button></div>
+</section>
+<section class="pm-panel" id="pmUsers">
+  <div class="section-title"><h3>ניהול משתמשים</h3><small>Admin בלבד</small></div>
+  <div class="note">המשתמשים משותפים לכל FOP ונשמרים בטבלת <b>profiles</b>. שינוי תפקיד כאן משפיע על הרשאות המשתמש במודול האחזקה.</div>
+  <div class="user-admin-toolbar">
+    <button class="main" type="button" onclick="openPMCreateUserModal()">➕ יצירת משתמש חדש</button>
+    <button class="soft" type="button" onclick="loadPMUsers()">↻ רענון הרשימה</button>
+  </div>
+  <div id="pmUserTable" class="pm-user-table"></div>
+  <div id="pmUserStatus" class="pm-user-status"></div>
 </section>
 <div class="status-line" id="pmStatus"></div>
 </div></div>
+
+<div class="pm-modal-backdrop" id="pmCreateUserModal" onclick="if(event.target===this)closePMCreateUserModal()">
+  <div class="pm-modal-card" role="dialog" aria-modal="true" aria-labelledby="pmCreateUserTitle">
+    <h3 id="pmCreateUserTitle">יצירת משתמש חדש</h3>
+    <p>המשתמש יקבל חשבון FOP ויוכל להתחבר עם אותו אימייל וסיסמה לכל המערכת.</p>
+    <label for="pmNewFullName">שם מלא</label><input id="pmNewFullName" type="text" autocomplete="name" placeholder="שם מלא">
+    <label for="pmNewUserEmail">אימייל</label><input id="pmNewUserEmail" type="email" autocomplete="email" placeholder="name@company.com">
+    <label for="pmNewUserPassword">סיסמה זמנית</label><input id="pmNewUserPassword" type="password" autocomplete="new-password" minlength="8" placeholder="לפחות 8 תווים">
+    <label for="pmNewUserRole">תפקיד</label>
+    <select id="pmNewUserRole" class="pm-role-select" style="margin-bottom:12px">
+      <option value="maintenance_manager">Maintenance Manager — מנהל אחזקה</option>
+      <option value="technician" selected>Technician — טכנאי אחזקה</option>
+      <option value="viewer">Viewer — צפייה בלבד</option>
+      <option value="admin">Admin — מנהל מערכת</option>
+    </select>
+    <div class="pm-modal-actions"><button class="cancel" type="button" onclick="closePMCreateUserModal()">ביטול</button><button class="create" id="pmCreateUserButton" type="button" onclick="createPMUserFromApp()">יצירת משתמש</button></div>
+    <div class="pm-modal-status" id="pmCreateUserStatus"></div>
+  </div>
+</div>
+
 <!--
   ============================================================
   FOP PREVENTIVE MAINTENANCE — SINGLE FILE ARCHITECTURE
@@ -298,6 +353,15 @@ const SUPABASE_KEY="sb_publishable_fj5kkqRlqdvz69QroUcDvw_7pJhYTgR";
 const supabaseClient=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 let pmCurrentUser=null;
 let pmCloudReady=false;
+let pmCurrentProfile=null;
+let pmCurrentRole='viewer';
+
+const PM_ROLES={
+  admin:{label:'Admin',settings:true,report:true,users:true,initialize:true,importPlan:true,writeTasks:true},
+  maintenance_manager:{label:'Maintenance Manager',settings:true,report:true,users:false,initialize:false,importPlan:false,writeTasks:true},
+  technician:{label:'Technician',settings:false,report:true,users:false,initialize:false,importPlan:false,writeTasks:false},
+  viewer:{label:'Viewer',settings:false,report:false,users:false,initialize:false,importPlan:false,writeTasks:false}
+};
 
 
 
@@ -305,8 +369,71 @@ let pmCloudReady=false;
    AUTHENTICATION
    ============================================================ */
 /* ===== AUTH ONLY — no PM business logic changed ===== */
+
+function normalizePMRole(raw){
+  const r=String(raw||'').toLowerCase().trim();
+  if(['admin','administrator'].includes(r))return 'admin';
+  if(['maintenance_manager','maintenance manager','maintenance-manager'].includes(r))return 'maintenance_manager';
+  if(['technician','maintenance_technician','maintenance technician','operator','reporter','data_entry'].includes(r))return 'technician';
+  return 'viewer';
+}
+
+function pmCan(cap){return !!(PM_ROLES[pmCurrentRole]||PM_ROLES.viewer)[cap]}
+
+async function loadCurrentPMProfile(user){
+  const {data,error}=await supabaseClient.from('profiles').select('*').eq('id',user.id).maybeSingle();
+  if(error) throw error;
+  if(!data) throw new Error('לא נמצא פרופיל משתמש ב-FOP.');
+  if(data.is_active===false) throw new Error('המשתמש אינו פעיל במערכת.');
+  pmCurrentProfile=data;
+  pmCurrentRole=normalizePMRole(data.role);
+  return data;
+}
+
+function applyPMPermissions(){
+  const cfg=PM_ROLES[pmCurrentRole]||PM_ROLES.viewer;
+  const badge=document.getElementById('pmRoleBadge');
+  if(badge){badge.textContent=cfg.label;badge.className='pm-role-badge '+pmCurrentRole}
+
+  const settingsTab=document.querySelector('[data-pm="settings"]');
+  const usersTab=document.getElementById('pmUsersTabButton');
+  const reportTab=document.querySelector('[data-pm="report"]');
+  if(settingsTab)settingsTab.style.display=cfg.settings?'':'none';
+  if(usersTab)usersTab.style.display=cfg.users?'':'none';
+  if(reportTab)reportTab.style.display=cfg.report?'':'none';
+
+  const initBtn=document.getElementById('pmInitBtn');
+  const importBtn=document.getElementById('pmImportBtn');
+  if(initBtn)initBtn.style.display=cfg.initialize?'':'none';
+  if(importBtn)importBtn.style.display=cfg.importPlan?'':'none';
+  const resetBtn=document.getElementById('pmResetDataBtn');if(resetBtn)resetBtn.style.display=cfg.settings?'':'none';
+
+  const settingsPanel=document.getElementById('pmSettings');
+  if(settingsPanel){
+    settingsPanel.querySelectorAll('.add-box,.settings-grid,.settings-actions,#pmSettingsEditor').forEach(el=>{
+      if(!cfg.writeTasks)el.style.display='none';
+    });
+  }
+
+  const current=document.querySelector('.pm-tab.active');
+  if(current && current.style.display==='none')showTab('dashboard');
+}
+
+function requirePM(cap,message='אין הרשאה לבצע פעולה זו.'){
+  if(pmCan(cap))return true;
+  statusLine(message,'error');
+  return false;
+}
+
+function pmUserStatus(message,type=''){
+  const el=document.getElementById('pmUserStatus');if(!el)return;
+  el.textContent=message||'';el.className='pm-user-status '+type;
+}
+
 function pmShowLogin(){
   pmCurrentUser=null;
+  pmCurrentProfile=null;
+  pmCurrentRole='viewer';
   pmCloudReady=false;
   const overlay=document.getElementById('pmAuthOverlay');
   const shell=document.querySelector('.shell');
@@ -315,16 +442,28 @@ function pmShowLogin(){
   if(bar) bar.style.display='none';
   if(overlay){overlay.style.display='flex';overlay.setAttribute('aria-hidden','false');}
 }
-function pmShowApp(user){
+async function pmShowApp(user){
   const overlay=document.getElementById('pmAuthOverlay');
   const shell=document.querySelector('.shell');
   const bar=document.getElementById('pmAuthUserbar');
-  if(overlay){overlay.style.display='none';overlay.setAttribute('aria-hidden','true');}
-  if(shell) shell.style.display='';
-  if(bar) bar.style.display='flex';
+  const status=document.getElementById('pmAuthStatus');
+  if(shell)shell.style.display='none';
+  if(bar)bar.style.display='none';
   pmCurrentUser=user||null;
+  try{
+    await loadCurrentPMProfile(user);
+  }catch(err){
+    await supabaseClient.auth.signOut();
+    if(overlay){overlay.style.display='flex';overlay.setAttribute('aria-hidden','false');}
+    if(status)status.textContent='הכניסה למודול נדחתה: '+(err?.message||'אין הרשאה');
+    return;
+  }
+  if(overlay){overlay.style.display='none';overlay.setAttribute('aria-hidden','true');}
+  if(shell)shell.style.display='';
+  if(bar)bar.style.display='flex';
   const email=document.getElementById('pmAuthEmail');
-  if(email) email.textContent=user?.email||'';
+  if(email)email.textContent=pmCurrentProfile?.full_name||user?.email||'';
+  applyPMPermissions();
   setTimeout(()=>loadCloudData(),0);
 }
 document.addEventListener('DOMContentLoaded',()=>{
@@ -556,17 +695,20 @@ function monthBounds(){
 function weekStartFrom(s=today()){
   const d=dObj(s); const day=d.getDay(); d.setDate(d.getDate()-day); return dateStr(d)
 }
-function showTab(tab){
-  document.querySelectorAll('.pm-tab').forEach(b=>b.classList.toggle('active',b.dataset.pm===tab));
+function showTab(name){
+  if(name==='settings'&&!pmCan('settings'))return statusLine('אין הרשאה למסך ההגדרות.','error');
+  if(name==='users'&&!pmCan('users'))return statusLine('ניהול משתמשים זמין ל-Admin בלבד.','error');
+  if(name==='report'&&!pmCan('report'))return statusLine('דיווח טיפול אינו זמין בהרשאה שלך.','error');
+  document.querySelectorAll('.pm-tab').forEach(b=>b.classList.toggle('active',b.dataset.pm===name));
   document.querySelectorAll('.pm-panel').forEach(p=>p.classList.remove('active'));
-  const map={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',history:'pmHistory',settings:'pmSettings'};
-  document.getElementById(map[tab]).classList.add('active');
-  statusLine('');
-  if(tab==='dashboard')renderDashboard();
-  if(tab==='planner')renderPlanner();
-  if(tab==='report')renderReport();
-  if(tab==='history')renderHistory();
-  if(tab==='settings')renderSettingsTaskList();
+  const id={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',history:'pmHistory',settings:'pmSettings',users:'pmUsers'}[name];
+  document.getElementById(id)?.classList.add('active');
+  if(name==='dashboard')renderDashboard();
+  if(name==='planner')renderPlanner();
+  if(name==='report')renderReport();
+  if(name==='history')renderHistory();
+  if(name==='settings'){renderSettingsTaskList();renderEditor()}
+  if(name==='users')loadPMUsers();
 }
 function renderDashboard(){
 
@@ -685,6 +827,7 @@ function renderReport(){
     <button class="complete" onclick="completeTask('${x.t.id}')">✓ בוצע</button></div></div>`).join('')
 }
 async function completeTask(id){
+  if(!requirePM('report','אין הרשאה לדווח טיפול.'))return;
   const t=tasks.find(x=>String(x.id)===String(id)), date=pmReportDate.value||today();
   if(!t)return;
   if(history.some(h=>String(h.taskId)===String(id)&&h.date===date)){
@@ -776,6 +919,7 @@ function renderEditor(){
   </div><div style="margin-top:12px"><button class="btn" onclick="saveSettings('${t.id}')">שמירת הגדרות המשימה</button></div>`
 }
 async function saveSettings(id){
+  if(!requirePM('writeTasks','אין הרשאה לערוך משימות.'))return;
   const t=tasks.find(x=>String(x.id)===String(id));if(!t)return;
   const updated={
     ...t,
@@ -798,6 +942,7 @@ async function saveSettings(id){
   statusLine('הגדרות המשימה נשמרו בענן.','success');
 }
 async function addTask(){
+  if(!requirePM('writeTasks','אין הרשאה להוסיף משימות.'))return;
   const department=newDepartment.value.trim(), machine=newMachine.value.trim(), task=newTask.value.trim();
   if(!department||!machine||!task){statusLine('יש למלא מחלקה, מכונה ומשימת טיפול.','error');return}
   const row={
@@ -822,6 +967,7 @@ async function addTask(){
   statusLine('משימת הטיפול נוספה לענן.','success');
 }
 async function duplicateCurrentTask(){
+  if(!requirePM('writeTasks','אין הרשאה לשכפל משימות.'))return;
   const src=tasks.find(t=>String(t.id)===String(pmSettingsTask.value)); if(!src)return;
   const row=taskDbPayload({...src,task:src.task+' - עותק',lastDone:null});
   row.last_done=null;
@@ -835,6 +981,7 @@ async function duplicateCurrentTask(){
   statusLine('המשימה שוכפלה בענן.','success');
 }
 async function toggleCurrentTask(){
+  if(!requirePM('writeTasks','אין הרשאה להפעיל או לבטל משימות.'))return;
   const t=tasks.find(t=>String(t.id)===String(pmSettingsTask.value)); if(!t)return;
   const active=!(t.active!==false);
   const {error}=await supabaseClient.from('pm_tasks').update({active}).eq('id',t.id);
@@ -846,6 +993,120 @@ async function resetData(){
   if(!confirm('לטעון מחדש את הנתונים המעודכנים מהענן?'))return;
   await reloadCloudData();
   statusLine('הנתונים נטענו מחדש מ-Supabase.','success');
+}
+
+
+
+/* ============================================================
+   USER MANAGEMENT — shared FOP profiles
+   ============================================================ */
+function openPMCreateUserModal(){
+  if(!pmCan('users'))return;
+  document.getElementById('pmCreateUserStatus').textContent='';
+  document.getElementById('pmCreateUserModal').classList.add('open');
+  setTimeout(()=>document.getElementById('pmNewFullName').focus(),50);
+}
+function closePMCreateUserModal(){document.getElementById('pmCreateUserModal').classList.remove('open')}
+
+async function createPMUserFromApp(){
+  if(!pmCan('users'))return;
+  const full_name=document.getElementById('pmNewFullName').value.trim();
+  const email=document.getElementById('pmNewUserEmail').value.trim().toLowerCase();
+  const password=document.getElementById('pmNewUserPassword').value;
+  const role=document.getElementById('pmNewUserRole').value;
+  const status=document.getElementById('pmCreateUserStatus'),btn=document.getElementById('pmCreateUserButton');
+  status.className='pm-modal-status';
+  if(!full_name||!email||!email.includes('@')||password.length<8){
+    status.textContent='יש למלא שם, אימייל תקין וסיסמה של לפחות 8 תווים.';status.classList.add('error');return;
+  }
+  status.textContent='יוצר משתמש…';btn.disabled=true;
+  try{
+    // Existing FOP Edge Function accepts the legacy role set.
+    // Maintenance roles are created as operator and then assigned in profiles.
+    const functionRole=role==='admin'||role==='viewer'?role:'operator';
+    const {data,error}=await supabaseClient.functions.invoke('rapid-action',{body:{full_name,email,password,role:functionRole}});
+    if(error){
+      let details='';try{details=await error.context?.json?.()}catch(_e){}
+      throw new Error(details?.error||error.message||'שגיאה בקריאה לפונקציה');
+    }
+    if(!data?.success)throw new Error(data?.error||'הפונקציה לא אישרה את יצירת המשתמש');
+    const createdId=data?.user?.id||data?.user_id||data?.id||null;
+    if(role!==functionRole){
+      const roleUpdate=createdId
+        ? await supabaseClient.from('profiles').update({role,is_active:true}).eq('id',createdId)
+        : await supabaseClient.from('profiles').update({role,is_active:true}).ilike('email',email);
+      if(roleUpdate.error)throw new Error('המשתמש נוצר, אך שמירת תפקיד האחזקה נכשלה: '+roleUpdate.error.message);
+    }
+    status.textContent='המשתמש נוצר בהצלחה.';status.classList.add('success');
+    ['pmNewFullName','pmNewUserEmail','pmNewUserPassword'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('pmNewUserRole').value='technician';
+    await loadPMUsers();
+    setTimeout(closePMCreateUserModal,700);
+  }catch(err){
+    status.textContent='יצירת המשתמש נכשלה: '+(err?.message||'שגיאה לא ידועה');status.classList.add('error');
+  }finally{btn.disabled=false}
+}
+
+async function loadPMUsers(){
+  if(!pmCan('users'))return;
+  pmUserStatus('טוען משתמשים…');
+  const {data,error}=await supabaseClient.from('profiles').select('*').order('created_at',{ascending:true});
+  if(error){pmUserStatus('לא ניתן לטעון משתמשים: '+error.message,'error');return}
+  const box=document.getElementById('pmUserTable');box.innerHTML='';
+  (data||[]).forEach(u=>{
+    const email=[u.email,u.user_email,u.login_email].find(v=>String(v||'').includes('@'))||'';
+    const displayName=u.full_name||email||u.id;
+    const row=document.createElement('div');row.className='pm-user-row';
+    row.innerHTML=`<div class="pm-user-name"><strong>${esc(displayName)}</strong><small>${esc(email||u.id)}</small></div>
+      <select class="pm-role-select">
+        <option value="admin">Admin</option>
+        <option value="maintenance_manager">Maintenance Manager</option>
+        <option value="technician">Technician</option>
+        <option value="viewer">Viewer</option>
+      </select>
+      <label class="pm-user-active"><input type="checkbox" ${u.is_active===false?'':'checked'}> פעיל</label>
+      <button class="pm-user-btn" type="button" ${email?'':'disabled'}>איפוס סיסמה</button>`;
+    const sel=row.querySelector('select'),active=row.querySelector('input'),reset=row.querySelector('button');
+    sel.value=normalizePMRole(u.role);
+    sel.onchange=()=>changePMUserRole(u.id,sel.value);
+    active.onchange=()=>changePMUserActive(u.id,active.checked);
+    if(email)reset.onclick=()=>sendPMPasswordReset(email);
+    box.appendChild(row);
+  });
+  if(!(data||[]).length)box.innerHTML='<div class="empty">לא נמצאו משתמשים.</div>';
+  pmUserStatus(`נטענו ${(data||[]).length} משתמשים`,'success');
+}
+
+async function changePMUserRole(id,role){
+  if(!pmCan('users'))return;
+  pmUserStatus('שומר תפקיד…');
+  const {error}=await supabaseClient.from('profiles').update({role}).eq('id',id);
+  if(error){pmUserStatus('שמירת התפקיד נכשלה: '+error.message,'error');await loadPMUsers();return}
+  pmUserStatus('התפקיד נשמר.','success');
+  if(pmCurrentUser && String(id)===String(pmCurrentUser.id)){
+    pmCurrentRole=normalizePMRole(role);applyPMPermissions();
+    if(pmCurrentRole!=='admin')showTab('dashboard');
+  }
+}
+
+async function changePMUserActive(id,is_active){
+  if(!pmCan('users'))return;
+  if(pmCurrentUser && String(id)===String(pmCurrentUser.id) && !is_active){
+    pmUserStatus('לא ניתן להשבית את המשתמש המחובר מתוך המודול.','error');
+    await loadPMUsers();return;
+  }
+  pmUserStatus('שומר סטטוס…');
+  const {error}=await supabaseClient.from('profiles').update({is_active}).eq('id',id);
+  if(error){pmUserStatus('שמירת הסטטוס נכשלה: '+error.message,'error');await loadPMUsers();return}
+  pmUserStatus(is_active?'המשתמש הופעל.':'המשתמש הושבת.','success');
+}
+
+async function sendPMPasswordReset(email){
+  if(!pmCan('users'))return;
+  pmUserStatus('שולח קישור לאיפוס סיסמה…');
+  const {error}=await supabaseClient.auth.resetPasswordForEmail(email);
+  if(error){pmUserStatus('שליחת האיפוס נכשלה: '+error.message,'error');return}
+  pmUserStatus('קישור לאיפוס סיסמה נשלח ל-'+email,'success');
 }
 
 
@@ -936,6 +1197,7 @@ function updatePMInitUI(){
  }
 }
 async function initializePMPlan(){
+  if(!requirePM('initialize','Initialize זמין ל-Admin בלבד.'))return;
   if(!pmCurrentUser){alert('יש להתחבר למערכת.');return}
   if(!confirm("Initialize Preventive Maintenance Plan in Supabase?\nThis will recalculate the first due date for every active task.")) return;
   const now=new Date();
@@ -965,6 +1227,7 @@ document.addEventListener("DOMContentLoaded",updatePMInitUI);
 
 
 async function importPMPlanToSupabase(){
+  if(!requirePM('importPlan','ייבוא תוכנית זמין ל-Admin בלבד.'))return;
   if(!window.supabase || !supabaseClient){
     alert('Supabase client was not found.');
     return;
