@@ -164,8 +164,9 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <section id="pmReport" class="pm-panel">
     <div class="toolbar">
       <div class="field report-date"><label>תאריך ביצוע</label><input id="pmReportDate" type="date"></div>
-      <div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();renderReport()"></select></div>
+      <div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();fillReportPerformers();renderReport()"></select></div>
       <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
+       <div class="field"><label>מבצע</label><select id="pmReportPerformer" onchange="renderReport()"><option value="">מבצעים</option></select></div>
     </div>
     <div class="report-summary">
       <div class="report-chip" id="repOpen">0 משימות פתוחות</div>
@@ -514,6 +515,17 @@ document.addEventListener('DOMContentLoaded',()=>{
  const m=document.getElementById('pmDashboardMachine');
  if(m){m.addEventListener('change',fillDashboardPerformers);}
 });
+
+
+function fillReportPerformers(){
+ const dep=document.getElementById('pmReportDepartment')?.value||'';
+ const machine=document.getElementById('pmReportMachine')?.value||'';
+ const sel=document.getElementById('pmReportPerformer');
+ if(!sel)return;
+ const vals=[...new Set(TASK_SEED.filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)).map(t=>t.performer))].sort();
+ sel.innerHTML='<option value="">מבצעים</option>'+vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+}
+document.addEventListener('DOMContentLoaded',()=>{try{fillReportPerformers()}catch(e){}});
 
 </script>
 </body></html>
