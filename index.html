@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+
+<html dir="rtl" lang="he">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
 <title>FOP — Preventive Maintenance</title>
 <style>
 :root{--navy:#07172c;--navy2:#0a2c59;--green:#11865b;--green2:#42c98c;--blue:#1473e6;--red:#cf002c;--amber:#ef8b17;--text:#10213d;--muted:#6d7b91;--line:#dfe7f1;--bg:#f3f6fb;--shadow:0 14px 38px rgba(13,39,77,.12)}
@@ -131,163 +132,145 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
-
-<div id="pmAuthOverlay" aria-hidden="true">
-  <div class="pm-auth-card">
-    <h1>כניסה לאחזקה מונעת</h1>
-    <p>השתמש באותו אימייל וסיסמה של FOP.</p>
-    <form id="pmAuthForm">
-      <label for="pmAuthEmailInput">אימייל</label>
-      <input id="pmAuthEmailInput" type="email" autocomplete="username" required>
-      <label for="pmAuthPasswordInput">סיסמה</label>
-      <input id="pmAuthPasswordInput" type="password" autocomplete="current-password" required>
-      <button id="pmAuthLoginButton" class="pm-auth-primary" type="submit">כניסה למערכת</button>
-      <div id="pmAuthStatus" class="pm-auth-status"></div>
-    </form>
-  </div>
+<div aria-hidden="true" id="pmAuthOverlay">
+<div class="pm-auth-card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;"><img src="https://www.chromagen.com/wp-content/uploads/2022/02/chromagen-logo.png" style="height:42px;object-fit:contain;"/><img src="https://www.ariston.com/etc.clientlibs/ariston/clientlibs/clientlib-site/resources/images/logo.svg" style="height:36px;object-fit:contain;"/></div>
+<h1>Factory Operations Platform</h1><p style="font-weight:700;color:#0a2c59;margin-top:-6px;margin-bottom:18px;">Preventive Maintenance Module</p>
+<p>השתמש באותו אימייל וסיסמה של FOP.</p>
+<form id="pmAuthForm">
+<label for="pmAuthEmailInput">אימייל</label>
+<input autocomplete="username" id="pmAuthEmailInput" required="" type="email"/>
+<label for="pmAuthPasswordInput">סיסמה</label>
+<input autocomplete="current-password" id="pmAuthPasswordInput" required="" type="password"/>
+<button class="pm-auth-primary" id="pmAuthLoginButton" type="submit">כניסה למערכת</button>
+<div class="pm-auth-status" id="pmAuthStatus"></div>
+</form>
 </div>
-<div id="pmAuthUserbar" class="pm-auth-userbar">
-  <div class="pm-auth-identity"><span id="pmAuthEmail"></span></div>
-  <button id="pmAuthLogoutButton" class="pm-auth-logout" type="button">התנתקות</button>
 </div>
-
+<div class="pm-auth-userbar" id="pmAuthUserbar">
+<div class="pm-auth-identity"><span id="pmAuthEmail"></span></div>
+<button class="pm-auth-logout" id="pmAuthLogoutButton" type="button">התנתקות</button>
+</div>
 <div class="shell"><div class="card">
-  <div class="pm-head">
-    <div><h1>אחזקה מונעת</h1><p>כלי ניהולי לתכנון, מעקב ובקרה על תוכנית האחזקה המונעת.</p></div>
-    <button class="back" onclick="history.back()">← חזרה</button>
-  </div>
+<div class="pm-head">
+<div><h1>אחזקה מונעת</h1><p>כלי ניהולי לתכנון, מעקב ובקרה על תוכנית האחזקה המונעת.</p></div>
 
-  <div class="pm-tabs">
-    <button class="pm-tab active" data-pm="dashboard" onclick="showTab('dashboard')">דשבורד</button>
-    <button class="pm-tab" data-pm="planner" onclick="showTab('planner')">תכנון שבועי</button>
-    <button class="pm-tab" data-pm="report" onclick="showTab('report')">דיווח טיפול</button>
-    <button class="pm-tab" data-pm="history" onclick="showTab('history')">היסטוריה</button>
-    <button class="pm-tab" data-pm="settings" onclick="showTab('settings')">הגדרות</button>
-  </div>
-
-  <section id="pmDashboard" class="pm-panel active">
-    <div class="toolbar">
-      <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();fillDashboardPerformers();renderDashboard()"></select></div>
-      <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">מכונות</option></select></div>
-      <div class="field"><label>מבצע</label><select id="pmDashboardPerformer" onchange="renderDashboard()"><option value="">מבצעים</option></select></div>
-    </div>
-
-    <div class="pm-kpis">
-      <div class="kpi overdue"><strong id="pmOverdueCount">0</strong><span>משימות באיחור</span></div>
-      <div class="kpi today"><strong id="pmDueTodayCount">0</strong><span>נדרש היום</span></div>
-      <div class="kpi done"><strong id="pmCompletedTodayCount">0</strong><span>בוצע היום</span></div>
-      <div class="kpi upcoming"><strong id="pmUpcomingCount">0</strong><span>7 ימים קדימה</span></div>
-    </div>
-
-    <div class="mgmt-kpis">
-      <div class="mgmt-kpi"><strong id="pmMonthCompliance">0%</strong><span>עמידה בתוכנית החודשית</span></div>
-      <div class="mgmt-kpi"><strong id="pmPlannedHours">0</strong><span>שעות מתוכננות החודש</span></div>
-      <div class="mgmt-kpi"><strong id="pmDoneHours">0</strong><span>שעות שבוצעו החודש</span></div>
-      <div class="mgmt-kpi"><strong id="pmWeekHours">0</strong><span>שעות נדרשות ב־7 ימים</span></div>
-    </div>
-
-    <div class="split">
-      <div class="panel-box">
-        <h3>עומס לפי מבצע – 7 ימים</h3>
-        <div id="pmPerformerLoad"></div>
-      </div>
-      <div class="panel-box">
-        <h3>עומס לפי מחלקה – 7 ימים</h3>
-        <div id="pmDepartmentLoad"></div>
-      </div>
-    </div>
-
-    <div class="section-title"><h3>משימות קריטיות</h3><small>10 הדחופות ביותר</small></div>
-    <div id="pmCriticalTasks" class="task-list"></div>
-
-    <div class="section-title"><h3>מה נדרש לבצע</h3><small>באיחור + היום</small></div>
-    <div id="pmTodayTasks" class="task-list"></div>
-
-    <div class="section-title"><h3>7 הימים הקרובים</h3><small>לתכנון מראש</small></div>
-    <div id="pmUpcomingTasks" class="task-list"></div>
-  </section>
-
-  <section id="pmPlanner" class="pm-panel">
-    <div class="toolbar">
-      <div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="renderPlanner()"></select></div>
-      <div class="field"><label>שבוע שמתחיל בתאריך</label><input id="pmPlannerStart" type="date" onchange="renderPlanner()"></div>
-    </div>
-    <div id="pmPlannerGrid" class="planner-grid"></div>
-    <div id="pmPlannerDetail" class="planner-detail"></div>
-  </section>
-
-  <section id="pmReport" class="pm-panel">
-    <div class="toolbar">
-      <div class="field report-date"><label>תאריך ביצוע</label><input id="pmReportDate" type="date"></div>
-      <div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();fillReportPerformers();renderReport()"></select></div>
-      <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
-       <div class="field"><label>מבצע</label><select id="pmReportPerformer" onchange="renderReport()"><option value="">מבצעים</option></select></div>
-    </div>
-    <div class="report-summary">
-      <div class="report-chip" id="repOpen">0 משימות פתוחות</div>
-      <div class="report-chip" id="repLate">0 באיחור</div>
-      <div class="report-chip" id="repToday">0 להיום</div>
-    </div>
-    <div class="progress-wrap">
-      <div class="progress-bar"><div id="pmProgressFill" class="progress-fill"></div></div>
-      <div id="pmProgressText" class="progress-text">0 מתוך 0 בוצעו</div>
-    </div>
-    <div class="section-title"><h3>טיפולים פתוחים</h3><small>לפי המחלקה והמכונה שנבחרו</small></div>
-    <div id="pmOpenTasks" class="open-list"></div>
-  </section>
-
-  <section id="pmHistory" class="pm-panel">
-    <div class="history-filters">
-      <div class="field"><label>מחלקה</label><select id="pmHistoryDepartment" onchange="fillHistoryMachines();renderHistory()"></select></div>
-      <div class="field"><label>מכונה</label><select id="pmHistoryMachine" onchange="renderHistory()"><option value="">מכונות</option></select></div>
-      <div class="field"><label>מתאריך</label><input id="pmHistoryFrom" type="date" onchange="renderHistory()"></div>
-      <div class="field"><label>עד תאריך</label><input id="pmHistoryTo" type="date" onchange="renderHistory()"></div>
-      <div class="field"><label>חיפוש</label><input id="pmHistorySearch" type="text" placeholder="מכונה / טיפול / מבצע" oninput="renderHistory()"></div>
-    </div>
-    <div style="margin-bottom:12px"><button class="export-btn" onclick="exportHistoryCSV()">ייצוא לאקסל</button></div>
-    <div id="pmHistoryList"></div>
-  </section>
-
-  <section id="pmSettings" class="pm-panel">
-    
+</div>
+<div class="pm-tabs">
+<button class="pm-tab active" data-pm="dashboard" onclick="showTab('dashboard')">דשבורד</button>
+<button class="pm-tab" data-pm="planner" onclick="showTab('planner')">תכנון שבועי</button>
+<button class="pm-tab" data-pm="report" onclick="showTab('report')">דיווח טיפול</button>
+<button class="pm-tab" data-pm="history" onclick="showTab('history')">היסטוריה</button>
+<button class="pm-tab" data-pm="settings" onclick="showTab('settings')">הגדרות</button>
+</div>
+<section class="pm-panel active" id="pmDashboard">
+<div class="toolbar">
+<div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();fillDashboardPerformers();renderDashboard()"></select></div>
+<div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">מכונות</option></select></div>
+<div class="field"><label>מבצע</label><select id="pmDashboardPerformer" onchange="renderDashboard()"><option value="">מבצעים</option></select></div>
+</div>
+<div class="pm-kpis">
+<div class="kpi overdue"><strong id="pmOverdueCount">0</strong><span>משימות באיחור</span></div>
+<div class="kpi today"><strong id="pmDueTodayCount">0</strong><span>נדרש היום</span></div>
+<div class="kpi done"><strong id="pmCompletedTodayCount">0</strong><span>בוצע היום</span></div>
+<div class="kpi upcoming"><strong id="pmUpcomingCount">0</strong><span>7 ימים קדימה</span></div>
+</div>
+<div class="mgmt-kpis">
+<div class="mgmt-kpi"><strong id="pmMonthCompliance">0%</strong><span>עמידה בתוכנית החודשית</span></div>
+<div class="mgmt-kpi"><strong id="pmPlannedHours">0</strong><span>שעות מתוכננות החודש</span></div>
+<div class="mgmt-kpi"><strong id="pmDoneHours">0</strong><span>שעות שבוצעו החודש</span></div>
+<div class="mgmt-kpi"><strong id="pmWeekHours">0</strong><span>שעות נדרשות ב־7 ימים</span></div>
+</div>
+<div class="split">
+<div class="panel-box">
+<h3>עומס לפי מבצע – 7 ימים</h3>
+<div id="pmPerformerLoad"></div>
+</div>
+<div class="panel-box">
+<h3>עומס לפי מחלקה – 7 ימים</h3>
+<div id="pmDepartmentLoad"></div>
+</div>
+</div>
+<div class="section-title"><h3>משימות קריטיות</h3><small>10 הדחופות ביותר</small></div>
+<div class="task-list" id="pmCriticalTasks"></div>
+<div class="section-title"><h3>מה נדרש לבצע</h3><small>באיחור + היום</small></div>
+<div class="task-list" id="pmTodayTasks"></div>
+<div class="section-title"><h3>7 הימים הקרובים</h3><small>לתכנון מראש</small></div>
+<div class="task-list" id="pmUpcomingTasks"></div>
+</section>
+<section class="pm-panel" id="pmPlanner">
+<div class="toolbar">
+<div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="renderPlanner()"></select></div>
+<div class="field"><label>שבוע שמתחיל בתאריך</label><input id="pmPlannerStart" onchange="renderPlanner()" type="date"/></div>
+</div>
+<div class="planner-grid" id="pmPlannerGrid"></div>
+<div class="planner-detail" id="pmPlannerDetail"></div>
+</section>
+<section class="pm-panel" id="pmReport">
+<div class="toolbar">
+<div class="field report-date"><label>תאריך ביצוע</label><input id="pmReportDate" type="date"/></div>
+<div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();fillReportPerformers();renderReport()"></select></div>
+<div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
+<div class="field"><label>מבצע</label><select id="pmReportPerformer" onchange="renderReport()"><option value="">מבצעים</option></select></div>
+</div>
+<div class="report-summary">
+<div class="report-chip" id="repOpen">0 משימות פתוחות</div>
+<div class="report-chip" id="repLate">0 באיחור</div>
+<div class="report-chip" id="repToday">0 להיום</div>
+</div>
+<div class="progress-wrap">
+<div class="progress-bar"><div class="progress-fill" id="pmProgressFill"></div></div>
+<div class="progress-text" id="pmProgressText">0 מתוך 0 בוצעו</div>
+</div>
+<div class="section-title"><h3>טיפולים פתוחים</h3><small>לפי המחלקה והמכונה שנבחרו</small></div>
+<div class="open-list" id="pmOpenTasks"></div>
+</section>
+<section class="pm-panel" id="pmHistory">
+<div class="history-filters">
+<div class="field"><label>מחלקה</label><select id="pmHistoryDepartment" onchange="fillHistoryMachines();renderHistory()"></select></div>
+<div class="field"><label>מכונה</label><select id="pmHistoryMachine" onchange="renderHistory()"><option value="">מכונות</option></select></div>
+<div class="field"><label>מתאריך</label><input id="pmHistoryFrom" onchange="renderHistory()" type="date"/></div>
+<div class="field"><label>עד תאריך</label><input id="pmHistoryTo" onchange="renderHistory()" type="date"/></div>
+<div class="field"><label>חיפוש</label><input id="pmHistorySearch" oninput="renderHistory()" placeholder="מכונה / טיפול / מבצע" type="text"/></div>
+</div>
+<div style="margin-bottom:12px"><button class="export-btn" onclick="exportHistoryCSV()">ייצוא לאקסל</button></div>
+<div id="pmHistoryList"></div>
+</section>
+<section class="pm-panel" id="pmSettings">
 <div class="panel-box" style="margin-bottom:14px">
 <h3>Preventive Maintenance Plan</h3>
 <div id="pmCloudModeLabel" style="margin-bottom:8px;color:#11865b;font-weight:800">☁️ Cloud Mode — Supabase</div>
 <div id="pmInitStatus">🔴 Status: Not Initialized</div>
 <div id="pmInitDate" style="margin:6px 0 12px;color:#6d7b91"></div>
-<button id="pmInitBtn" class="btn" onclick="initializePMPlan()">Initialize PM Plan</button>
-<button id="pmImportBtn" class="secondary-btn" onclick="importPMPlanToSupabase()" style="margin-inline-start:8px">⬆️ Import PM Plan to Supabase</button>
+<button class="btn" id="pmInitBtn" onclick="initializePMPlan()">Initialize PM Plan</button>
+<button class="secondary-btn" id="pmImportBtn" onclick="importPMPlanToSupabase()" style="margin-inline-start:8px">⬆️ Import PM Plan to Supabase</button>
 </div>
 <div class="add-box">
-      <h3>הוספת משימת טיפול</h3>
-      <div class="edit-grid">
-        <div class="field"><label>מחלקה</label><input id="newDepartment" type="text" placeholder="שם המחלקה"></div>
-        <div class="field"><label>מכונה</label><input id="newMachine" type="text" placeholder="שם המכונה"></div>
-        <div class="field full"><label>משימת טיפול</label><input id="newTask" type="text" placeholder="מה נדרש לבצע"></div>
-        <div class="field"><label>תדירות</label><select id="newFrequency"></select></div>
-        <div class="field"><label>מבצע</label><select id="newPerformer"><option>מפעיל</option><option selected>טכנאי אחזקה</option><option>קבלן משנה</option></select></div>
-        <div class="field"><label>משך טיפול (דקות)</label><input id="newDuration" type="number" min="0"></div>
-        <div class="field"><label>מועד טיפול ראשון</label><input id="newDue" type="date"></div>
-        <div class="field full"><label>הערות</label><textarea id="newNotes" class="textarea"></textarea></div>
-      </div>
-      <div style="margin-top:10px"><button class="btn" onclick="addTask()">+ הוספת משימה</button></div>
-    </div>
-
-    <div class="settings-grid">
-      <div class="field"><label>מחלקה</label><select id="pmSettingsDepartment" onchange="renderSettingsTaskList()"></select></div>
-      <div class="field"><label>משימת טיפול</label><select id="pmSettingsTask" onchange="renderEditor()"></select></div>
-    </div>
-    <div class="settings-actions">
-      <button class="secondary-btn" onclick="duplicateCurrentTask()">שכפול משימה</button>
-      <button class="danger-btn" onclick="toggleCurrentTask()">הפעלה / ביטול משימה</button>
-    </div>
-    <div id="pmSettingsEditor" class="editor"></div>
-    <div style="margin-top:12px"><button class="back" onclick="resetData()">איפוס לנתוני האקסל</button></div>
-  </section>
-
-  <div id="pmStatus" class="status-line"></div>
+<h3>הוספת משימת טיפול</h3>
+<div class="edit-grid">
+<div class="field"><label>מחלקה</label><input id="newDepartment" placeholder="שם המחלקה" type="text"/></div>
+<div class="field"><label>מכונה</label><input id="newMachine" placeholder="שם המכונה" type="text"/></div>
+<div class="field full"><label>משימת טיפול</label><input id="newTask" placeholder="מה נדרש לבצע" type="text"/></div>
+<div class="field"><label>תדירות</label><select id="newFrequency"></select></div>
+<div class="field"><label>מבצע</label><select id="newPerformer"><option>מפעיל</option><option selected="">טכנאי אחזקה</option><option>קבלן משנה</option></select></div>
+<div class="field"><label>משך טיפול (דקות)</label><input id="newDuration" min="0" type="number"/></div>
+<div class="field"><label>מועד טיפול ראשון</label><input id="newDue" type="date"/></div>
+<div class="field full"><label>הערות</label><textarea class="textarea" id="newNotes"></textarea></div>
+</div>
+<div style="margin-top:10px"><button class="btn" onclick="addTask()">+ הוספת משימה</button></div>
+</div>
+<div class="settings-grid">
+<div class="field"><label>מחלקה</label><select id="pmSettingsDepartment" onchange="renderSettingsTaskList()"></select></div>
+<div class="field"><label>משימת טיפול</label><select id="pmSettingsTask" onchange="renderEditor()"></select></div>
+</div>
+<div class="settings-actions">
+<button class="secondary-btn" onclick="duplicateCurrentTask()">שכפול משימה</button>
+<button class="danger-btn" onclick="toggleCurrentTask()">הפעלה / ביטול משימה</button>
+</div>
+<div class="editor" id="pmSettingsEditor"></div>
+<div style="margin-top:12px"><button class="back" onclick="resetData()">איפוס לנתוני האקסל</button></div>
+</section>
+<div class="status-line" id="pmStatus"></div>
 </div></div>
-
 <!--
   ============================================================
   FOP PREVENTIVE MAINTENANCE — SINGLE FILE ARCHITECTURE
@@ -304,7 +287,6 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
  10. APP INITIALIZATION
   ============================================================
 -->
-
 <script>
 
 
