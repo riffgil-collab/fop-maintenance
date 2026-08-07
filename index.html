@@ -152,6 +152,25 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 .pm-access-denied{padding:22px;border:1px solid #f1d38c;border-radius:15px;background:#fff9e9;color:#725500;text-align:center;font-size:12px;font-weight:800}
 @media(max-width:760px){.pm-user-row{grid-template-columns:1fr}.pm-role-select,.pm-user-btn{width:100%}.pm-user-active{justify-content:flex-start}}
 
+
+/* ===== POSTPONE + UNDO COMPLETION ===== */
+.pm-task-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start}
+.pm-postpone{border:0;border-radius:11px;background:#fff2d8;color:#8a5900;padding:10px 12px;font-weight:900;white-space:nowrap}
+.pm-history-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.pm-undo{border:0;border-radius:9px;background:#fff0f3;color:#b60029;padding:8px 10px;font-weight:900;font-size:10px}
+.pm-history-event{font-size:10px;font-weight:900;border-radius:999px;padding:5px 8px;display:inline-block;margin-top:5px}
+.pm-history-event.completed{background:#eaf8ef;color:#12733b}
+.pm-history-event.postponed{background:#fff2d8;color:#8a5900}
+.pm-postpone-detail{margin-top:5px;color:#725500;font-size:10px;line-height:1.45}
+.pm-exception-modal label{display:block;font-size:11px;font-weight:900;color:#40516d;margin:10px 0 6px}
+.pm-exception-modal textarea{width:100%;min-height:88px;border:1px solid #d7e0eb;border-radius:12px;padding:10px;font:inherit;resize:vertical;background:#fff}
+@media(max-width:680px){
+  .pm-task-actions{width:100%;margin-top:10px}
+  .pm-task-actions button{flex:1}
+  .history-row{grid-template-columns:82px minmax(0,1fr)}
+  .pm-history-actions{grid-column:2;justify-content:flex-start}
+}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -307,6 +326,23 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="status-line" id="pmStatus"></div>
 </div></div>
 
+
+<div class="pm-modal-backdrop pm-exception-modal" id="pmPostponeModal" onclick="if(event.target===this)closePostponeModal()">
+  <div class="pm-modal-card" role="dialog" aria-modal="true" aria-labelledby="pmPostponeTitle">
+    <h3 id="pmPostponeTitle">דחיית טיפול</h3>
+    <p id="pmPostponeTaskText"></p>
+    <label for="pmPostponeDate">מועד חדש</label>
+    <input id="pmPostponeDate" type="date">
+    <label for="pmPostponeReason">סיבת הדחייה</label>
+    <textarea id="pmPostponeReason" placeholder="יש להזין סיבה לדחיית הטיפול"></textarea>
+    <div class="pm-modal-actions">
+      <button class="cancel" type="button" onclick="closePostponeModal()">ביטול</button>
+      <button class="create" id="pmPostponeSaveButton" type="button" onclick="savePostpone()">שמירת דחייה</button>
+    </div>
+    <div class="pm-modal-status" id="pmPostponeStatus"></div>
+  </div>
+</div>
+
 <div class="pm-modal-backdrop" id="pmCreateUserModal" onclick="if(event.target===this)closePMCreateUserModal()">
   <div class="pm-modal-card" role="dialog" aria-modal="true" aria-labelledby="pmCreateUserTitle">
     <h3 id="pmCreateUserTitle">יצירת משתמש חדש</h3>
@@ -357,10 +393,10 @@ let pmCurrentProfile=null;
 let pmCurrentRole='viewer';
 
 const PM_ROLES={
-  admin:{label:'Admin',settings:true,report:true,users:true,initialize:true,importPlan:true,writeTasks:true},
-  maintenance_manager:{label:'Maintenance Manager',settings:true,report:true,users:false,initialize:false,importPlan:false,writeTasks:true},
-  technician:{label:'Technician',settings:false,report:true,users:false,initialize:false,importPlan:false,writeTasks:false},
-  viewer:{label:'Viewer',settings:false,report:false,users:false,initialize:false,importPlan:false,writeTasks:false}
+  admin:{label:'Admin',settings:true,report:true,users:true,initialize:true,importPlan:true,writeTasks:true,manageExceptions:true},
+  maintenance_manager:{label:'Maintenance Manager',settings:true,report:true,users:false,initialize:false,importPlan:false,writeTasks:true,manageExceptions:true},
+  technician:{label:'Technician',settings:false,report:true,users:false,initialize:false,importPlan:false,writeTasks:false,manageExceptions:false},
+  viewer:{label:'Viewer',settings:false,report:false,users:false,initialize:false,importPlan:false,writeTasks:false,manageExceptions:false}
 };
 
 
@@ -657,6 +693,32 @@ function diff(a,b){return Math.round((dObj(a)-dObj(b))/86400000)}
 function fDate(s){return s?dObj(s).toLocaleDateString('he-IL'):'—'}
 function hours(mins){return (Number(mins||0)/60).toFixed(1)}
 function statusLine(msg,type=''){const e=document.getElementById('pmStatus');e.textContent=msg||'';e.className='status-line '+type}
+
+function cleanAuditValue(v){return String(v??'').replace(/\|/g,'/').replace(/\r?\n/g,' ').trim()}
+function taskAuditLines(notes){return String(notes||'').split(/\r?\n/).filter(x=>/^\[PM_(POSTPONE|UNDO)\|/.test(x.trim()))}
+function visibleTaskNotes(notes){return String(notes||'').split(/\r?\n/).filter(x=>!/^\[PM_(POSTPONE|UNDO)\|/.test(x.trim())).join('\n').trim()}
+function preserveAuditNotes(oldNotes,newVisible){
+  const audits=taskAuditLines(oldNotes);
+  const clean=String(newVisible||'').trim();
+  return [clean,...audits].filter(Boolean).join('\n');
+}
+function parsePostponeAudits(t){
+  return taskAuditLines(t.notes).filter(x=>x.startsWith('[PM_POSTPONE|')).map(line=>{
+    const body=line.replace(/^\[PM_POSTPONE\|/,'').replace(/\]$/,'');
+    const p=body.split('|');
+    return {eventType:'postponed',taskId:t.id,department:t.department,machine:t.machine,task:t.task,frequency:t.frequency,performer:t.performer,
+      oldDue:p[0]||'',newDue:p[1]||'',reason:p[2]||'',reportedBy:p[3]||'—',reportedAt:p[4]||'',date:(p[4]||today()).slice(0,10)};
+  });
+}
+function allHistoryEvents(){
+  const completed=(history||[]).map(h=>({...h,eventType:'completed'}));
+  const postponed=(tasks||[]).flatMap(parsePostponeAudits);
+  return [...completed,...postponed].sort((a,b)=>
+    String(b.date||'').localeCompare(String(a.date||'')) ||
+    String(b.reportedAt||'').localeCompare(String(a.reportedAt||''))
+  );
+}
+
 function normalize(t){
   return {
     ...t,
@@ -728,8 +790,11 @@ const dashboardFilter=t=>(!selectedDepartment||t.department===selectedDepartment
   const [mStart,mEnd]=monthBounds();
   const monthDone=history.filter(h=>h.date>=mStart&&h.date<=mEnd&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&(!selectedPerformer||h.performer===selectedPerformer));
   const monthTaskIds=new Set(monthDone.map(h=>h.taskId));
-  const plannedMonth=active.filter(t=>(t.nextDue>=mStart&&t.nextDue<=mEnd)||monthTaskIds.has(t.id));
-  const compliance=plannedMonth.length?Math.round(monthTaskIds.size/plannedMonth.length*100):0;
+  const postponedInMonth=active.flatMap(t=>parsePostponeAudits(t).filter(e=>e.oldDue>=mStart&&e.oldDue<=mEnd).map(e=>({...e,taskRef:t})));
+  const postponedTaskIds=new Set(postponedInMonth.map(e=>e.taskId));
+  const plannedMonth=active.filter(t=>(t.nextDue>=mStart&&t.nextDue<=mEnd)||monthTaskIds.has(t.id)||postponedTaskIds.has(t.id));
+  const onTimeDoneIds=new Set([...monthTaskIds].filter(id=>!postponedTaskIds.has(id)));
+  const compliance=plannedMonth.length?Math.round(onTimeDoneIds.size/plannedMonth.length*100):0;
   pmMonthCompliance.textContent=compliance+'%';
 
   const plannedMin=plannedMonth.reduce((a,t)=>a+Number(t.duration||0),0);
@@ -818,14 +883,55 @@ function renderReport(){
   pmProgressText.textContent=`${done} מתוך ${total} בוצעו היום`;
 
   if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין טיפולים פתוחים בבחירה הנוכחית.</div>';return}
+  const canManage=pmCan('manageExceptions');
   pmOpenTasks.innerHTML=list.map(x=>`<div class="open-task ${x.s.state} ${x.s.state==='overdue'?'topbar-red':'topbar-orange'}" id="open-${x.t.id}">
     <div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div>
     <div class="big-late">${x.s.state==='overdue'?Math.abs(x.s.n)+' ימי איחור':'לביצוע היום'}</div>
     <div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(x.t.performer)}<br>יעד: ${esc(fDate(x.t.nextDue))}${x.t.lastDone?`<br>טיפול אחרון: ${esc(fDate(x.t.lastDone))}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div>
     ${x.t.parts?`<div class="meta"><strong>חלקים:</strong> ${esc(x.t.parts)}</div>`:''}
-    ${x.t.notes?`<div class="meta"><strong>הערות:</strong> ${esc(x.t.notes)}</div>`:''}</div>
-    <button class="complete" onclick="completeTask('${x.t.id}')">✓ בוצע</button></div></div>`).join('')
+    ${visibleTaskNotes(x.t.notes)?`<div class="meta"><strong>הערות:</strong> ${esc(visibleTaskNotes(x.t.notes))}</div>`:''}</div>
+    <div class="pm-task-actions">
+      <button class="complete" onclick="completeTask('${x.t.id}')">✓ בוצע</button>
+      ${canManage?`<button class="pm-postpone" onclick="openPostponeModal('${x.t.id}')">📅 דחיית טיפול</button>`:''}
+    </div></div></div>`).join('')
 }
+
+let pmPostponeTaskId=null;
+function openPostponeModal(id){
+  if(!pmCan('manageExceptions'))return statusLine('דחיית טיפול זמינה למנהל אחזקה בלבד.','error');
+  const t=tasks.find(x=>String(x.id)===String(id));if(!t)return;
+  pmPostponeTaskId=t.id;
+  document.getElementById('pmPostponeTaskText').textContent=`${t.machine} — ${t.task} · מועד נוכחי: ${fDate(t.nextDue)}`;
+  document.getElementById('pmPostponeDate').min=addDays(today(),1);
+  document.getElementById('pmPostponeDate').value=addDays(today(),1);
+  document.getElementById('pmPostponeReason').value='';
+  const s=document.getElementById('pmPostponeStatus');s.textContent='';s.className='pm-modal-status';
+  document.getElementById('pmPostponeModal').classList.add('open');
+}
+function closePostponeModal(){document.getElementById('pmPostponeModal').classList.remove('open');pmPostponeTaskId=null}
+async function savePostpone(){
+  if(!pmCan('manageExceptions'))return;
+  const t=tasks.find(x=>String(x.id)===String(pmPostponeTaskId));if(!t)return;
+  const newDue=document.getElementById('pmPostponeDate').value;
+  const reason=document.getElementById('pmPostponeReason').value.trim();
+  const status=document.getElementById('pmPostponeStatus'),btn=document.getElementById('pmPostponeSaveButton');
+  status.className='pm-modal-status';
+  if(!newDue||newDue<=today()){status.textContent='יש לבחור מועד עתידי.';status.classList.add('error');return}
+  if(!reason){status.textContent='יש להזין סיבה לדחיית הטיפול.';status.classList.add('error');return}
+  const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
+  const stamp=new Date().toISOString();
+  const marker=`[PM_POSTPONE|${cleanAuditValue(t.nextDue)}|${cleanAuditValue(newDue)}|${cleanAuditValue(reason)}|${cleanAuditValue(actor)}|${stamp}]`;
+  const newNotes=[String(t.notes||'').trim(),marker].filter(Boolean).join('\n');
+  status.textContent='שומר דחייה בענן…';btn.disabled=true;
+  const {error}=await supabaseClient.from('pm_tasks').update({next_due:newDue,notes:newNotes}).eq('id',t.id);
+  btn.disabled=false;
+  if(error){status.textContent='שמירת הדחייה נכשלה: '+error.message;status.classList.add('error');return}
+  status.textContent='הטיפול נדחה. הדחייה תישאר חריגה במדד העמידה בתוכנית.';status.classList.add('success');
+  await reloadCloudData();
+  setTimeout(closePostponeModal,650);
+}
+
+
 async function completeTask(id){
   if(!requirePM('report','אין הרשאה לדווח טיפול.'))return;
   const t=tasks.find(x=>String(x.id)===String(id)), date=pmReportDate.value||today();
@@ -873,18 +979,80 @@ function fillHistoryMachines(){
 }
 function filteredHistory(){
   const dep=pmHistoryDepartment.value, machine=pmHistoryMachine.value, from=pmHistoryFrom.value, to=pmHistoryTo.value, q=pmHistorySearch.value.trim().toLowerCase();
-  return history.filter(h=>(!dep||h.department===dep)&&(!machine||h.machine===machine)&&(!from||h.date>=from)&&(!to||h.date<=to)&&(!q||`${h.machine} ${h.task} ${h.department} ${h.performer} ${h.reportedBy||''}`.toLowerCase().includes(q)))
+  return allHistoryEvents().filter(h=>(!dep||h.department===dep)&&(!machine||h.machine===machine)&&(!from||h.date>=from)&&(!to||h.date<=to)&&(!q||`${h.machine} ${h.task} ${h.department} ${h.performer} ${h.reportedBy||''} ${h.reason||''}`.toLowerCase().includes(q)))
 }
 function renderHistory(){
   const list=filteredHistory().slice(0,500);
   if(!list.length){pmHistoryList.innerHTML='<div class="empty">לא נמצאו דיווחי טיפול.</div>';return}
-  pmHistoryList.innerHTML=list.map(h=>`<div class="history-row"><div><strong>${esc(fDate(h.date))}</strong></div>
-  <div><strong>${esc(h.machine)}</strong><small>${esc(h.task)}</small><small>${esc(h.department)} · ${esc(h.frequency)} · ${esc(h.performer)}</small></div>
-  <div class="history-user">${esc(h.reportedBy||'—')}</div></div>`).join('')
+  const canManage=pmCan('manageExceptions');
+  pmHistoryList.innerHTML=list.map(h=>{
+    const postponed=h.eventType==='postponed';
+    return `<div class="history-row">
+      <div><strong>${esc(fDate(h.date))}</strong><span class="pm-history-event ${postponed?'postponed':'completed'}">${postponed?'נדחה':'בוצע'}</span></div>
+      <div><strong>${esc(h.machine)}</strong><small>${esc(h.task)}</small><small>${esc(h.department)} · ${esc(h.frequency)} · ${esc(h.performer)}</small>
+        ${postponed?`<div class="pm-postpone-detail">מועד מקורי: ${esc(fDate(h.oldDue))} → מועד חדש: ${esc(fDate(h.newDue))}<br>סיבה: ${esc(h.reason||'—')}</div>`:''}
+      </div>
+      <div class="history-user">${esc(h.reportedBy||'—')}</div>
+      ${canManage&&!postponed?`<div class="pm-history-actions"><button class="pm-undo" type="button" onclick="undoCompletion('${esc(String(h.id??''))}','${esc(String(h.taskId??''))}','${esc(String(h.date??''))}')">↩ Undo</button></div>`:''}
+    </div>`;
+  }).join('')
 }
+
+async function deleteCompletionHistoryRow(h){
+  if(h.id!==undefined&&h.id!==null&&String(h.id)!==''){
+    const res=await supabaseClient.from('pm_history').delete().eq('id',h.id);
+    if(!res.error)return;
+  }
+  const attempts=[
+    ['date',h.date],['completed_date',h.date]
+  ];
+  let lastError=null;
+  for(const [dateCol,dateVal] of attempts){
+    const res=await supabaseClient.from('pm_history').delete().eq('task_id',h.taskId).eq(dateCol,dateVal);
+    if(!res.error)return;
+    lastError=res.error;
+    const msg=String(res.error.message||'').toLowerCase();
+    if(msg.includes('policy')||msg.includes('permission')||msg.includes('authorized'))break;
+  }
+  throw lastError||new Error('לא ניתן למחוק את דיווח ההיסטוריה');
+}
+async function undoCompletion(historyId,taskId,date){
+  if(!pmCan('manageExceptions'))return statusLine('Undo זמין למנהל אחזקה בלבד.','error');
+  const candidates=history.filter(h=>String(h.taskId)===String(taskId)&&String(h.date)===String(date));
+  const h=candidates.find(x=>String(x.id??'')===String(historyId))||candidates[0];
+  if(!h)return statusLine('דיווח הטיפול לא נמצא.','error');
+  if(!confirm(`לבטל את דיווח הביצוע של "${h.task}" מתאריך ${fDate(h.date)}?`))return;
+
+  statusLine('מבטל את דיווח הביצוע…');
+  const sameTask=history.filter(x=>String(x.taskId)===String(taskId)&&x!==h)
+    .sort((a,b)=>String(b.reportedAt||b.date||'').localeCompare(String(a.reportedAt||a.date||'')));
+  const latestBeforeUndo=[h,...sameTask].sort((a,b)=>String(b.reportedAt||b.date||'').localeCompare(String(a.reportedAt||a.date||'')))[0];
+  const isLatest=latestBeforeUndo===h;
+  const previousDone=sameTask[0]?.date||null;
+  const t=tasks.find(x=>String(x.id)===String(taskId));
+
+  try{
+    await deleteCompletionHistoryRow(h);
+    if(isLatest&&t){
+      const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
+      const stamp=new Date().toISOString();
+      const marker=`[PM_UNDO|${cleanAuditValue(h.date)}|${cleanAuditValue(actor)}|${stamp}]`;
+      const newNotes=[String(t.notes||'').trim(),marker].filter(Boolean).join('\n');
+      const upd=await supabaseClient.from('pm_tasks').update({last_done:previousDone,next_due:h.date,notes:newNotes}).eq('id',t.id);
+      if(upd.error)throw upd.error;
+    }
+    await reloadCloudData();
+    statusLine('דיווח הביצוע בוטל והטיפול הוחזר לרשימת הטיפולים הפתוחים.','success');
+  }catch(err){
+    statusLine('ביטול הדיווח נכשל: '+(err?.message||'שגיאה לא ידועה'),'error');
+  }
+}
+
+
 function exportHistoryCSV(){
   const rows=filteredHistory();
-  const data=[['תאריך','מחלקה','מכונה','משימת טיפול','תדירות','מבצע','דווח על ידי'],...rows.map(h=>[h.date,h.department,h.machine,h.task,h.frequency,h.performer,h.reportedBy||''])];
+  const data=[['תאריך','סוג','מחלקה','מכונה','משימת טיפול','תדירות','מבצע','דווח על ידי','מועד מקורי','מועד חדש','סיבה'],
+    ...rows.map(h=>[h.date,h.eventType==='postponed'?'נדחה':'בוצע',h.department,h.machine,h.task,h.frequency,h.performer,h.reportedBy||'',h.oldDue||'',h.newDue||'',h.reason||''])];
   const csv='\ufeff'+data.map(r=>r.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}), a=document.createElement('a');
   a.href=URL.createObjectURL(blob); a.download='maintenance_history.csv'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(a.href)
@@ -914,7 +1082,7 @@ function renderEditor(){
   <div class="field"><label>מבצע טיפול</label><select id="editPerf"><option ${t.performer==='מפעיל'?'selected':''}>מפעיל</option><option ${t.performer==='טכנאי אחזקה'?'selected':''}>טכנאי אחזקה</option><option ${t.performer==='קבלן משנה'?'selected':''}>קבלן משנה</option></select></div>
   <div class="field"><label>מועד טיפול הבא</label><input id="editDue" type="date" value="${esc(t.nextDue||today())}"></div>
   <div class="field"><label>משך טיפול (דקות)</label><input id="editDuration" type="number" min="0" value="${t.duration??''}"></div>
-  <div class="field full"><label>הערות</label><textarea id="editNotes" class="textarea">${esc(t.notes||'')}</textarea></div>
+  <div class="field full"><label>הערות</label><textarea id="editNotes" class="textarea">${esc(visibleTaskNotes(t.notes))}</textarea></div>
   <div class="full"><label class="active-line"><input id="editActive" type="checkbox" ${t.active!==false?'checked':''}> משימה פעילה בתוכנית</label></div>
   </div><div style="margin-top:12px"><button class="btn" onclick="saveSettings('${t.id}')">שמירת הגדרות המשימה</button></div>`
 }
@@ -930,7 +1098,7 @@ async function saveSettings(id){
     performer:editPerf.value,
     nextDue:editDue.value||t.nextDue,
     duration:editDuration.value===''?null:Number(editDuration.value),
-    notes:editNotes.value.trim(),
+    notes:preserveAuditNotes(t.notes,editNotes.value.trim()),
     active:editActive.checked
   };
   statusLine('שומר הגדרות בענן…','');
