@@ -605,10 +605,12 @@ async function loadCloudData(){
     if(!historyRes.error) historyRows=historyRes.data||[];
     else console.warn('pm_history load:',historyRes.error.message);
 
-    history=historyRows.map(normalizeHistoryRow).sort((a,b)=>
-      String(b.date||'').localeCompare(String(a.date||'')) ||
-      String(b.reportedAt||'').localeCompare(String(a.reportedAt||''))
-    );
+    history=historyRows.map(normalizeHistoryRow)
+      .filter(h=>!isCompletionUndone(h))
+      .sort((a,b)=>
+        String(b.date||'').localeCompare(String(a.date||'')) ||
+        String(b.reportedAt||'').localeCompare(String(a.reportedAt||''))
+      );
 
     cloudDashboardTasks=tasks;
     cloudDashboardLoaded=true;
@@ -710,8 +712,22 @@ function parsePostponeAudits(t){
       oldDue:p[0]||'',newDue:p[1]||'',reason:p[2]||'',reportedBy:p[3]||'—',reportedAt:p[4]||'',date:(p[4]||today()).slice(0,10)};
   });
 }
+
+function parseUndoAudits(t){
+  return taskAuditLines(t.notes).filter(x=>x.startsWith('[PM_UNDO|')).map(line=>{
+    const body=line.replace(/^\[PM_UNDO\|/,'').replace(/\]$/,'');
+    const p=body.split('|');
+    return {taskId:String(t.id),date:p[0]||'',reportedBy:p[1]||'',reportedAt:p[2]||''};
+  });
+}
+function isCompletionUndone(h){
+  const t=tasks.find(x=>String(x.id)===String(h.taskId));
+  if(!t)return false;
+  return parseUndoAudits(t).some(u=>String(u.taskId)===String(h.taskId)&&String(u.date)===String(h.date));
+}
+
 function allHistoryEvents(){
-  const completed=(history||[]).map(h=>({...h,eventType:'completed'}));
+  const completed=(history||[]).filter(h=>!isCompletionUndone(h)).map(h=>({...h,eventType:'completed'}));
   const postponed=(tasks||[]).flatMap(parsePostponeAudits);
   return [...completed,...postponed].sort((a,b)=>
     String(b.date||'').localeCompare(String(a.date||'')) ||
@@ -999,50 +1015,124 @@ function renderHistory(){
 }
 
 async function deleteCompletionHistoryRow(h){
-  if(h.id!==undefined&&h.id!==null&&String(h.id)!==''){
-    const res=await supabaseClient.from('pm_history').delete().eq('id',h.id);
-    if(!res.error)return;
+  // Supabase DELETE can return no error even when RLS matched zero rows.
+  // Therefore every delete attempt is verified by reading the record back.
+  async function stillExistsById(id){
+    const q=await supabaseClient.from('pm_history').select('*').eq('id',id).limit(1);
+    if(q.error)throw q.error;
+    return (q.data||[]).length>0;
   }
-  const attempts=[
-    ['date',h.date],['completed_date',h.date]
-  ];
+
   let lastError=null;
-  for(const [dateCol,dateVal] of attempts){
-    const res=await supabaseClient.from('pm_history').delete().eq('task_id',h.taskId).eq(dateCol,dateVal);
-    if(!res.error)return;
-    lastError=res.error;
-    const msg=String(res.error.message||'').toLowerCase();
-    if(msg.includes('policy')||msg.includes('permission')||msg.includes('authorized'))break;
+
+  if(h.id!==undefined&&h.id!==null&&String(h.id)!==''){
+    const del=await supabaseClient.from('pm_history').delete().eq('id',h.id);
+    if(del.error) lastError=del.error;
+    else{
+      const remains=await stillExistsById(h.id);
+      if(!remains)return true;
+      lastError=new Error('רשומת הביצוע נשארה בענן לאחר DELETE (כנראה מדיניות RLS).');
+    }
   }
+
+  // Fallbacks for older pm_history schemas.
+  const attempts=[
+    ['date',h.date],
+    ['completed_date',h.date]
+  ];
+  for(const [dateCol,dateVal] of attempts){
+    const del=await supabaseClient.from('pm_history')
+      .delete()
+      .eq('task_id',h.taskId)
+      .eq(dateCol,dateVal);
+    if(del.error){
+      lastError=del.error;
+      continue;
+    }
+
+    const check=await supabaseClient.from('pm_history')
+      .select('*')
+      .eq('task_id',h.taskId)
+      .eq(dateCol,dateVal)
+      .limit(1);
+    if(check.error){
+      lastError=check.error;
+      continue;
+    }
+    if(!(check.data||[]).length)return true;
+    lastError=new Error('רשומת הביצוע נשארה בענן לאחר DELETE.');
+  }
+
   throw lastError||new Error('לא ניתן למחוק את דיווח ההיסטוריה');
 }
 async function undoCompletion(historyId,taskId,date){
   if(!pmCan('manageExceptions'))return statusLine('Undo זמין למנהל אחזקה בלבד.','error');
+
   const candidates=history.filter(h=>String(h.taskId)===String(taskId)&&String(h.date)===String(date));
   const h=candidates.find(x=>String(x.id??'')===String(historyId))||candidates[0];
   if(!h)return statusLine('דיווח הטיפול לא נמצא.','error');
-  if(!confirm(`לבטל את דיווח הביצוע של "${h.task}" מתאריך ${fDate(h.date)}?`))return;
+
+  if(!confirm(`לבטל את דיווח הביצוע של "${h.task}" מתאריך ${fDate(h.date)}?\n\nהטיפול יחזור לרשימת הטיפולים הפתוחים.`))return;
+
+  const t=tasks.find(x=>String(x.id)===String(taskId));
+  if(!t)return statusLine('משימת הטיפול לא נמצאה.','error');
 
   statusLine('מבטל את דיווח הביצוע…');
-  const sameTask=history.filter(x=>String(x.taskId)===String(taskId)&&x!==h)
+
+  const sameTask=history
+    .filter(x=>String(x.taskId)===String(taskId)&&x!==h)
     .sort((a,b)=>String(b.reportedAt||b.date||'').localeCompare(String(a.reportedAt||a.date||'')));
-  const latestBeforeUndo=[h,...sameTask].sort((a,b)=>String(b.reportedAt||b.date||'').localeCompare(String(a.reportedAt||a.date||'')))[0];
+
+  const latestBeforeUndo=[h,...sameTask]
+    .sort((a,b)=>String(b.reportedAt||b.date||'').localeCompare(String(a.reportedAt||a.date||'')))[0];
+
   const isLatest=latestBeforeUndo===h;
   const previousDone=sameTask[0]?.date||null;
-  const t=tasks.find(x=>String(x.id)===String(taskId));
+  const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
+  const stamp=new Date().toISOString();
+
+  // One completion per task/date is already enforced by completeTask(), so task+date
+  // uniquely identifies the completion being cancelled.
+  const marker=`[PM_UNDO|${cleanAuditValue(h.date)}|${cleanAuditValue(actor)}|${stamp}]`;
+  const existingUndo=parseUndoAudits(t).some(u=>String(u.date)===String(h.date));
+  const newNotes=existingUndo
+    ? String(t.notes||'')
+    : [String(t.notes||'').trim(),marker].filter(Boolean).join('\n');
 
   try{
-    await deleteCompletionHistoryRow(h);
-    if(isLatest&&t){
-      const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
-      const stamp=new Date().toISOString();
-      const marker=`[PM_UNDO|${cleanAuditValue(h.date)}|${cleanAuditValue(actor)}|${stamp}]`;
-      const newNotes=[String(t.notes||'').trim(),marker].filter(Boolean).join('\n');
-      const upd=await supabaseClient.from('pm_tasks').update({last_done:previousDone,next_due:h.date,notes:newNotes}).eq('id',t.id);
-      if(upd.error)throw upd.error;
+    // First make the business state correct and auditable.
+    const taskUpdate={notes:newNotes};
+    if(isLatest){
+      taskUpdate.last_done=previousDone;
+      taskUpdate.next_due=h.date;
     }
+    const upd=await supabaseClient.from('pm_tasks').update(taskUpdate).eq('id',t.id);
+    if(upd.error)throw upd.error;
+
+    // Then try to physically remove the history row. If RLS does not permit DELETE,
+    // the PM_UNDO audit marker still makes the completion disappear from History,
+    // Dashboard counters and compliance calculations after cloud reload.
+    let physicallyDeleted=false;
+    try{
+      physicallyDeleted=await deleteCompletionHistoryRow(h);
+    }catch(deleteErr){
+      console.warn('pm_history physical delete blocked; using audited logical undo:',deleteErr);
+    }
+
     await reloadCloudData();
-    statusLine('דיווח הביצוע בוטל והטיפול הוחזר לרשימת הטיפולים הפתוחים.','success');
+
+    // Hard verification: after reload, this completion must no longer be active in app state.
+    const stillActive=history.some(x=>String(x.taskId)===String(taskId)&&String(x.date)===String(date));
+    if(stillActive){
+      throw new Error('הביטול נשמר אך הדיווח עדיין מופיע לאחר טעינה מחדש.');
+    }
+
+    statusLine(
+      physicallyDeleted
+        ? 'דיווח הביצוע בוטל, נמחק מההיסטוריה והטיפול הוחזר לרשימת הטיפולים הפתוחים.'
+        : 'דיווח הביצוע בוטל והטיפול הוחזר לרשימת הטיפולים הפתוחים.',
+      'success'
+    );
   }catch(err){
     statusLine('ביטול הדיווח נכשל: '+(err?.message||'שגיאה לא ידועה'),'error');
   }
