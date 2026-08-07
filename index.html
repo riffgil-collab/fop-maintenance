@@ -342,6 +342,9 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 @media(max-width:760px){.pm-v3-hero{align-items:flex-start}.pm-v3-health{min-width:110px}.pm-v3-status-grid{grid-template-columns:1fr 1fr 1fr}.pm-v3-kpi-grid{grid-template-columns:1fr 1fr}.pm-v3-status strong{font-size:24px}.pm-v3-status small{display:none}}
 @media(max-width:430px){.pm-v3-hero{display:block}.pm-v3-health{margin-top:10px;width:100%}.pm-v3-status-grid{grid-template-columns:1fr 1fr}.pm-v3-kpi-grid{grid-template-columns:1fr 1fr}.pm-v3-backlog-banner{align-items:flex-start;flex-direction:column}.pm-v3-backlog-banner button{width:100%}}
 
+
+/* ===== FOP NATIVE DIALOGS — iPhone friendly ===== */
+.pm-dialog-backdrop{display:none;position:fixed;z-index:30000;inset:0;background:rgba(7,23,44,.55);backdrop-filter:blur(7px);align-items:center;justify-content:center;padding:18px}.pm-dialog-backdrop.open{display:flex}.pm-dialog{width:min(520px,100%);max-height:88vh;overflow:auto;background:#fff;border:1px solid #dfe7f1;border-radius:24px;padding:22px;box-shadow:0 28px 80px rgba(0,0,0,.28)}.pm-dialog h3{margin:0 0 7px;color:var(--navy2);font-size:21px}.pm-dialog p{margin:0 0 14px;color:var(--muted);font-size:11px;line-height:1.55;white-space:pre-line}.pm-dialog label{display:block;font-size:11px;font-weight:900;color:#40516d;margin:12px 0 6px}.pm-dialog input[type=date],.pm-dialog select,.pm-dialog textarea{width:100%;border:1px solid #d7e0eb;border-radius:13px;background:#fff;font:inherit}.pm-dialog input[type=date],.pm-dialog select{height:48px;padding:0 12px}.pm-dialog textarea{min-height:86px;padding:11px;resize:vertical}.pm-dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:17px}.pm-dialog-actions button{border:0;border-radius:12px;padding:13px;font-weight:900}.pm-dialog-primary{background:var(--green);color:#fff}.pm-dialog-danger{background:var(--red);color:#fff}.pm-dialog-secondary{background:#edf2f8;color:var(--navy2)}.pm-dialog-error{min-height:18px;margin-top:9px;color:#b60029;font-size:10px;font-weight:850}.pm-toast{position:fixed;z-index:31000;right:14px;left:14px;bottom:calc(18px + env(safe-area-inset-bottom));margin:auto;max-width:520px;padding:13px 16px;border-radius:14px;background:#0a2c59;color:#fff;font-size:12px;font-weight:850;text-align:center;box-shadow:0 16px 45px rgba(0,0,0,.22);opacity:0;transform:translateY(20px);pointer-events:none;transition:.2s}.pm-toast.show{opacity:1;transform:none}.pm-toast.error{background:#b60029}.pm-toast.success{background:#12733b}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -463,14 +466,14 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 
   <div class="toolbar">
     <div class="field"><label>תאריך עוגן</label><input id="pmPlannerStart" type="date" onchange="renderPlanner()"/></div>
-    <div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="renderPlanner()"></select></div>
-    <div class="field"><label>מבצע</label><select id="pmPlannerPerformer" onchange="renderPlanner()"><option value="">כל המבצעים</option></select></div>
+    <div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="fillPlanningMachines();pmPlanPage=0;renderPlanner()"></select></div>
+    <div class="field"><label>מכונה</label><select id="pmPlannerMachine" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המכונות</option></select></div>
+    <div class="field"><label>מבצע</label><select id="pmPlannerPerformer" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המבצעים</option><option value="מפעיל">מפעיל</option><option value="טכנאי אחזקה">טכנאי אחזקה</option></select></div>
     <div class="field"><label>סטטוס</label><select id="pmPlannerStatus" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל הסטטוסים</option><option value="waiting">ממתינה לתכנון</option><option value="planned">מתוכננת</option><option value="postponed">נדחתה</option><option value="overdue">באיחור</option><option value="cancelled">בוטלה</option><option value="completed">בוצעה</option></select></div>
-    <div class="field"><label>חיפוש</label><input id="pmPlannerSearch" type="text" placeholder="מכונה / טיפול" oninput="renderPlanner()"/></div>
   </div>
 
   <div class="pm-plan-summary">
-    <div class="pm-plan-stat"><strong id="pmPlanRequired">0</strong><span>דרישות בתקופה</span></div>
+    <div class="pm-plan-stat"><strong id="pmPlanRequired">0</strong><span>סה״כ משימות בתקופה</span></div>
     <div class="pm-plan-stat"><strong id="pmPlanScheduled">0</strong><span>שובצו לתוכנית</span></div>
     <div class="pm-plan-stat coverage"><strong id="pmPlanCoverage">0%</strong><span>כיסוי תכנון</span></div>
     <div class="pm-plan-stat"><strong id="pmPlanHours">0</strong><span>שעות ששובצו</span></div>
@@ -551,7 +554,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="field"><label>מכונה</label><input id="newMachine" placeholder="שם המכונה" type="text"/></div>
 <div class="field full"><label>משימת טיפול</label><input id="newTask" placeholder="מה נדרש לבצע" type="text"/></div>
 <div class="field"><label>תדירות</label><select id="newFrequency"></select></div>
-<div class="field"><label>מבצע</label><select id="newPerformer"><option>מפעיל</option><option selected="">טכנאי אחזקה</option><option>קבלן משנה</option></select></div>
+<div class="field"><label>מבצע</label><select id="newPerformer"><option>מפעיל</option><option selected="">טכנאי אחזקה</option></select></div>
 <div class="field"><label>משך טיפול (דקות)</label><input id="newDuration" min="0" type="number"/></div>
 <div class="field"><label>מועד טיפול ראשון</label><input id="newDue" type="date"/></div>
 <div class="field full"><label>הערות</label><textarea class="textarea" id="newNotes"></textarea></div>
@@ -1098,8 +1101,16 @@ function setPlanningPeriod(period){
 function fillPlanningPerformers(){
   const sel=document.getElementById('pmPlannerPerformer');if(!sel)return;
   const old=sel.value;
-  const vals=[...new Set(tasks.map(t=>t.performer).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  const vals=['מפעיל','טכנאי אחזקה'];
   sel.innerHTML='<option value="">כל המבצעים</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if(vals.includes(old))sel.value=old;
+}
+function fillPlanningMachines(){
+  const sel=document.getElementById('pmPlannerMachine');if(!sel)return;
+  const dep=document.getElementById('pmPlannerDepartment')?.value||'';
+  const old=sel.value;
+  const vals=[...new Set(tasks.filter(t=>t.active!==false&&(!dep||t.department===dep)).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  sel.innerHTML='<option value="">כל המכונות</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
   if(vals.includes(old))sel.value=old;
 }
 function savePlanningCapacity(){
@@ -1117,12 +1128,12 @@ function loadPlanningCapacity(){
 function filteredPlanningItems(){
   const {start,end}=planningBounds();
   const dep=document.getElementById('pmPlannerDepartment')?.value||'';
+  const machine=document.getElementById('pmPlannerMachine')?.value||'';
   const perf=document.getElementById('pmPlannerPerformer')?.value||'';
-  const q=(document.getElementById('pmPlannerSearch')?.value||'').trim().toLowerCase();
   return occurrenceItems(start,end).filter(x=>
     (!dep||x.t.department===dep)&&
-    (!perf||x.t.performer===perf)&&
-    (!q||`${x.t.machine} ${x.t.task} ${x.t.department} ${x.t.performer}`.toLowerCase().includes(q))
+    (!machine||x.t.machine===machine)&&
+    (!perf||x.t.performer===perf)
   ).sort((a,b)=>(a.plan?.plannedDate||a.due).localeCompare(b.plan?.plannedDate||b.due)||a.due.localeCompare(b.due)||String(a.t.machine).localeCompare(String(b.t.machine),'he'));
 }
 function planKey(item){return `${String(item.t.id)}@@${item.due}`}
@@ -1172,7 +1183,7 @@ async function saveSelectedPlanning(){
 async function unplanSelected(){
   if(!pmCan('manageExceptions'))return statusLine('שינוי תוכנית זמין למנהל אחזקה בלבד.','error');
   const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
-  if(!confirm(`להסיר ${keys.length} משימות מתוכנית העבודה?`))return;
+  if(!await pmConfirm(`להסיר ${keys.length} משימות מתוכנית העבודה?`))return;
   const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
   const stamp=new Date().toISOString();
   try{
@@ -1606,7 +1617,7 @@ async function undoCompletion(historyId,taskId,date){
   const h=candidates.find(x=>String(x.id??'')===String(historyId))||candidates[0];
   if(!h)return statusLine('דיווח הטיפול לא נמצא.','error');
 
-  if(!confirm(`לבטל את דיווח הביצוע של "${h.task}" מתאריך ${fDate(h.date)}?\n\nהטיפול יחזור לרשימת הטיפולים הפתוחים.`))return;
+  if(!await pmConfirm(`לבטל את דיווח הביצוע של "${h.task}" מתאריך ${fDate(h.date)}?\n\nהטיפול יחזור לרשימת הטיפולים הפתוחים.`))return;
 
   const t=tasks.find(x=>String(x.id)===String(taskId));
   if(!t)return statusLine('משימת הטיפול לא נמצאה.','error');
@@ -1703,7 +1714,7 @@ function renderEditor(){
   <div class="field"><label>מכונה</label><input id="editMachine" type="text" value="${esc(t.machine)}"></div>
   <div class="field full"><label>משימת טיפול</label><input id="editTaskDesc" type="text" value="${esc(t.task)}"></div>
   <div class="field"><label>תדירות</label><select id="editFreq">${Object.keys(FREQ_DAYS).map(f=>`<option ${f===t.frequency?'selected':''}>${esc(f)}</option>`).join('')}</select></div>
-  <div class="field"><label>מבצע טיפול</label><select id="editPerf"><option ${t.performer==='מפעיל'?'selected':''}>מפעיל</option><option ${t.performer==='טכנאי אחזקה'?'selected':''}>טכנאי אחזקה</option><option ${t.performer==='קבלן משנה'?'selected':''}>קבלן משנה</option></select></div>
+  <div class="field"><label>מבצע טיפול</label><select id="editPerf"><option ${t.performer==='מפעיל'?'selected':''}>מפעיל</option><option ${t.performer==='טכנאי אחזקה'?'selected':''}>טכנאי אחזקה</option></select></div>
   <div class="field"><label>מועד טיפול הבא</label><input id="editDue" type="date" value="${esc(t.nextDue||today())}"></div>
   <div class="field"><label>משך טיפול (דקות)</label><input id="editDuration" type="number" min="0" value="${t.duration??''}"></div>
   <div class="field full"><label>הערות</label><textarea id="editNotes" class="textarea">${esc(visibleTaskNotes(t.notes))}</textarea></div>
@@ -1782,7 +1793,7 @@ async function toggleCurrentTask(){
   statusLine(active?'המשימה הופעלה בענן.':'המשימה בוטלה מהתוכנית בענן.','success');
 }
 async function resetData(){
-  if(!confirm('לטעון מחדש את הנתונים המעודכנים מהענן?'))return;
+  if(!await pmConfirm('לטעון מחדש את הנתונים המעודכנים מהענן?'))return;
   await reloadCloudData();
   statusLine('הנתונים נטענו מחדש מ-Supabase.','success');
 }
@@ -1910,6 +1921,7 @@ function refillAll(){
   fillSelect('pmDashboardDepartment',true);
   fillSelect('pmPlannerDepartment',true);
   fillPlanningPerformers();
+  fillPlanningMachines();
   fillSelect('pmReportDepartment',true);
   fillSelect('pmHistoryDepartment',true);
   fillSelect('pmSettingsDepartment',true);
@@ -1991,8 +2003,8 @@ function updatePMInitUI(){
 }
 async function initializePMPlan(){
   if(!requirePM('initialize','Initialize זמין ל-Admin בלבד.'))return;
-  if(!pmCurrentUser){alert('יש להתחבר למערכת.');return}
-  if(!confirm("Initialize Preventive Maintenance Plan in Supabase?\nThis will recalculate the first due date for every active task.")) return;
+  if(!pmCurrentUser){await pmMessage('יש להתחבר למערכת.');return}
+  if(!await pmConfirm("Initialize Preventive Maintenance Plan in Supabase?\nThis will recalculate the first due date for every active task.")) return;
   const now=new Date();
   const updates=tasks.map(t=>{
     let d=new Date(now);
@@ -2009,12 +2021,12 @@ async function initializePMPlan(){
   });
   for(const u of updates){
     const {error}=await supabaseClient.from('pm_tasks').update({last_done:null,next_due:u.next_due}).eq('id',u.id);
-    if(error){alert('Initialization failed: '+error.message);return}
+    if(error){await pmMessage('Initialization failed: '+error.message);return}
   }
   localStorage.setItem(PM_INIT_KEY,JSON.stringify({date:today()}));
   updatePMInitUI();
   await reloadCloudData();
-  alert("PM Plan initialized successfully.");
+  await pmMessage("PM Plan initialized successfully.");
 }
 document.addEventListener("DOMContentLoaded",updatePMInitUI);
 
@@ -2022,28 +2034,28 @@ document.addEventListener("DOMContentLoaded",updatePMInitUI);
 async function importPMPlanToSupabase(){
   if(!requirePM('importPlan','ייבוא תוכנית זמין ל-Admin בלבד.'))return;
   if(!window.supabase || !supabaseClient){
-    alert('Supabase client was not found.');
+    await pmMessage('Supabase client was not found.');
     return;
   }
 
   const {data:{session}}=await supabaseClient.auth.getSession();
   if(!session){
-    alert('החיבור פג. יש להתחבר מחדש.');
+    await pmMessage('החיבור פג. יש להתחבר מחדש.');
     return;
   }
 
-  if(!confirm('Import the preventive maintenance plan to Supabase? This action should be performed only once.')) return;
+  if(!await pmConfirm('Import the preventive maintenance plan to Supabase? This action should be performed only once.')) return;
 
   const {count,error:countError}=await supabaseClient
     .from('pm_tasks')
     .select('id',{count:'exact',head:true});
 
   if(countError){
-    alert('Could not check pm_tasks: '+countError.message);
+    await pmMessage('Could not check pm_tasks: '+countError.message);
     return;
   }
   if((count||0)>0){
-    alert(`Import cancelled. pm_tasks already contains ${count} records.`);
+    await pmMessage(`Import cancelled. pm_tasks already contains ${count} records.`);
     return;
   }
 
@@ -2064,7 +2076,7 @@ async function importPMPlanToSupabase(){
   for(let i=0;i<rows.length;i+=200){
     const {error}=await supabaseClient.from('pm_tasks').insert(rows.slice(i,i+200));
     if(error){
-      alert('Import failed: '+error.message);
+      await pmMessage('Import failed: '+error.message);
       return;
     }
   }
@@ -2074,7 +2086,7 @@ async function importPMPlanToSupabase(){
     btn.textContent='✔ Import Completed';
     btn.disabled=true;
   }
-  alert(`Import completed successfully: ${rows.length} tasks.`);
+  await pmMessage(`Import completed successfully: ${rows.length} tasks.`);
 }
 
 </script>
@@ -2193,12 +2205,12 @@ function wpRequirementItems(start,end){
 filteredPlanningItems=function(){
   const {start,end}=planningBounds();
   const dep=document.getElementById('pmPlannerDepartment')?.value||'';
+  const machine=document.getElementById('pmPlannerMachine')?.value||'';
   const perf=document.getElementById('pmPlannerPerformer')?.value||'';
-  const q=(document.getElementById('pmPlannerSearch')?.value||'').trim().toLowerCase();
   return wpRequirementItems(start,end).filter(x=>
     (!dep||x.t.department===dep)&&
-    (!perf||x.t.performer===perf||x.plan?.assignedTo===perf)&&
-    (!q||`${x.t.machine} ${x.t.task} ${x.t.department} ${x.t.performer} ${x.plan?.assignedTo||''}`.toLowerCase().includes(q))
+    (!machine||x.t.machine===machine)&&
+    (!perf||x.t.performer===perf||x.plan?.assignedTo===perf)
   ).sort((a,b)=>(a.plan?.plannedDate||a.due).localeCompare(b.plan?.plannedDate||b.due)||a.due.localeCompare(b.due)||String(a.t.machine).localeCompare(String(b.t.machine),'he'));
 };
 
@@ -2260,7 +2272,7 @@ saveSelectedPlanning=async function(){
 unplanSelected=async function(){
   if(!pmCan('manageExceptions'))return statusLine('שינוי תוכנית זמין למנהל אחזקה בלבד.','error');
   const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
-  if(!confirm(`להסיר ${keys.length} משימות מתוכנית העבודה?`))return;
+  if(!await pmConfirm(`להסיר ${keys.length} משימות מתוכנית העבודה?`))return;
   const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
   try{
     for(const key of keys){
@@ -2484,19 +2496,10 @@ completeTask=async function(id,workPlanId=''){
 async function moveWorkPlan(planId){
   if(!pmCan('manageExceptions'))return;
   const p=pmWorkPlan.find(x=>String(x.id)===String(planId));if(!p)return;
-  const current=p.plannedDate;
-  const newDate=prompt('תאריך חדש לביצוע (YYYY-MM-DD):',current);
-  if(!newDate||!/^\d{4}-\d{2}-\d{2}$/.test(newDate))return;
-  const reason=prompt('סיבת הדחייה / שינוי התאריך:','');
-  if(newDate>current&&!String(reason||'').trim()){alert('יש להזין סיבה לדחייה.');return}
-  const res=await supabaseClient.from('pm_work_plan').update({
-    planned_date:newDate,
-    status:'Planned',
-    postponed_reason:String(reason||'').trim()||null
-  }).eq('id',p.id);
-  if(res.error){statusLine('שינוי התוכנית נכשל: '+res.error.message,'error');return}
-  await reloadCloudData();
-  statusLine('תאריך הביצוע בתוכנית העבודה עודכן.','success');
+  const choice=await pmPostponeDialog(p.plannedDate||today());if(!choice)return;
+  const res=await supabaseClient.from('pm_work_plan').update({planned_date:choice.date,status:'Postponed',completed_date:null,postponed_reason:choice.combined}).eq('id',p.id);
+  if(res.error){statusLine('דחיית הטיפול נכשלה: '+res.error.message,'error');return}
+  await reloadCloudData();statusLine('הטיפול נדחה עם סיבה ותאריך חדש.','success');pmToast('הדחייה נשמרה','success');
 }
 
 /* Make sure the first refresh after login includes pm_work_plan. */
@@ -2650,12 +2653,12 @@ renderDashboard=function(){
 filteredPlanningItems=function(){
   const {start,end}=planningBounds();
   const dep=document.getElementById('pmPlannerDepartment')?.value||'';
+  const machine=document.getElementById('pmPlannerMachine')?.value||'';
   const perf=document.getElementById('pmPlannerPerformer')?.value||'';
-  const q=(document.getElementById('pmPlannerSearch')?.value||'').trim().toLowerCase();
   const status=document.getElementById('pmPlannerStatus')?.value||'';
   return v3RequirementItems(start,end).filter(x=>{
     const st=v3OccurrenceState(x);
-    return (!dep||x.t.department===dep)&&(!perf||(x.plan?.assignedTo||x.t.performer)===perf||x.t.performer===perf)&&(!status||st===status)&&(!q||`${x.t.machine} ${x.t.task} ${x.t.department} ${x.t.performer}`.toLowerCase().includes(q));
+    return (!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&(!perf||(x.plan?.assignedTo||x.t.performer)===perf||x.t.performer===perf)&&(!status||st===status);
   }).sort((a,b)=>{
     const rank={overdue:0,waiting:1,postponed:2,planned:3,completed:4,cancelled:5};
     const ra=rank[v3OccurrenceState(a)]??9,rb=rank[v3OccurrenceState(b)]??9;
@@ -2700,7 +2703,7 @@ saveSelectedPlanning=async function(){
 
 // Returning to waiting is different from cancellation: the requirement remains alive in backlog.
 unplanSelected=async function(){
-  if(!pmCan('manageExceptions'))return statusLine('שינוי תוכנית זמין למנהל אחזקה בלבד.','error');const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');if(!confirm(`להחזיר ${keys.length} משימות למצב ממתינה לתכנון?`))return;const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
+  if(!pmCan('manageExceptions'))return statusLine('שינוי תוכנית זמין למנהל אחזקה בלבד.','error');const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');if(!await pmConfirm(`להחזיר ${keys.length} משימות למצב ממתינה לתכנון?`))return;const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
   try{for(const key of keys){const item=lookup.get(key);if(!item)continue;const existing=v3OccurrenceRow(item.t.id,item.due);if(!existing)continue;const res=await supabaseClient.from('pm_work_plan').update({status:'Unplanned',planned_date:item.due,completed_date:null,postponed_reason:null}).eq('id',existing.id);if(res.error)throw res.error}await reloadCloudData();statusLine(`${keys.length} משימות הוחזרו לממתינה לתכנון.`,'success')}catch(err){statusLine('עדכון המשימות נכשל: '+(err?.message||'שגיאה'),'error')}
 };
 
@@ -2709,16 +2712,27 @@ async function cancelOccurrence(item,reason){
   const res=existing?await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id):await supabaseClient.from('pm_work_plan').insert(payload);if(res.error)throw res.error;
 }
 async function cancelSelectedPlanning(){
-  if(!pmCan('manageExceptions'))return statusLine('ביטול טיפול זמין למנהל אחזקה בלבד.','error');const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');const reason=prompt('סיבת ביטול הטיפול (חובה):','');if(!String(reason||'').trim())return statusLine('ביטול טיפול מחייב סיבה.','error');if(!confirm(`לבטל ${keys.length} טיפולים? הביטול יישמר בהיסטוריית תוכנית העבודה.`))return;const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
-  try{for(const key of keys){const item=lookup.get(key);if(item)await cancelOccurrence(item,String(reason).trim())}await reloadCloudData();statusLine(`${keys.length} טיפולים בוטלו עם סיבה מתועדת.`,'success')}catch(err){statusLine('ביטול הטיפולים נכשל: '+(err?.message||'שגיאה'),'error')}
+  if(!pmCan('manageExceptions'))return statusLine('ביטול טיפול זמין למנהל אחזקה בלבד.','error');
+  const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
+  const choice=await pmCancelDialog(keys.length);if(!choice)return;
+  const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
+  try{for(const key of keys){const item=lookup.get(key);if(item)await cancelOccurrence(item,choice.combined)}await reloadCloudData();statusLine(`${keys.length} טיפולים בוטלו עם סיבה מתועדת.`,'success');pmToast('הביטול נשמר','success')}catch(err){statusLine('ביטול הטיפולים נכשל: '+(err?.message||'שגיאה'),'error')}
 }
 async function cancelSingleOccurrence(taskId,due){
-  if(!pmCan('manageExceptions'))return;const t=tasks.find(x=>String(x.id)===String(taskId));if(!t)return;const reason=prompt('סיבת ביטול הטיפול (חובה):','');if(!String(reason||'').trim())return;try{await cancelOccurrence({t,due,plan:v3OccurrenceRow(t.id,due)},String(reason).trim());await reloadCloudData();statusLine('הטיפול בוטל ונשמר עם סיבה.','success')}catch(err){statusLine('ביטול הטיפול נכשל: '+(err?.message||'שגיאה'),'error')}
+  if(!pmCan('manageExceptions'))return;
+  const t=tasks.find(x=>String(x.id)===String(taskId));if(!t)return;
+  const choice=await pmCancelDialog(1);if(!choice)return;
+  try{await cancelOccurrence({t,due,plan:v3OccurrenceRow(t.id,due)},choice.combined);await reloadCloudData();statusLine('הטיפול בוטל ונשמר עם סיבה.','success');pmToast('הטיפול בוטל','success')}catch(err){statusLine('ביטול הטיפול נכשל: '+(err?.message||'שגיאה'),'error')}
 }
 
 // A postponement is a distinct business status until its new date passes or it is completed.
 moveWorkPlan=async function(planId){
-  if(!pmCan('manageExceptions'))return;const p=pmWorkPlan.find(x=>String(x.id)===String(planId));if(!p)return;const current=p.plannedDate;const newDate=prompt('תאריך חדש לביצוע (YYYY-MM-DD):',current);if(!newDate||!/^\d{4}-\d{2}-\d{2}$/.test(newDate))return;const reason=prompt('סיבת הדחייה (חובה):','');if(!String(reason||'').trim()){alert('יש להזין סיבה לדחייה.');return}const res=await supabaseClient.from('pm_work_plan').update({planned_date:newDate,status:'Postponed',completed_date:null,postponed_reason:String(reason).trim()}).eq('id',p.id);if(res.error){statusLine('דחיית הטיפול נכשלה: '+res.error.message,'error');return}await reloadCloudData();statusLine('הטיפול נדחה עם סיבה ותאריך חדש.','success');
+  if(!pmCan('manageExceptions'))return;
+  const p=pmWorkPlan.find(x=>String(x.id)===String(planId));if(!p)return;
+  const choice=await pmPostponeDialog(p.plannedDate||today());if(!choice)return;
+  const res=await supabaseClient.from('pm_work_plan').update({planned_date:choice.date,status:'Postponed',completed_date:null,postponed_reason:choice.combined}).eq('id',p.id);
+  if(res.error){statusLine('דחיית הטיפול נכשלה: '+res.error.message,'error');return}
+  await reloadCloudData();statusLine('הטיפול נדחה עם סיבה ותאריך חדש.','success');pmToast('הדחייה נשמרה','success');
 };
 
 // Daily report is driven by the plan, with optional unplanned backlog visibility and cancel action.
@@ -2757,4 +2771,39 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 </script>
 
+
+<div id="pmUniversalDialog" class="pm-dialog-backdrop" aria-hidden="true">
+  <div class="pm-dialog" role="dialog" aria-modal="true" aria-labelledby="pmDialogTitle">
+    <h3 id="pmDialogTitle">אישור</h3><p id="pmDialogText"></p><div id="pmDialogFields"></div><div id="pmDialogError" class="pm-dialog-error"></div>
+    <div class="pm-dialog-actions"><button id="pmDialogCancel" type="button" class="pm-dialog-secondary">ביטול</button><button id="pmDialogOk" type="button" class="pm-dialog-primary">אישור</button></div>
+  </div>
+</div>
+<div id="pmToast" class="pm-toast" role="status" aria-live="polite"></div>
+
+<script>
+/* ===== FOP MODERN DIALOG API ===== */
+(function(){
+  let resolver=null;
+  const $=id=>document.getElementById(id);
+  function close(result){const b=$('pmUniversalDialog');if(b)b.classList.remove('open');if(b)b.setAttribute('aria-hidden','true');const r=resolver;resolver=null;if(r)r(result)}
+  window.pmToast=function(message,type=''){const el=$('pmToast');if(!el)return;el.textContent=String(message||'');el.className='pm-toast '+(type||'');requestAnimationFrame(()=>el.classList.add('show'));clearTimeout(el._timer);el._timer=setTimeout(()=>el.classList.remove('show'),2600)};
+  function openDialog({title='אישור',text='',fields='',ok='אישור',cancel='ביטול',danger=false,hideCancel=false,onValidate=null}){
+    if(resolver)close(null);
+    $('pmDialogTitle').textContent=title;$('pmDialogText').textContent=text||'';$('pmDialogFields').innerHTML=fields||'';$('pmDialogError').textContent='';
+    const okBtn=$('pmDialogOk'), cancelBtn=$('pmDialogCancel');okBtn.textContent=ok;cancelBtn.textContent=cancel;cancelBtn.style.display=hideCancel?'none':'';okBtn.className=danger?'pm-dialog-danger':'pm-dialog-primary';
+    const b=$('pmUniversalDialog');b.classList.add('open');b.setAttribute('aria-hidden','false');
+    return new Promise(resolve=>{resolver=resolve;cancelBtn.onclick=()=>close(null);okBtn.onclick=()=>{const result=onValidate?onValidate():true;if(result===false)return;close(result)};b.onclick=e=>{if(e.target===b&&!hideCancel)close(null)}});
+  }
+  window.pmConfirm=async function(message,title='אישור פעולה'){return !!(await openDialog({title,text:String(message||''),ok:'אישור',cancel:'ביטול'}))};
+  window.pmMessage=async function(message,title='הודעה'){await openDialog({title,text:String(message||''),ok:'סגירה',hideCancel:true});return true};
+  window.pmPostponeDialog=async function(currentDate){
+    const fields=`<label for="pmDlgDate">תאריך חדש לביצוע</label><input id="pmDlgDate" type="date" value="${String(currentDate||'')}"><label for="pmDlgReason">סיבת דחייה</label><select id="pmDlgReason"><option value="">בחר סיבה</option><option>אילוץ ייצור</option><option>חוסר זמן / עומס</option><option>חוסר חלקים</option><option>המכונה אינה זמינה</option><option>המתנה לספק / שירות</option><option>אחר</option></select><label for="pmDlgNote">הערה</label><textarea id="pmDlgNote" placeholder="הערה אופציונלית"></textarea>`;
+    return await openDialog({title:'דחיית טיפול',text:'בחר תאריך חדש וסיבת דחייה.',fields,ok:'שמור דחייה',cancel:'ביטול',onValidate:()=>{const date=$('pmDlgDate').value,reason=$('pmDlgReason').value,note=$('pmDlgNote').value.trim();if(!date){$('pmDialogError').textContent='יש לבחור תאריך חדש.';return false}if(!reason){$('pmDialogError').textContent='יש לבחור סיבת דחייה.';return false}return {date,reason,note,combined:reason+(note?' — '+note:'')}}});
+  };
+  window.pmCancelDialog=async function(count=1){
+    const fields=`<label for="pmDlgCancelReason">סיבת ביטול</label><select id="pmDlgCancelReason"><option value="">בחר סיבה</option><option>הטיפול אינו נדרש</option><option>המכונה הושבתה / הוצאה משימוש</option><option>המשימה הוחלפה בטיפול אחר</option><option>כפילות בתוכנית</option><option>החלטת מנהל אחזקה</option><option>אחר</option></select><label for="pmDlgCancelNote">הערה</label><textarea id="pmDlgCancelNote" placeholder="הערה אופציונלית"></textarea>`;
+    return await openDialog({title:count>1?`ביטול ${count} טיפולים`:'ביטול טיפול',text:'סיבת הביטול תישמר בתוכנית העבודה.',fields,ok:'בטל טיפול',cancel:'חזרה',danger:true,onValidate:()=>{const reason=$('pmDlgCancelReason').value,note=$('pmDlgCancelNote').value.trim();if(!reason){$('pmDialogError').textContent='יש לבחור סיבת ביטול.';return false}return {reason,note,combined:reason+(note?' — '+note:'')}}});
+  };
+})();
+</script>
 </body></html>
