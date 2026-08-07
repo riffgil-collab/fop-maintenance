@@ -345,6 +345,34 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 
 /* ===== FOP NATIVE DIALOGS — iPhone friendly ===== */
 .pm-dialog-backdrop{display:none;position:fixed;z-index:30000;inset:0;background:rgba(7,23,44,.55);backdrop-filter:blur(7px);align-items:center;justify-content:center;padding:18px}.pm-dialog-backdrop.open{display:flex}.pm-dialog{width:min(520px,100%);max-height:88vh;overflow:auto;background:#fff;border:1px solid #dfe7f1;border-radius:24px;padding:22px;box-shadow:0 28px 80px rgba(0,0,0,.28)}.pm-dialog h3{margin:0 0 7px;color:var(--navy2);font-size:21px}.pm-dialog p{margin:0 0 14px;color:var(--muted);font-size:11px;line-height:1.55;white-space:pre-line}.pm-dialog label{display:block;font-size:11px;font-weight:900;color:#40516d;margin:12px 0 6px}.pm-dialog input[type=date],.pm-dialog select,.pm-dialog textarea{width:100%;border:1px solid #d7e0eb;border-radius:13px;background:#fff;font:inherit}.pm-dialog input[type=date],.pm-dialog select{height:48px;padding:0 12px}.pm-dialog textarea{min-height:86px;padding:11px;resize:vertical}.pm-dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:17px}.pm-dialog-actions button{border:0;border-radius:12px;padding:13px;font-weight:900}.pm-dialog-primary{background:var(--green);color:#fff}.pm-dialog-danger{background:var(--red);color:#fff}.pm-dialog-secondary{background:#edf2f8;color:var(--navy2)}.pm-dialog-error{min-height:18px;margin-top:9px;color:#b60029;font-size:10px;font-weight:850}.pm-toast{position:fixed;z-index:31000;right:14px;left:14px;bottom:calc(18px + env(safe-area-inset-bottom));margin:auto;max-width:520px;padding:13px 16px;border-radius:14px;background:#0a2c59;color:#fff;font-size:12px;font-weight:850;text-align:center;box-shadow:0 16px 45px rgba(0,0,0,.22);opacity:0;transform:translateY(20px);pointer-events:none;transition:.2s}.pm-toast.show{opacity:1;transform:none}.pm-toast.error{background:#b60029}.pm-toast.success{background:#12733b}
+
+/* ===== FOP V4 — WORK PLAN REPORTS ===== */
+.pm-report-hero{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:17px;border:1px solid #dce7f3;border-radius:20px;background:linear-gradient(135deg,#f8fbff,#f7fbf8);margin-bottom:13px}
+.pm-report-hero h2{margin:2px 0 4px;color:var(--navy2);font-size:22px}.pm-report-hero p{margin:0;color:var(--muted);font-size:10px;line-height:1.5}
+.pm-report-summary-box{min-width:130px;text-align:center;background:#fff;border:1px solid var(--line);border-radius:15px;padding:10px 12px}.pm-report-summary-box strong{display:block;color:var(--navy2);font-size:26px}.pm-report-summary-box span,.pm-report-summary-box small{display:block;font-size:9px;color:var(--muted);font-weight:850;margin-top:2px}
+.pm-report-filter-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;padding:11px;border:1px solid #e7edf5;border-radius:16px;background:#f9fbfe;margin-bottom:11px}.pm-report-filter-grid .field{min-width:0}
+.pm-report-actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 4px}.pm-report-actions button{min-width:120px}
+.pm-report-sheet{margin-top:13px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px;overflow:hidden}
+.pm-report-sheet-head{text-align:center;border-bottom:2px solid #e6edf5;padding-bottom:12px;margin-bottom:12px}.pm-report-sheet-head h2{margin:10px 0 5px;color:var(--navy2);font-size:22px}
+.pm-report-sheet-logos{display:grid;grid-template-columns:1fr 1.2fr 1fr;align-items:center;gap:12px}.pm-report-sheet-logos>div:first-child{text-align:right}.pm-report-sheet-logos>div:last-child{text-align:left}.pm-report-sheet-logos img{max-height:34px;max-width:140px;object-fit:contain}
+.pm-report-sheet-title strong{display:block;color:var(--navy2);font-size:14px}.pm-report-sheet-title span{display:block;color:var(--muted);font-size:9px;margin-top:3px}
+.pm-report-meta{font-size:10px;color:#40516d;line-height:1.7}.pm-report-table-wrap{overflow:auto;-webkit-overflow-scrolling:touch}
+.pm-report-table{width:100%;border-collapse:collapse;min-width:850px;font-size:9px}.pm-report-table th{background:#0a2c59;color:#fff;padding:8px 6px;border:1px solid #d6dfeb;white-space:nowrap}.pm-report-table td{padding:8px 6px;border:1px solid #dfe7f1;vertical-align:top;line-height:1.45}.pm-report-table tbody tr:nth-child(even){background:#f8fafc}.pm-report-table .status-cell{font-weight:900;white-space:nowrap}
+.pm-report-footer{display:grid;grid-template-columns:auto auto 1fr;gap:16px;align-items:start;margin-top:13px;padding-top:11px;border-top:1px solid #dfe7f1;font-size:10px}.pm-report-notes{min-height:46px;border-bottom:1px solid #aeb9c8}
+@media(max-width:760px){.pm-report-filter-grid{grid-template-columns:1fr 1fr}.pm-report-hero{align-items:flex-start}.pm-report-summary-box{min-width:110px}.pm-report-actions{display:grid;grid-template-columns:1fr 1fr}.pm-report-actions button{min-width:0}.pm-report-actions .btn{grid-column:1/-1}.pm-report-sheet{padding:12px}.pm-report-sheet-logos{grid-template-columns:1fr auto 1fr}.pm-report-sheet-logos img{max-height:26px;max-width:95px}.pm-report-footer{grid-template-columns:1fr 1fr}.pm-report-notes{grid-column:1/-1}}
+@media(max-width:430px){.pm-report-hero{display:block}.pm-report-summary-box{width:100%;margin-top:10px}.pm-report-filter-grid{grid-template-columns:1fr 1fr}}
+@media print{
+  @page{size:A4 landscape;margin:9mm}
+  body.pm-report-printing{background:#fff!important;padding:0!important}
+  body.pm-report-printing *{visibility:hidden!important}
+  body.pm-report-printing #pmReportsPrintArea,body.pm-report-printing #pmReportsPrintArea *{visibility:visible!important}
+  body.pm-report-printing #pmReportsPrintArea{position:absolute!important;inset:0!important;width:100%!important;margin:0!important;border:0!important;border-radius:0!important;padding:0!important;overflow:visible!important}
+  body.pm-report-printing .pm-report-table-wrap{overflow:visible!important}
+  body.pm-report-printing .pm-report-table{min-width:0!important;width:100%!important;font-size:8pt!important}
+  body.pm-report-printing .pm-report-table th,body.pm-report-printing .pm-report-table td{padding:5px 4px!important}
+  body.pm-report-printing .pm-report-sheet-logos img{max-height:28px!important}
+  body.pm-report-printing .pm-report-notes{min-height:35px!important}
+}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -388,6 +416,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <button class="pm-tab" data-pm="planner" onclick="showTab('planner')">תכנון עבודה</button>
 <button class="pm-tab" data-pm="report" onclick="showTab('report')">דיווח טיפול</button>
 <button class="pm-tab" data-pm="history" onclick="showTab('history')">היסטוריה</button>
+<button class="pm-tab" data-pm="reports" onclick="showTab('reports')">דוחות</button>
 <button class="pm-tab" data-pm="settings" onclick="showTab('settings')">הגדרות</button>
 <button class="pm-tab" data-pm="users" id="pmUsersTabButton" onclick="showTab('users')" style="display:none">ניהול משתמשים</button>
 </div>
@@ -527,6 +556,88 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="section-title"><h3>טיפולים פתוחים</h3><small>לפי המחלקה והמכונה שנבחרו</small></div>
 <div class="open-list" id="pmOpenTasks"></div>
 </section>
+
+<section class="pm-panel" id="pmReports">
+  <div class="pm-report-hero">
+    <div>
+      <div class="pm-v3-eyebrow">REPORTS</div>
+      <h2>תוכנית עבודה</h2>
+      <p>הפק תוכנית עבודה מסוננת לשבוע או לחודש, להדפסה, PDF או Excel.</p>
+    </div>
+    <div class="pm-report-summary-box">
+      <strong id="pmReportsCount">0</strong>
+      <span>משימות בדוח</span>
+      <small id="pmReportsHours">0 שעות</small>
+    </div>
+  </div>
+
+  <div class="pm-report-filter-grid">
+    <div class="field"><label>תקופה</label>
+      <select id="pmReportsPeriod" onchange="renderReports()">
+        <option value="week">שבוע</option>
+        <option value="month">חודש</option>
+      </select>
+    </div>
+    <div class="field"><label>תאריך עוגן</label><input id="pmReportsAnchor" type="date" onchange="renderReports()"/></div>
+    <div class="field"><label>מחלקה</label><select id="pmReportsDepartment" onchange="fillReportMachinesV4();renderReports()"><option value="">כל המחלקות</option></select></div>
+    <div class="field"><label>מכונה</label><select id="pmReportsMachine" onchange="renderReports()"><option value="">כל המכונות</option></select></div>
+    <div class="field"><label>מבצע</label>
+      <select id="pmReportsPerformer" onchange="renderReports()">
+        <option value="">כל המבצעים</option>
+        <option value="operator">מפעיל</option>
+        <option value="technician">טכנאי</option>
+      </select>
+    </div>
+    <div class="field"><label>סטטוס</label>
+      <select id="pmReportsStatus" onchange="renderReports()">
+        <option value="planned" selected>מתוכננת</option>
+        <option value="">כל הסטטוסים</option>
+        <option value="waiting">ממתינה לתכנון</option>
+        <option value="postponed">נדחתה</option>
+        <option value="overdue">באיחור</option>
+        <option value="cancelled">בוטלה</option>
+        <option value="completed">בוצעה</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="pm-report-actions">
+    <button type="button" class="secondary-btn" onclick="printWorkPlanReport()">🖨️ הדפסה</button>
+    <button type="button" class="export-btn" onclick="pdfWorkPlanReport()">📄 PDF</button>
+    <button type="button" class="btn" onclick="exportWorkPlanExcel()">📊 Excel</button>
+  </div>
+
+  <div id="pmReportsStatusLine" class="status-line"></div>
+
+  <div id="pmReportsPrintArea" class="pm-report-sheet">
+    <div class="pm-report-sheet-head">
+      <div class="pm-report-sheet-logos">
+        <div id="pmReportLogoLeft"></div>
+        <div class="pm-report-sheet-title">
+          <strong>Factory Operations Platform</strong>
+          <span>Preventive Maintenance</span>
+        </div>
+        <div id="pmReportLogoRight"></div>
+      </div>
+      <h2>תוכנית עבודה</h2>
+      <div id="pmReportsMeta" class="pm-report-meta"></div>
+    </div>
+    <div class="pm-report-table-wrap">
+      <table class="pm-report-table">
+        <thead><tr>
+          <th>תאריך</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>תדירות</th><th>משך</th><th>מבצע</th><th>סטטוס</th><th>הערות / חתימה</th>
+        </tr></thead>
+        <tbody id="pmReportsBody"></tbody>
+      </table>
+    </div>
+    <div class="pm-report-footer">
+      <div><strong>סה״כ משימות:</strong> <span id="pmReportsFooterCount">0</span></div>
+      <div><strong>סה״כ שעות מתוכננות:</strong> <span id="pmReportsFooterHours">0</span></div>
+      <div class="pm-report-notes"><strong>הערות:</strong></div>
+    </div>
+  </div>
+</section>
+
 <section class="pm-panel" id="pmHistory">
 <div class="history-filters">
 <div class="field"><label>מחלקה</label><select id="pmHistoryDepartment" onchange="fillHistoryMachines();renderHistory()"></select></div>
@@ -2806,4 +2917,136 @@ document.addEventListener('DOMContentLoaded',()=>{
   };
 })();
 </script>
+
+<script>
+/* ===== FOP V4 — REPORTS ===== */
+(function(){
+  const statusLabels={waiting:'ממתינה לתכנון',planned:'מתוכננת',completed:'בוצעה',postponed:'נדחתה',cancelled:'בוטלה',overdue:'באיחור'};
+  let currentRows=[];
+
+  function byId(id){return document.getElementById(id)}
+  function clean(v){return String(v==null?'':v)}
+  function performerKind(v){
+    const x=clean(v).trim().toLowerCase();
+    if(!x)return '';
+    if(x.includes('מפעיל')||x.includes('operator'))return 'operator';
+    if(x.includes('טכנאי')||x.includes('technician')||x.includes('maintenance'))return 'technician';
+    return x;
+  }
+  function reportBounds(){
+    const anchor=byId('pmReportsAnchor')?.value||today();
+    const period=byId('pmReportsPeriod')?.value||'week';
+    if(period==='month'){
+      const d=dObj(anchor)||new Date();
+      return {start:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`,end:dateStr(new Date(d.getFullYear(),d.getMonth()+1,0,12)),label:d.toLocaleDateString('he-IL',{month:'long',year:'numeric'})};
+    }
+    const start=weekStartFrom(anchor),end=addDays(start,6);
+    return {start,end,label:`שבוע · ${fDate(start)} – ${fDate(end)}`};
+  }
+  function displayDate(item,state){
+    if(state==='completed'&&item.plan?.completedDate)return item.plan.completedDate;
+    if(item.plan?.plannedDate&&!['waiting'].includes(state))return item.plan.plannedDate;
+    return item.due;
+  }
+  function reportRows(){
+    if(!pmWorkPlanLoaded)return [];
+    const {start,end}=reportBounds();
+    const dep=byId('pmReportsDepartment')?.value||'';
+    const machine=byId('pmReportsMachine')?.value||'';
+    const performer=byId('pmReportsPerformer')?.value||'';
+    const status=byId('pmReportsStatus')?.value||'';
+    return v3RequirementItems(start,end).map(item=>{
+      const st=v3OccurrenceState(item);
+      const assigned=item.plan?.assignedTo||item.t.performer||'';
+      return {item,state:st,date:displayDate(item,st),assigned};
+    }).filter(r=>{
+      const t=r.item.t;
+      return (!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!performer||performerKind(r.assigned)===performer||performerKind(t.performer)===performer)&&(!status||r.state===status);
+    }).sort((a,b)=>clean(a.date).localeCompare(clean(b.date))||clean(a.item.t.department).localeCompare(clean(b.item.t.department),'he')||clean(a.item.t.machine).localeCompare(clean(b.item.t.machine),'he'));
+  }
+  function copyReportLogos(){
+    const logos=[...document.querySelectorAll('.pm-brand-header .pm-brand-logo img')];
+    const left=byId('pmReportLogoLeft'),right=byId('pmReportLogoRight');
+    if(left&&!left.children.length&&logos[0])left.appendChild(logos[0].cloneNode(true));
+    if(right&&!right.children.length&&logos[1])right.appendChild(logos[1].cloneNode(true));
+  }
+  window.fillReportsDepartments=function(){
+    const sel=byId('pmReportsDepartment');if(!sel)return;
+    const old=sel.value;
+    const deps=[...new Set(tasks.filter(t=>t.active!==false).map(t=>t.department).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+    sel.innerHTML='<option value="">כל המחלקות</option>'+deps.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+    if(deps.includes(old))sel.value=old;
+    fillReportMachinesV4();
+  };
+  window.fillReportMachinesV4=function(){
+    const sel=byId('pmReportsMachine');if(!sel)return;
+    const old=sel.value,dep=byId('pmReportsDepartment')?.value||'';
+    const machines=[...new Set(tasks.filter(t=>t.active!==false&&(!dep||t.department===dep)).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+    sel.innerHTML='<option value="">כל המכונות</option>'+machines.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+    if(machines.includes(old))sel.value=old;
+  };
+  window.renderReports=function(){
+    const body=byId('pmReportsBody');if(!body)return;
+    if(!byId('pmReportsAnchor').value)byId('pmReportsAnchor').value=today();
+    copyReportLogos();
+    if(!pmWorkPlanLoaded){
+      body.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px">תוכנית העבודה עדיין נטענת מהענן…</td></tr>';return;
+    }
+    fillReportsDepartments();
+    currentRows=reportRows();
+    const {label}=reportBounds(),dep=byId('pmReportsDepartment').value,machine=byId('pmReportsMachine').value,performer=byId('pmReportsPerformer').value,status=byId('pmReportsStatus').value;
+    const filterText=[dep&&`מחלקה: ${dep}`,machine&&`מכונה: ${machine}`,performer&&`מבצע: ${performer==='operator'?'מפעיל':'טכנאי'}`,status&&`סטטוס: ${statusLabels[status]||status}`].filter(Boolean).join(' · ');
+    byId('pmReportsMeta').textContent=`${label}${filterText?' · '+filterText:''} · הופק: ${new Date().toLocaleString('he-IL')}`;
+    const mins=currentRows.reduce((a,r)=>a+Number(r.item.t.duration||0),0);
+    byId('pmReportsCount').textContent=currentRows.length;byId('pmReportsHours').textContent=hours(mins)+' שעות';
+    byId('pmReportsFooterCount').textContent=currentRows.length;byId('pmReportsFooterHours').textContent=hours(mins);
+    body.innerHTML=currentRows.length?currentRows.map(r=>{
+      const t=r.item.t,p=r.item.plan;
+      const note=p?.postponedReason||'';
+      return `<tr><td>${esc(fDate(r.date))}</td><td>${esc(t.department)}</td><td><strong>${esc(t.machine)}</strong></td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${Number(t.duration||0)} דק׳</td><td>${esc(r.assigned)}</td><td class="status-cell">${esc(statusLabels[r.state]||r.state)}</td><td>${note?esc(note):'________________'}</td></tr>`;
+    }).join(''):'<tr><td colspan="9" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לפילטרים שנבחרו.</td></tr>';
+  };
+  function preparePrint(){
+    renderReports();
+    document.body.classList.add('pm-report-printing');
+    setTimeout(()=>window.print(),60);
+    setTimeout(()=>document.body.classList.remove('pm-report-printing'),1400);
+  }
+  window.printWorkPlanReport=function(){preparePrint()};
+  window.pdfWorkPlanReport=function(){
+    if(window.pmToast)pmToast('במסך ההדפסה של iPhone בחר שיתוף / שמירה כ‑PDF');
+    preparePrint();
+  };
+  window.addEventListener('afterprint',()=>document.body.classList.remove('pm-report-printing'));
+  function xlsEscape(v){return clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  window.exportWorkPlanExcel=function(){
+    renderReports();
+    if(!currentRows.length){if(window.pmToast)pmToast('אין משימות לייצוא','error');return}
+    const {label}=reportBounds();
+    const rows=currentRows.map(r=>{const t=r.item.t;return [fDate(r.date),t.department,t.machine,t.task,t.frequency,Number(t.duration||0),r.assigned,statusLabels[r.state]||r.state,r.item.plan?.postponedReason||'']});
+    const head=['תאריך','מחלקה','מכונה','משימה','תדירות','משך (דקות)','מבצע','סטטוס','הערות'];
+    const html=`<!doctype html><html dir="rtl"><head><meta charset="utf-8"></head><body><h2>תוכנית עבודה</h2><p>${xlsEscape(label)}</p><table border="1"><thead><tr>${head.map(x=>`<th>${xlsEscape(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(x=>`<td>${xlsEscape(x)}</td>`).join('')}</tr>`).join('')}</tbody></table></body></html>`;
+    const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`FOP_Work_Plan_${reportBounds().start}_${reportBounds().end}.xls`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+    if(window.pmToast)pmToast('קובץ Excel הופק','success');
+  };
+
+  const baseShowTab=window.showTab;
+  window.showTab=function(name){
+    if(name!=='reports')return baseShowTab(name);
+    document.querySelectorAll('.pm-tab').forEach(b=>b.classList.toggle('active',b.dataset.pm===name));
+    document.querySelectorAll('.pm-panel').forEach(p=>p.classList.remove('active'));
+    byId('pmReports')?.classList.add('active');
+    if(!byId('pmReportsAnchor').value)byId('pmReportsAnchor').value=today();
+    fillReportsDepartments();renderReports();
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    const a=byId('pmReportsAnchor');if(a&&!a.value)a.value=today();
+    copyReportLogos();
+    fillReportsDepartments();
+  });
+})();
+</script>
+
 </body></html>
