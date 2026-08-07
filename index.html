@@ -312,6 +312,7 @@ function pmShowApp(user){
   if(bar) bar.style.display='flex';
   const email=document.getElementById('pmAuthEmail');
   if(email) email.textContent=user?.email||'';
+  setTimeout(()=>loadDashboardTasksFromSupabase(),0);
 }
 document.addEventListener('DOMContentLoaded',()=>{
   const form=document.getElementById('pmAuthForm');
@@ -371,6 +372,35 @@ const FREQ_DAYS={'יומי':1,'שבועי':7,'חודשי':30,'תלת חודשי'
 const STORE_TASKS='fop_pm_tasks_v2', STORE_HISTORY='fop_pm_history_v2';
 let tasks=[], history=[];
 
+let cloudDashboardTasks=[];
+let cloudDashboardLoaded=false;
+
+async function loadDashboardTasksFromSupabase(){
+  try{
+    const {data,error}=await supabaseClient
+      .from('pm_tasks')
+      .select('*')
+      .order('department',{ascending:true})
+      .order('machine',{ascending:true});
+    if(error) throw error;
+    if(!Array.isArray(data) || !data.length) throw new Error('pm_tasks is empty');
+    cloudDashboardTasks=data.map(normalize);
+    cloudDashboardLoaded=true;
+    fillDashboardMachines();
+    fillDashboardPerformers();
+    renderDashboard();
+    statusLine(`הדשבורד נטען מהענן — ${cloudDashboardTasks.length} משימות.`,'success');
+    return true;
+  }catch(err){
+    cloudDashboardLoaded=false;
+    console.error('Dashboard cloud load failed:',err);
+    statusLine('טעינת הדשבורד מהענן נכשלה. מוצגים נתוני הגיבוי המקומיים.','error');
+    renderDashboard();
+    return false;
+  }
+}
+
+
 function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]))}
 function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function dObj(s){if(!s)return null;const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d,12)}
@@ -380,10 +410,19 @@ function diff(a,b){return Math.round((dObj(a)-dObj(b))/86400000)}
 function fDate(s){return s?dObj(s).toLocaleDateString('he-IL'):'—'}
 function hours(mins){return (Number(mins||0)/60).toFixed(1)}
 function statusLine(msg,type=''){const e=document.getElementById('pmStatus');e.textContent=msg||'';e.className='status-line '+type}
-function normalize(t){return {...t,lastDone:t.lastDone||null,nextDue:t.nextDue||today(),active:t.active!==false}}
+function normalize(t){
+  return {
+    ...t,
+    lastDone:t.lastDone??t.last_done??null,
+    nextDue:t.nextDue??t.next_due??today(),
+    active:t.active!==false
+  }
+}
 function loadData(){
-  try{tasks=(JSON.parse(localStorage.getItem(STORE_TASKS))||TASK_SEED).map(normalize)}catch(e){tasks=TASK_SEED.map(normalize)}
-  try{history=JSON.parse(localStorage.getItem(STORE_HISTORY))||[]}catch(e){history=[]}
+  try{tasks=(JSON.parse(localStorage.getItem(STORE_TASKS))||TASK_SEED).map(normalize)}
+  catch(_){tasks=TASK_SEED.map(normalize)}
+  try{history=JSON.parse(localStorage.getItem(STORE_HISTORY))||[]}
+  catch(e){history=[]}
   saveData()
 }
 function saveData(){localStorage.setItem(STORE_TASKS,JSON.stringify(tasks));localStorage.setItem(STORE_HISTORY,JSON.stringify(history))}
@@ -430,7 +469,8 @@ const selectedPerformer=document.getElementById('pmDashboardPerformer')?.value||
 const dashboardFilter=t=>(!selectedDepartment||t.department===selectedDepartment)&&(!selectedMachine||t.machine===selectedMachine)&&(!selectedPerformer||t.performer===selectedPerformer);
 
   const dep=pmDashboardDepartment.value;
-  const active=activeFiltered(dep).filter(dashboardFilter);
+  const dashboardSource=cloudDashboardLoaded?cloudDashboardTasks:tasks;
+  const active=dashboardSource.filter(t=>t.active!==false&&(!dep||t.department===dep)).filter(dashboardFilter);
   const rows=active.map(t=>({t,s:stateOf(t)}));
   const over=rows.filter(x=>x.s.state==='overdue'), due=rows.filter(x=>x.s.state==='today'), up=rows.filter(x=>x.s.state==='upcoming');
   const doneToday=history.filter(h=>h.date===today()&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&(!selectedPerformer||h.performer===selectedPerformer));
@@ -444,7 +484,7 @@ const dashboardFilter=t=>(!selectedDepartment||t.department===selectedDepartment
   pmMonthCompliance.textContent=compliance+'%';
 
   const plannedMin=plannedMonth.reduce((a,t)=>a+Number(t.duration||0),0);
-  const doneMin=monthDone.reduce((a,h)=>a+Number((tasks.find(t=>t.id===h.taskId)||{}).duration||0),0);
+  const doneMin=monthDone.reduce((a,h)=>a+Number((dashboardSource.find(t=>String(t.id)===String(h.taskId))||{}).duration||0),0);
   const weekRows=rows.filter(x=>x.s.n>=0&&x.s.n<=7);
   pmPlannedHours.textContent=hours(plannedMin);
   pmDoneHours.textContent=hours(doneMin);
@@ -637,7 +677,8 @@ function fillDashboardMachines(){
  const sel=document.getElementById('pmDashboardMachine');
  if(!sel)return;
  const current=sel.value;
- const machines=[...new Set(TASK_SEED.filter(t=>!dep||t.department===dep).map(t=>t.machine))].sort();
+ const source=cloudDashboardLoaded?cloudDashboardTasks:tasks;
+ const machines=[...new Set(source.filter(t=>!dep||t.department===dep).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
  sel.innerHTML='<option value="">מכונות</option>'+machines.map(m=>`<option value="${m}">${m}</option>`).join('');
  if(machines.includes(current)) sel.value=current;
 }
@@ -647,7 +688,8 @@ function fillDashboardPerformers(){
  const sel=document.getElementById('pmDashboardPerformer');
  if(!sel)return;
  const current=sel.value;
- const perfs=[...new Set(TASK_SEED.filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)).map(t=>t.performer))].sort();
+ const source=cloudDashboardLoaded?cloudDashboardTasks:tasks;
+ const perfs=[...new Set(source.filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)).map(t=>t.performer).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
  sel.innerHTML='<option value="">מבצעים</option>'+perfs.map(p=>`<option value="${p}">${p}</option>`).join('');
  if(perfs.includes(current)) sel.value=current;
 }
