@@ -200,6 +200,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div id="pmInitStatus">🔴 Status: Not Initialized</div>
 <div id="pmInitDate" style="margin:6px 0 12px;color:#6d7b91"></div>
 <button id="pmInitBtn" class="btn" onclick="initializePMPlan()">Initialize PM Plan</button>
+<button id="pmImportBtn" class="secondary-btn" onclick="importPMPlanToSupabase()" style="margin-inline-start:8px">⬆️ Import PM Plan to Supabase</button>
 </div>
 <div class="add-box">
       <h3>הוספת משימת טיפול</h3>
@@ -579,6 +580,23 @@ function initializePMPlan(){
  alert("PM Plan initialized successfully.");
 }
 document.addEventListener("DOMContentLoaded",updatePMInitUI);
+
+
+async function importPMPlanToSupabase(){
+ if(!window.supabase){alert('Supabase client was not found.');return;}
+ if(!confirm('Import all preventive maintenance tasks to Supabase? This should be done only once.')) return;
+ try{
+  const r=await supabase.from('pm_tasks').select('id',{count:'exact',head:true});
+  if((r.count||0)>0){alert('pm_tasks already contains data.');return;}
+  const rows=TASK_SEED.map(t=>({department:t.department,machine:t.machine,task:t.task,frequency:t.frequency,performer:t.performer,duration:t.duration,parts:t.parts||'',notes:t.notes||'',active:t.active!==false,last_done:null,next_due:null}));
+  for(let i=0;i<rows.length;i+=200){
+    const {error}=await supabase.from('pm_tasks').insert(rows.slice(i,i+200));
+    if(error) throw error;
+  }
+  alert('Import completed: '+rows.length+' tasks.');
+  const b=document.getElementById('pmImportBtn'); if(b){b.disabled=true;b.textContent='✔ Import Completed';}
+ }catch(e){console.error(e);alert('Import failed: '+(e.message||e));}
+}
 
 </script>
 </body></html>
