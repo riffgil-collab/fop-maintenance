@@ -165,7 +165,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     <div class="toolbar">
       <div class="field report-date"><label>תאריך ביצוע</label><input id="pmReportDate" type="date"></div>
       <div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();fillReportPerformers();renderReport()"></select></div>
-      <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="fillReportPerformers();renderReport()"><option value="">מכונות</option></select></div>
+      <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
        <div class="field"><label>מבצע</label><select id="pmReportPerformer" onchange="renderReport()"><option value="">מבצעים</option></select></div>
     </div>
     <div class="report-summary">
@@ -194,7 +194,14 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   </section>
 
   <section id="pmSettings" class="pm-panel">
-    <div class="add-box">
+    
+<div class="panel-box" style="margin-bottom:14px">
+<h3>Preventive Maintenance Plan</h3>
+<div id="pmInitStatus">🔴 Status: Not Initialized</div>
+<div id="pmInitDate" style="margin:6px 0 12px;color:#6d7b91"></div>
+<button id="pmInitBtn" class="btn" onclick="initializePMPlan()">Initialize PM Plan</button>
+</div>
+<div class="add-box">
       <h3>הוספת משימת טיפול</h3>
       <div class="edit-grid">
         <div class="field"><label>מחלקה</label><input id="newDepartment" type="text" placeholder="שם המחלקה"></div>
@@ -367,31 +374,16 @@ function fillReportMachines(){
   if([...sel.options].some(o=>o.value===old))sel.value=old;
 }
 function renderReport(){
-  const dep=pmReportDepartment.value, machine=pmReportMachine.value, performer=pmReportPerformer.value;
-  const list=openTasks(dep)
-    .filter(x=>(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer))
-    .sort((a,b)=>a.s.n-b.s.n||a.t.machine.localeCompare(b.t.machine,'he'));
-
+  const dep=pmReportDepartment.value, machine=pmReportMachine.value;
+  const list=openTasks(dep).filter(x=>!machine||x.t.machine===machine).sort((a,b)=>a.s.n-b.s.n||a.t.machine.localeCompare(b.t.machine,'he'));
   repOpen.textContent=list.length+' משימות פתוחות';
   repLate.textContent=list.filter(x=>x.s.state==='overdue').length+' באיחור';
   repToday.textContent=list.filter(x=>x.s.state==='today').length+' להיום';
-
-  const done=history.filter(h=>
-    h.date===today() &&
-    (!dep||h.department===dep) &&
-    (!machine||h.machine===machine) &&
-    (!performer||h.performer===performer)
-  ).length;
-
+  const done=history.filter(h=>h.date===today()&&(!dep||h.department===dep)&&(!machine||h.machine===machine)).length;
   const total=list.length+done;
   pmProgressFill.style.width=(total?done/total*100:0)+'%';
   pmProgressText.textContent=`${done} מתוך ${total} בוצעו היום`;
-
-  if(!list.length){
-    pmOpenTasks.innerHTML='<div class="empty">אין טיפולים פתוחים בבחירה הנוכחית.</div>';
-    return;
-  }
-
+  if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין טיפולים פתוחים בבחירה הנוכחית.</div>';return}
   pmOpenTasks.innerHTML=list.map(x=>`<div class="open-task ${x.s.state} ${x.s.state==='overdue'?'topbar-red':'topbar-orange'}" id="open-${x.t.id}">
     <div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div>
     <div class="big-late">${x.s.state==='overdue'?Math.abs(x.s.n)+' ימי איחור':'לביצוע היום'}</div>
@@ -533,19 +525,60 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 
 function fillReportPerformers(){
-  const dep=document.getElementById('pmReportDepartment')?.value||'';
-  const machine=document.getElementById('pmReportMachine')?.value||'';
-  const sel=document.getElementById('pmReportPerformer');
-  if(!sel)return;
-  const old=sel.value;
-  const vals=[...new Set(tasks
-    .filter(t=>t.active!==false&&(!dep||t.department===dep)&&(!machine||t.machine===machine))
-    .map(t=>t.performer))]
-    .sort((a,b)=>a.localeCompare(b,'he'));
-  sel.innerHTML='<option value="">מבצעים</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  if(vals.includes(old)) sel.value=old;
+ const dep=document.getElementById('pmReportDepartment')?.value||'';
+ const machine=document.getElementById('pmReportMachine')?.value||'';
+ const sel=document.getElementById('pmReportPerformer');
+ if(!sel)return;
+ const vals=[...new Set(TASK_SEED.filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)).map(t=>t.performer))].sort();
+ sel.innerHTML='<option value="">מבצעים</option>'+vals.map(v=>`<option value="${v}">${v}</option>`).join('');
 }
 document.addEventListener('DOMContentLoaded',()=>{try{fillReportPerformers()}catch(e){}});
+
+
+const PM_INIT_KEY="pm_plan_initialized";
+function updatePMInitUI(){
+ const data=JSON.parse(localStorage.getItem(PM_INIT_KEY)||"null");
+ const s=document.getElementById("pmInitStatus"),d=document.getElementById("pmInitDate"),b=document.getElementById("pmInitBtn");
+ if(!s)return;
+ if(data){
+   s.innerHTML="🟢 Status: Initialized";
+   d.textContent="Initialized on: "+data.date;
+   if(b)b.style.display="none";
+ }else{
+   s.innerHTML="🔴 Status: Not Initialized";
+   d.textContent="";
+   if(b)b.style.display="";
+ }
+}
+function initializePMPlan(){
+ if(localStorage.getItem(PM_INIT_KEY)){updatePMInitUI();return;}
+ if(!confirm("Initialize Preventive Maintenance Plan?\nThis action can only be performed once.")) return;
+ const now=new Date();
+ const fmt=n=>String(n).padStart(2,"0");
+ const today=`${now.getFullYear()}-${fmt(now.getMonth()+1)}-${fmt(now.getDate())}`;
+ if(typeof tasks!=="undefined"){
+   tasks.forEach(t=>{
+      t.lastDone=null;
+      let d=new Date(now);
+      switch(t.frequency){
+        case "יומי": d.setDate(d.getDate()+1); break;
+        case "שבועי": d.setDate(d.getDate()+7); break;
+        case "חודשי": d.setMonth(d.getMonth()+1); break;
+        case "תלת חודשי": d.setMonth(d.getMonth()+3); break;
+        case "חצי שנתי": d.setMonth(d.getMonth()+6); break;
+        case "שנתי": d.setFullYear(d.getFullYear()+1); break;
+      }
+      t.nextDue=`${d.getFullYear()}-${fmt(d.getMonth()+1)}-${fmt(d.getDate())}`;
+   });
+   if(typeof saveData==="function") saveData();
+ }
+ localStorage.setItem(PM_INIT_KEY,JSON.stringify({date:today}));
+ updatePMInitUI();
+ if(typeof renderDashboard==="function") renderDashboard();
+ if(typeof renderReport==="function") renderReport();
+ alert("PM Plan initialized successfully.");
+}
+document.addEventListener("DOMContentLoaded",updatePMInitUI);
 
 </script>
 </body></html>
