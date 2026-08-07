@@ -328,6 +328,20 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   .pm-plan-today-kpis{grid-template-columns:1fr 1fr}
 }
 
+
+/* ===== FOP MAINTENANCE V3 — MANAGEMENT WORKFLOW ===== */
+.pm-v3-hero{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:17px;border:1px solid #dce7f3;border-radius:20px;background:linear-gradient(135deg,#f8fbff,#f5faf7);margin-bottom:12px}
+.pm-v3-hero h2{margin:2px 0 4px;color:var(--navy2);font-size:22px}.pm-v3-hero p{margin:0;color:var(--muted);font-size:10px}.pm-v3-eyebrow{font-size:9px;font-weight:950;color:var(--green);letter-spacing:.4px}
+.pm-v3-health{min-width:130px;text-align:center;border-radius:15px;padding:11px 12px;background:#fff;border:1px solid var(--line)}.pm-v3-health strong{display:block;font-size:14px;color:var(--navy2)}.pm-v3-health span{display:block;font-size:9px;color:var(--muted);margin-top:3px}.pm-v3-health.good{border-color:#b7e0c5;background:#f6fff8}.pm-v3-health.good strong{color:#12733b}.pm-v3-health.warn{border-color:#f1d38c;background:#fffaf0}.pm-v3-health.warn strong{color:#8a5900}.pm-v3-health.bad{border-color:#ef9aaa;background:#fff7f8}.pm-v3-health.bad strong{color:#b60029}
+.pm-v3-periods{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}.pm-v3-periods button{border:1px solid #d7e0eb;background:#fff;color:#40516d;border-radius:11px;padding:9px 13px;font-weight:900}.pm-v3-periods button.active{background:var(--navy2);border-color:var(--navy2);color:#fff}
+.pm-v3-filterbar{padding:10px;border-radius:15px;background:#f9fbfe;border:1px solid #e7edf5}
+.pm-v3-status-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin:13px 0}.pm-v3-status{border:1px solid var(--line);border-radius:16px;padding:13px 8px;text-align:center;background:#fff;position:relative;overflow:hidden}.pm-v3-status:before{content:"";position:absolute;inset:0 0 auto;height:5px;background:#94a3b8}.pm-v3-status strong{display:block;font-size:27px;color:var(--navy2)}.pm-v3-status span{display:block;font-size:10px;font-weight:950;margin-top:3px}.pm-v3-status small{display:block;font-size:8px;color:var(--muted);margin-top:4px;line-height:1.35}.pm-v3-status.waiting:before{background:#94a3b8}.pm-v3-status.planned:before{background:var(--blue)}.pm-v3-status.completed:before{background:#1fb45a}.pm-v3-status.postponed:before{background:var(--amber)}.pm-v3-status.cancelled:before{background:#566175}.pm-v3-status.overdue:before{background:var(--red)}
+.pm-v3-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin:0 0 13px}.pm-v3-kpi{border:1px solid var(--line);border-radius:17px;padding:13px;background:#fbfcfe;min-height:110px}.pm-v3-kpi>div:first-child{display:flex;justify-content:space-between;gap:6px;align-items:flex-start}.pm-v3-kpi span{font-size:10px;font-weight:950;color:#40516d}.pm-v3-kpi small{font-size:8px;color:var(--muted)}.pm-v3-kpi strong{display:block;font-size:26px;color:var(--navy2);margin:8px 0}.pm-v3-bar{height:7px;background:#e5ebf3;border-radius:999px;overflow:hidden}.pm-v3-bar i{display:block;height:100%;width:0;background:var(--green);transition:.25s}
+.pm-v3-backlog-banner{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid #f0c477;border-radius:18px;padding:13px 15px;background:#fffbf3;margin-bottom:14px}.pm-v3-backlog-banner span{font-size:10px;font-weight:950;color:#725500}.pm-v3-backlog-banner strong{display:inline-block;font-size:25px;color:#9a5a00;margin:0 8px}.pm-v3-backlog-banner small{display:block;font-size:8px;color:#8c7651;margin-top:2px}.pm-v3-split{margin-top:14px}.pm-v3-mini{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:9px 0;border-bottom:1px solid #edf1f6;align-items:center}.pm-v3-mini:last-child{border-bottom:0}.pm-v3-mini strong{display:block;font-size:10px;color:var(--navy2)}.pm-v3-mini small{display:block;font-size:8px;color:var(--muted);margin-top:2px}.pm-v3-mini .tag{font-size:8px;font-weight:950;border-radius:999px;padding:5px 7px;background:#edf2f8;color:#52657e}.pm-v3-mini .tag.red{background:#fff0f3;color:#b60029}.pm-v3-mini .tag.amber{background:#fff2d8;color:#8a5900}.pm-v3-mini .tag.blue{background:#eaf3ff;color:#0967e5}
+.pm-plan-badge.cancelled{background:#eef0f3;color:#4f5968}.pm-plan-badge.postponed{background:#fff2d8;color:#8a5900}.pm-plan-row.cancelled-plan{opacity:.78;background:#fafafa;border-color:#cfd5dd}.pm-plan-row.postponed-plan{background:#fffbf3;border-color:#f0c477}.pm-v3-cancel{border:0;border-radius:11px;background:#eef0f3;color:#3f4855;padding:10px 12px;font-weight:900;white-space:nowrap}
+@media(max-width:760px){.pm-v3-hero{align-items:flex-start}.pm-v3-health{min-width:110px}.pm-v3-status-grid{grid-template-columns:1fr 1fr 1fr}.pm-v3-kpi-grid{grid-template-columns:1fr 1fr}.pm-v3-status strong{font-size:24px}.pm-v3-status small{display:none}}
+@media(max-width:430px){.pm-v3-hero{display:block}.pm-v3-health{margin-top:10px;width:100%}.pm-v3-status-grid{grid-template-columns:1fr 1fr}.pm-v3-kpi-grid{grid-template-columns:1fr 1fr}.pm-v3-backlog-banner{align-items:flex-start;flex-direction:column}.pm-v3-backlog-banner button{width:100%}}
+
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
@@ -374,61 +388,65 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <button class="pm-tab" data-pm="settings" onclick="showTab('settings')">הגדרות</button>
 <button class="pm-tab" data-pm="users" id="pmUsersTabButton" onclick="showTab('users')" style="display:none">ניהול משתמשים</button>
 </div>
-
 <section class="pm-panel active" id="pmDashboard">
-  <div class="section-title">
-    <h3>מצב מחלקת האחזקה</h3>
-    <small>תמונת מצב ניהולית</small>
+<div class="pm-v3-hero">
+  <div>
+    <div class="pm-v3-eyebrow">תמונת מצב ניהולית</div>
+    <h2>שליטה בתוכנית האחזקה</h2>
+    <p id="pmV3RangeText">הנתונים מתעדכנים לפי התקופה והפילטרים שנבחרו.</p>
   </div>
+  <div class="pm-v3-health" id="pmV3Health"><strong>—</strong><span>מצב המחלקה</span></div>
+</div>
 
-  <div class="toolbar">
-    <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();fillDashboardPerformers();renderDashboard()"></select></div>
-    <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">כל המכונות</option></select></div>
-    <div class="field"><label>מבצע</label><select id="pmDashboardPerformer" onchange="renderDashboard()"><option value="">כל המבצעים</option></select></div>
-  </div>
+<div class="pm-v3-periods" id="pmV3Periods">
+  <button type="button" data-v3period="week" class="active" onclick="setV3DashboardPeriod('week')">שבוע</button>
+  <button type="button" data-v3period="month" onclick="setV3DashboardPeriod('month')">חודש</button>
+  <button type="button" data-v3period="half" onclick="setV3DashboardPeriod('half')">חצי שנה</button>
+  <button type="button" data-v3period="year" onclick="setV3DashboardPeriod('year')">שנה</button>
+</div>
 
-  <div class="pm-v3-status-grid">
-    <div class="pm-v3-card waiting"><strong id="pmV3Waiting">0</strong><span>ממתינות לתכנון</span></div>
-    <div class="pm-v3-card planned"><strong id="pmV3Planned">0</strong><span>מתוכננות</span></div>
-    <div class="pm-v3-card done"><strong id="pmV3Done">0</strong><span>בוצעו</span></div>
-    <div class="pm-v3-card postponed"><strong id="pmV3Postponed">0</strong><span>נדחו</span></div>
-    <div class="pm-v3-card cancelled"><strong id="pmV3Cancelled">0</strong><span>בוטלו</span></div>
-    <div class="pm-v3-card overdue"><strong id="pmV3Overdue">0</strong><span>באיחור</span></div>
-  </div>
+<div class="toolbar pm-v3-filterbar">
+  <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();fillDashboardPerformers();renderDashboard()"></select></div>
+  <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">כל המכונות</option></select></div>
+  <div class="field"><label>מבצע</label><select id="pmDashboardPerformer" onchange="renderDashboard()"><option value="">כל המבצעים</option></select></div>
+</div>
 
-  <div class="section-title">
-    <h3>ביצועי התקופה</h3>
-    <small id="pmV3PeriodLabel">השבוע</small>
-  </div>
-  <div class="pm-v3-periods">
-    <button type="button" data-v3period="week" class="active" onclick="setV3DashboardPeriod('week')">שבוע</button>
-    <button type="button" data-v3period="month" onclick="setV3DashboardPeriod('month')">חודש</button>
-    <button type="button" data-v3period="quarter" onclick="setV3DashboardPeriod('quarter')">רבעון</button>
-    <button type="button" data-v3period="year" onclick="setV3DashboardPeriod('year')">שנה</button>
-  </div>
+<div class="pm-v3-status-grid">
+  <div class="pm-v3-status waiting"><strong id="pmV3Waiting">0</strong><span>ממתינות לתכנון</span><small>טרם התקבלה החלטת תכנון</small></div>
+  <div class="pm-v3-status planned"><strong id="pmV3Planned">0</strong><span>מתוכננות</span><small>נמצאות בתוכנית העבודה</small></div>
+  <div class="pm-v3-status completed"><strong id="pmV3Completed">0</strong><span>בוצעו</span><small>הושלמו בתקופה</small></div>
+  <div class="pm-v3-status postponed"><strong id="pmV3Postponed">0</strong><span>נדחו</span><small>נדחו עם סיבה ותאריך חדש</small></div>
+  <div class="pm-v3-status cancelled"><strong id="pmV3Cancelled">0</strong><span>בוטלו</span><small>ויתור ניהולי מתועד</small></div>
+  <div class="pm-v3-status overdue"><strong id="pmV3Overdue">0</strong><span>באיחור</span><small>עבר מועד היעד ועדיין פתוחות</small></div>
+</div>
 
-  <div class="pm-v3-kpi-grid">
-    <div class="pm-v3-kpi"><strong id="pmV3Coverage">0%</strong><span>כיסוי תוכנית</span><small id="pmV3CoverageNote">0 מתוך 0</small></div>
-    <div class="pm-v3-kpi"><strong id="pmV3Compliance">0%</strong><span>עמידה בתוכנית</span><small id="pmV3ComplianceNote">0 מתוך 0</small></div>
-    <div class="pm-v3-kpi"><strong id="pmV3PlannedHours">0</strong><span>שעות מתוכננות</span></div>
-    <div class="pm-v3-kpi"><strong id="pmV3DoneHours">0</strong><span>שעות שבוצעו</span></div>
-  </div>
+<div class="pm-v3-kpi-grid">
+  <div class="pm-v3-kpi"><div><span>כיסוי תוכנית</span><small id="pmV3CoverageDetail">0 מתוך 0</small></div><strong id="pmV3Coverage">0%</strong><div class="pm-v3-bar"><i id="pmV3CoverageBar"></i></div></div>
+  <div class="pm-v3-kpi"><div><span>עמידה בתוכנית</span><small id="pmV3ExecutionDetail">0 מתוך 0</small></div><strong id="pmV3Execution">0%</strong><div class="pm-v3-bar"><i id="pmV3ExecutionBar"></i></div></div>
+  <div class="pm-v3-kpi"><div><span>שעות מתוכננות</span><small>לפי משך הטיפולים</small></div><strong id="pmV3PlannedHours">0</strong></div>
+  <div class="pm-v3-kpi"><div><span>שעות שבוצעו</span><small>טיפולים שהושלמו</small></div><strong id="pmV3DoneHours">0</strong></div>
+</div>
 
-  <div class="pm-v3-health" id="pmV3Health">
-    <strong id="pmV3HealthTitle">מצב המחלקה</strong>
-    <span id="pmV3HealthText">—</span>
-  </div>
+<div class="pm-v3-backlog-banner">
+  <div><span>צבר פתוח עכשיו</span><strong id="pmV3BacklogTotal">0</strong><small>ממתינות לתכנון + באיחור בכל המערכת</small></div>
+  <button type="button" class="secondary-btn" onclick="showTab('planner')">פתח תכנון עבודה</button>
+</div>
 
-  <div class="split">
-    <div class="panel-box">
-      <h3>צבר באיחור</h3>
-      <div id="pmV3BacklogList"></div>
-    </div>
-    <div class="panel-box">
-      <h3>ממתינות לתכנון</h3>
-      <div id="pmV3WaitingList"></div>
-    </div>
+<div class="pm-plan-today">
+  <div class="pm-plan-today-head"><h3>תוכנית העבודה להיום</h3><button type="button" class="secondary-btn" onclick="showTab('planner');setPlanningPeriod('day')">פתיחת התכנון</button></div>
+  <div class="pm-plan-today-kpis">
+    <div class="pm-plan-today-kpi"><strong id="pmTodayPlanned">0</strong><span>מתוכננות</span></div>
+    <div class="pm-plan-today-kpi"><strong id="pmTodayDone">0</strong><span>בוצעו</span></div>
+    <div class="pm-plan-today-kpi"><strong id="pmTodayPending">0</strong><span>נותרו לביצוע</span></div>
+    <div class="pm-plan-today-kpi"><strong id="pmTodayPlanHours">0</strong><span>שעות מתוכננות</span></div>
   </div>
+  <div class="pm-plan-mini-list" id="pmTodayPlanList"></div>
+</div>
+
+<div class="split pm-v3-split">
+  <div class="panel-box"><h3>דורש החלטה ניהולית</h3><div id="pmV3Attention"></div></div>
+  <div class="panel-box"><h3>תוכנית קרובה</h3><div id="pmV3NearPlan"></div></div>
+</div>
 </section>
 
 <section class="pm-panel" id="pmPlanner">
@@ -447,6 +465,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     <div class="field"><label>תאריך עוגן</label><input id="pmPlannerStart" type="date" onchange="renderPlanner()"/></div>
     <div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="renderPlanner()"></select></div>
     <div class="field"><label>מבצע</label><select id="pmPlannerPerformer" onchange="renderPlanner()"><option value="">כל המבצעים</option></select></div>
+    <div class="field"><label>סטטוס</label><select id="pmPlannerStatus" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל הסטטוסים</option><option value="waiting">ממתינה לתכנון</option><option value="planned">מתוכננת</option><option value="postponed">נדחתה</option><option value="overdue">באיחור</option><option value="cancelled">בוטלה</option><option value="completed">בוצעה</option></select></div>
     <div class="field"><label>חיפוש</label><input id="pmPlannerSearch" type="text" placeholder="מכונה / טיפול" oninput="renderPlanner()"/></div>
   </div>
 
@@ -470,10 +489,11 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <div class="pm-plan-actions">
     <div class="field"><label>תאריך מתוכנן</label><input id="pmPlanDate" type="date"/></div>
     <div class="field"><label>עדיפות</label><select id="pmPlanPriority"><option value="גבוהה">גבוהה</option><option value="בינונית" selected>בינונית</option><option value="נמוכה">נמוכה</option></select></div>
-    <div class="field"><label>מבצע למשימות שנבחרו</label><select id="pmPlanAssignee"><option value="">לפי הגדרת הטיפול</option><option value="מפעיל">מפעיל</option><option value="טכנאי אחזקה">טכנאי אחזקה</option></select></div>
+    <div class="field"><label>שיבוץ למבצע</label><input id="pmPlanAssignee" type="text" placeholder="למשל: טכנאי אחזקה"/></div>
     <div class="field"><label>בחירה</label><button type="button" class="secondary-btn" onclick="toggleAllPlanRows(true)">בחר הכל המוצג</button></div>
     <button type="button" class="btn" onclick="saveSelectedPlanning()">שבץ לתוכנית</button>
-    <button type="button" class="secondary-btn" onclick="unplanSelected()">הסר מתוכנית</button><button type="button" class="danger-btn" onclick="cancelSelectedPlanning()">בטל משימה</button>
+    <button type="button" class="secondary-btn" onclick="unplanSelected()">החזר לממתינה</button>
+    <button type="button" class="danger-btn" onclick="cancelSelectedPlanning()">בטל טיפול</button>
   </div>
 
   <div class="pm-plan-note" id="pmPlanSelectionInfo">לא נבחרו משימות.</div>
@@ -2486,511 +2506,255 @@ document.addEventListener('DOMContentLoaded',()=>{
 </script>
 
 
-<style>
-/* ===== FOP MAINTENANCE V3 — MANAGEMENT DASHBOARD ===== */
-.pm-v3-status-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:9px;margin:10px 0 18px}
-.pm-v3-card{border:1px solid var(--line);border-radius:17px;padding:15px 9px;text-align:center;background:#fff;position:relative;overflow:hidden}
-.pm-v3-card:before{content:"";position:absolute;inset:0 0 auto;height:5px}
-.pm-v3-card strong{display:block;font-size:27px;color:var(--navy2);line-height:1.05}
-.pm-v3-card span{display:block;margin-top:6px;font-size:9px;font-weight:900;color:var(--muted)}
-.pm-v3-card.waiting:before{background:#7b8798}.pm-v3-card.planned:before{background:var(--blue)}
-.pm-v3-card.done:before{background:var(--green)}.pm-v3-card.postponed:before{background:var(--amber)}
-.pm-v3-card.cancelled:before{background:#4d596a}.pm-v3-card.overdue:before{background:var(--red)}
-.pm-v3-periods{display:flex;gap:7px;flex-wrap:wrap;margin:0 0 12px}
-.pm-v3-periods button{border:1px solid #d7e0eb;background:#fff;color:#40516d;border-radius:11px;padding:9px 13px;font-weight:900}
-.pm-v3-periods button.active{background:var(--navy2);border-color:var(--navy2);color:#fff}
-.pm-v3-kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
-.pm-v3-kpi{border:1px solid var(--line);border-radius:17px;padding:15px 10px;text-align:center;background:#fbfcfe}
-.pm-v3-kpi strong{display:block;font-size:27px;color:var(--navy2)}
-.pm-v3-kpi span{display:block;font-size:10px;color:var(--muted);font-weight:900;margin-top:4px}
-.pm-v3-kpi small{display:block;font-size:9px;color:#8a97a9;margin-top:4px}
-.pm-v3-health{border-radius:16px;padding:13px 15px;margin-bottom:14px;border:1px solid var(--line);background:#f7fafc}
-.pm-v3-health strong{display:block;color:var(--navy2);font-size:13px;margin-bottom:4px}
-.pm-v3-health span{font-size:11px;color:#52657e}
-.pm-v3-health.good{background:#f1fbf5;border-color:#b9e3c8}.pm-v3-health.good strong{color:#12733b}
-.pm-v3-health.warn{background:#fff9e9;border-color:#f1d38c}.pm-v3-health.warn strong{color:#8a5900}
-.pm-v3-health.bad{background:#fff3f5;border-color:#ef9aaa}.pm-v3-health.bad strong{color:#b60029}
-.pm-v3-mini{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;padding:9px 0;border-bottom:1px solid #edf1f6;font-size:10px}
-.pm-v3-mini:last-child{border-bottom:0}.pm-v3-mini strong{display:block;color:var(--navy2);font-size:11px}
-.pm-v3-mini small{display:block;color:var(--muted);margin-top:2px}.pm-v3-mini b{color:#b60029;white-space:nowrap}
-.pm-plan-badge.cancelled{background:#edf0f3;color:#4d596a}
-.pm-plan-badge.postponed{background:#fff2d8;color:#8a5900}
-.pm-plan-row.cancelled-plan{opacity:.7;background:#f7f8fa;border-color:#cfd6df}
-.pm-plan-row.postponed-plan{background:#fffbf3;border-color:#f0c477}
-@media(max-width:760px){
-  .pm-v3-status-grid{grid-template-columns:1fr 1fr 1fr}
-  .pm-v3-kpi-grid{grid-template-columns:1fr 1fr}
-}
-@media(max-width:430px){
-  .pm-v3-status-grid{grid-template-columns:1fr 1fr}
-}
-</style>
-
 <script>
 /* ============================================================
-   FOP MAINTENANCE V3 — STATUS / BACKLOG / MANAGEMENT
+   FOP MAINTENANCE V3 — MANAGEMENT STATUS ENGINE
    Uses existing pm_tasks + pm_history + pm_work_plan schema.
    ============================================================ */
 let pmV3DashboardPeriod='week';
 
-function v3Status(p){return String(p?.status||'').trim().toLowerCase()}
-function v3IsCancelled(p){return ['cancelled','canceled','בוטל','בוטלה'].includes(v3Status(p))}
-function v3IsDone(p){return ['completed','done','בוצע','בוצעה'].includes(v3Status(p))}
-function v3IsPostponed(p){return ['postponed','deferred','נדחה','נדחתה'].includes(v3Status(p))}
-function v3IsPlanned(p){return !!p && !v3IsCancelled(p) && !v3IsDone(p)}
-function v3OccurrenceRows(taskId,due){
+function v3StatusNorm(v){return String(v||'').trim().toLowerCase()}
+function v3RowStatus(p){
+  const s=v3StatusNorm(p?.status);
+  if(['completed','done','בוצע'].includes(s))return 'completed';
+  if(['cancelled','canceled','בוטל'].includes(s))return 'cancelled';
+  if(['unplanned','waiting','ממתינה','ממתין'].includes(s))return 'waiting';
+  if(['postponed','deferred','נדחה','נדחתה'].includes(s))return 'postponed';
+  if(p?.postponedReason)return 'postponed';
+  return 'planned';
+}
+function v3AllRowsForOccurrence(taskId,due){
   return pmWorkPlan.filter(p=>String(p.taskId)===String(taskId)&&wpDueFromNotes(p.notes)===String(due))
-    .sort((a,b)=>String(b.updatedAt||b.createdAt).localeCompare(String(a.updatedAt||a.createdAt)));
+    .sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
 }
-function v3OccurrencePlan(taskId,due){return v3OccurrenceRows(taskId,due)[0]||null}
-function v3TaskMatch(t,p){
-  const dep=document.getElementById('pmDashboardDepartment')?.value||'';
-  const machine=document.getElementById('pmDashboardMachine')?.value||'';
-  const perf=document.getElementById('pmDashboardPerformer')?.value||'';
-  return (!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!perf||(p?.assignedTo||t.performer)===perf||t.performer===perf);
-}
-function v3RequirementOccurrences(untilDate){
-  const out=[], cutoff=untilDate||today();
-  for(const t of tasks.filter(x=>x.active!==false)){
-    const due=t.nextDue||today();
-    if(!due)continue;
-    /* Current open occurrence. Old unplanned work never disappears. */
-    if(due<=cutoff){
-      out.push({t,due,plan:v3OccurrencePlan(t.id,due)});
-    }
-  }
-  return out;
-}
-function v3Classify(item,refDate=today()){
-  const p=item.plan;
+function v3OccurrenceRow(taskId,due){return v3AllRowsForOccurrence(taskId,due)[0]||null}
+function v3OccurrenceState(item,refDate=today()){
+  const p=item.plan||v3OccurrenceRow(item.t.id,item.due);
   if(p){
-    if(v3IsCancelled(p))return 'cancelled';
-    if(v3IsDone(p))return 'done';
-    if(v3IsPostponed(p))return p.plannedDate<refDate?'overdue':'postponed';
-    if(p.plannedDate<refDate)return 'overdue';
+    const rs=v3RowStatus(p);
+    if(rs==='completed')return 'completed';
+    if(rs==='cancelled')return 'cancelled';
+    if(rs==='waiting')return item.due<refDate?'overdue':'waiting';
+    if((p.plannedDate||item.due)<refDate)return 'overdue';
+    if(rs==='postponed')return 'postponed';
     return 'planned';
   }
-  if(item.due<refDate)return 'overdue';
-  return 'waiting';
+  return item.due<refDate?'overdue':'waiting';
 }
-function v3PeriodBounds(period){
-  const d=new Date(today()+'T12:00:00');
-  let start,end,label;
-  if(period==='month'){
-    start=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;
-    const e=new Date(d.getFullYear(),d.getMonth()+1,0,12);end=localISO(e);label='החודש';
-  }else if(period==='quarter'){
-    const qm=Math.floor(d.getMonth()/3)*3;
-    start=localISO(new Date(d.getFullYear(),qm,1,12));
-    end=localISO(new Date(d.getFullYear(),qm+3,0,12));label='הרבעון';
-  }else if(period==='year'){
-    start=`${d.getFullYear()}-01-01`;end=`${d.getFullYear()}-12-31`;label='השנה';
+function v3PeriodBounds(period=pmV3DashboardPeriod,anchor=today()){
+  const d=dObj(anchor)||new Date(); let start,end,label;
+  if(period==='week'){
+    start=weekStartFrom(anchor);end=addDays(start,6);label=`השבוע · ${fDate(start)} – ${fDate(end)}`;
+  }else if(period==='month'){
+    start=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;end=dateStr(new Date(d.getFullYear(),d.getMonth()+1,0,12));label=d.toLocaleDateString('he-IL',{month:'long',year:'numeric'});
+  }else if(period==='half'){
+    const sm=d.getMonth()<6?0:6;start=`${d.getFullYear()}-${String(sm+1).padStart(2,'0')}-01`;end=dateStr(new Date(d.getFullYear(),sm+6,0,12));label=`חצי ${sm===0?'ראשון':'שני'} ${d.getFullYear()}`;
   }else{
-    const day=d.getDay(), shift=day===0?-6:1-day;
-    start=localISO(new Date(d.getFullYear(),d.getMonth(),d.getDate()+shift,12));
-    end=addDays(start,6);label='השבוע';
+    start=`${d.getFullYear()}-01-01`;end=`${d.getFullYear()}-12-31`;label=String(d.getFullYear());
   }
   return {start,end,label};
 }
-function setV3DashboardPeriod(period){
-  pmV3DashboardPeriod=period;
-  document.querySelectorAll('[data-v3period]').forEach(b=>b.classList.toggle('active',b.dataset.v3period===period));
-  renderDashboard();
-}
-function v3CompletedRowsInRange(start,end){
-  return pmWorkPlan.filter(p=>v3IsDone(p)&&((p.completedDate&&p.completedDate>=start&&p.completedDate<=end)||(!p.completedDate&&p.plannedDate>=start&&p.plannedDate<=end)));
-}
-function v3RequirementItemsInRange(start,end){
-  const out=[];
-  for(const t of tasks.filter(x=>x.active!==false)){
-    const step=Math.max(1,Number(FREQ_DAYS[t.frequency]||30));
-    let due=t.nextDue||today(); if(!due)continue;
-    let guard=0;
-    while(due<start&&guard++<5000)due=addDays(due,step);
-    guard=0;
-    while(due<=end&&guard++<5000){
-      out.push({t,due,plan:v3OccurrencePlan(t.id,due)});
-      due=addDays(due,step);
-    }
-  }
-  /* Include persisted plans in the period even if master nextDue moved after completion. */
-  pmWorkPlan.forEach(p=>{
-    const due=wpDueFromNotes(p.notes)||p.plannedDate;
-    if(!due||due<start||due>end)return;
-    const t=wpTask(p);if(!t)return;
-    if(!out.some(x=>String(x.t.id)===String(t.id)&&x.due===due))out.push({t,due,plan:p});
-  });
-  return out;
-}
-
-/* Dashboard: general state + period performance */
-renderDashboard=function(){
-  const ref=today();
-  const current=v3RequirementOccurrences(ref).filter(x=>v3TaskMatch(x.t,x.plan));
-  let waiting=0,planned=0,overdue=0;
-  current.forEach(x=>{
-    const c=v3Classify(x,ref);
-    if(c==='waiting')waiting++;
-    else if(c==='overdue')overdue++;
-    else if(c==='planned'||c==='postponed')planned++;
-  });
-
-  const allPlans=pmWorkPlan.filter(p=>{const t=wpTask(p);return t&&v3TaskMatch(t,p)});
-  const doneAll=allPlans.filter(v3IsDone).length;
-  const postponedAll=allPlans.filter(v3IsPostponed).length;
-  const cancelledAll=allPlans.filter(v3IsCancelled).length;
-
-  const set=(id,val)=>{const el=document.getElementById(id);if(el)el.textContent=val};
-  set('pmV3Waiting',waiting);set('pmV3Planned',planned);set('pmV3Done',doneAll);
-  set('pmV3Postponed',postponedAll);set('pmV3Cancelled',cancelledAll);set('pmV3Overdue',overdue);
-
-  const {start,end,label}=v3PeriodBounds(pmV3DashboardPeriod);
-  set('pmV3PeriodLabel',label);
-  const req=v3RequirementItemsInRange(start,end).filter(x=>v3TaskMatch(x.t,x.plan));
-  const validReq=req.filter(x=>!v3IsCancelled(x.plan));
-  const scheduled=validReq.filter(x=>x.plan&&v3IsPlanned(x.plan)||x.plan&&v3IsDone(x.plan));
-  const done=validReq.filter(x=>x.plan&&v3IsDone(x.plan));
-  const coverage=validReq.length?Math.round(scheduled.length/validReq.length*100):100;
-  const compliance=scheduled.length?Math.round(done.length/scheduled.length*100):0;
-  const plannedMins=scheduled.reduce((a,x)=>a+Number(x.t.duration||0),0);
-  const doneMins=done.reduce((a,x)=>a+Number(x.t.duration||0),0);
-  set('pmV3Coverage',coverage+'%');set('pmV3Compliance',compliance+'%');
-  set('pmV3PlannedHours',hours(plannedMins));set('pmV3DoneHours',hours(doneMins));
-  set('pmV3CoverageNote',`${scheduled.length} מתוך ${validReq.length}`);
-  set('pmV3ComplianceNote',`${done.length} מתוך ${scheduled.length}`);
-
-  const health=document.getElementById('pmV3Health');
-  const ht=document.getElementById('pmV3HealthTitle'), hx=document.getElementById('pmV3HealthText');
-  if(health){
-    health.className='pm-v3-health '+(overdue>20||coverage<50?'bad':overdue>5||coverage<80?'warn':'good');
-    if(overdue>20||coverage<50){ht.textContent='נדרשת התערבות ניהולית';hx.textContent=`${overdue} משימות באיחור · כיסוי ${label}: ${coverage}%`;}
-    else if(overdue>5||coverage<80){ht.textContent='נדרש שיפור בתכנון';hx.textContent=`${overdue} משימות באיחור · כיסוי ${label}: ${coverage}%`;}
-    else {ht.textContent='המחלקה בשליטה';hx.textContent=`צבר באיחור: ${overdue} · כיסוי ${label}: ${coverage}%`;}
-  }
-
-  const backlog=current.filter(x=>v3Classify(x,ref)==='overdue').sort((a,b)=>a.due.localeCompare(b.due)).slice(0,8);
-  const waits=current.filter(x=>v3Classify(x,ref)==='waiting').sort((a,b)=>a.due.localeCompare(b.due)).slice(0,8);
-  const mini=(x,late=false)=>`<div class="pm-v3-mini"><div><strong>${esc(x.t.machine)} — ${esc(x.t.task)}</strong><small>${esc(x.t.department)} · יעד ${esc(fDate(x.due))}</small></div>${late?`<b>${Math.abs(diffDays(x.due,ref))} ימים</b>`:'<span>ממתינה</span>'}</div>`;
-  const bl=document.getElementById('pmV3BacklogList'), wl=document.getElementById('pmV3WaitingList');
-  if(bl)bl.innerHTML=backlog.length?backlog.map(x=>mini(x,true)).join(''):'<div class="empty">אין משימות באיחור.</div>';
-  if(wl)wl.innerHTML=waits.length?waits.map(x=>mini(x,false)).join(''):'<div class="empty">אין משימות שממתינות לתכנון.</div>';
-};
-
-/* Keep cancelled / postponed occurrences visible in planning instead of disappearing. */
-wpForOccurrence=function(taskId,due){return v3OccurrencePlan(taskId,due)};
-
-wpRequirementItems=function(start,end){
+function v3RequirementItems(start,end){
   const items=[];
   for(const t of tasks.filter(x=>x.active!==false)){
     const step=Math.max(1,Number(FREQ_DAYS[t.frequency]||30));
     let due=t.nextDue||today(); if(!due)continue;
     if(due<start){
-      items.push({t,due,plan:v3OccurrencePlan(t.id,due),backlog:true});
+      const oldPlan=v3OccurrenceRow(t.id,due);
+      const oldItem={t,due,plan:oldPlan,backlog:true};
+      const oldState=v3OccurrenceState(oldItem);
+      // Carry only unresolved backlog forward. Completed/cancelled old occurrences stay historical.
+      if(!['completed','cancelled'].includes(oldState))items.push(oldItem);
       let guard=0;while(due<start&&guard++<5000)due=addDays(due,step);
     }
     let guard=0;
-    while(due<=end&&guard++<5000){
-      if(due>=start)items.push({t,due,plan:v3OccurrencePlan(t.id,due),backlog:false});
-      due=addDays(due,step);
-    }
+    while(due<=end&&guard++<5000){if(due>=start)items.push({t,due,plan:v3OccurrenceRow(t.id,due),backlog:false});due=addDays(due,step)}
   }
+  // Keep rows explicitly scheduled into the period visible even when original due is outside it.
   pmWorkPlan.forEach(p=>{
-    const due=wpDueFromNotes(p.notes)||p.plannedDate;
-    const t=wpTask(p); if(!t||!due)return;
-    if((due>=start&&due<=end)||(p.plannedDate>=start&&p.plannedDate<=end)){
-      if(!items.some(x=>String(x.t.id)===String(t.id)&&x.due===due))items.push({t,due,plan:p,backlog:due<start});
-    }
+    if(!p.plannedDate||p.plannedDate<start||p.plannedDate>end)return;
+    const t=wpTask(p);if(!t||t.active===false)return;
+    const due=wpDueFromNotes(p.notes)||t.nextDue||p.plannedDate;
+    if(!items.some(x=>String(x.t.id)===String(t.id)&&x.due===due))items.push({t,due,plan:v3OccurrenceRow(t.id,due)||p,backlog:due<start});
   });
   return items;
+}
+function v3FilterTask(t,dep,machine,performer,plan){
+  return (!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!performer||(plan?.assignedTo||t.performer)===performer||t.performer===performer);
+}
+function v3CurrentBacklog(dep='',machine='',performer='',refDate=today()){
+  return tasks.filter(t=>t.active!==false&&v3FilterTask(t,dep,machine,performer,null)).map(t=>{
+    const due=t.nextDue||refDate,p=v3OccurrenceRow(t.id,due),item={t,due,plan:p,backlog:due<refDate};
+    return {...item,state:v3OccurrenceState(item,refDate)};
+  }).filter(x=>x.due<=refDate&&(x.state==='waiting'||x.state==='overdue'));
+}
+function setV3DashboardPeriod(period){
+  pmV3DashboardPeriod=period;
+  document.querySelectorAll('#pmV3Periods button').forEach(b=>b.classList.toggle('active',b.dataset.v3period===period));
+  renderDashboard();
+}
+function v3HoursFromItems(items){return items.reduce((sum,x)=>sum+Number(x.t?.duration||0),0)}
+function v3Pct(n,d){return d?Math.round(n/d*100):0}
+function v3Set(id,val){const e=document.getElementById(id);if(e)e.textContent=val}
+function v3MiniHtml(item,state){
+  const label={waiting:'ממתינה',planned:'מתוכננת',completed:'בוצעה',postponed:'נדחתה',cancelled:'בוטלה',overdue:'באיחור'}[state]||state;
+  const cls=state==='overdue'?'red':state==='postponed'?'amber':state==='planned'?'blue':'';
+  return `<div class="pm-v3-mini"><div><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · יעד ${esc(fDate(item.due))}${item.plan?.plannedDate?` · מתוכנן ${esc(fDate(item.plan.plannedDate))}`:''}</small></div><span class="tag ${cls}">${label}</span></div>`;
+}
+
+renderDashboard=function(){
+  if(!pmWorkPlanLoaded){
+    v3Set('pmV3RangeText','טוען את תוכנית העבודה מהענן…');
+    return;
+  }
+  const dep=document.getElementById('pmDashboardDepartment')?.value||'';
+  const machine=document.getElementById('pmDashboardMachine')?.value||'';
+  const performer=document.getElementById('pmDashboardPerformer')?.value||'';
+  const {start,end,label}=v3PeriodBounds();
+  const items=v3RequirementItems(start,end).filter(x=>v3FilterTask(x.t,dep,machine,performer,x.plan));
+  const groups={waiting:[],planned:[],completed:[],postponed:[],cancelled:[],overdue:[]};
+  items.forEach(x=>{const st=v3OccurrenceState(x);(groups[st]||(groups[st]=[])).push(x)});
+
+  v3Set('pmV3RangeText',`${label} · ${items.length} דרישות אחזקה בטווח שנבחר`);
+  v3Set('pmV3Waiting',groups.waiting.length);v3Set('pmV3Planned',groups.planned.length);v3Set('pmV3Completed',groups.completed.length);v3Set('pmV3Postponed',groups.postponed.length);v3Set('pmV3Cancelled',groups.cancelled.length);v3Set('pmV3Overdue',groups.overdue.length);
+
+  const actionable=items.filter(x=>v3OccurrenceState(x)!=='cancelled');
+  const covered=actionable.filter(x=>x.plan&&['planned','postponed','completed','overdue'].includes(v3OccurrenceState(x))).length;
+  const coverage=v3Pct(covered,actionable.length);
+  const scheduled=items.filter(x=>x.plan&&!['cancelled','waiting'].includes(v3OccurrenceState(x)));
+  const completed=groups.completed.length;
+  const execution=v3Pct(completed,scheduled.length);
+  v3Set('pmV3Coverage',coverage+'%');v3Set('pmV3CoverageDetail',`${covered} מתוך ${actionable.length}`);
+  v3Set('pmV3Execution',execution+'%');v3Set('pmV3ExecutionDetail',`${completed} מתוך ${scheduled.length}`);
+  const cb=document.getElementById('pmV3CoverageBar'),eb=document.getElementById('pmV3ExecutionBar');if(cb)cb.style.width=Math.min(100,coverage)+'%';if(eb)eb.style.width=Math.min(100,execution)+'%';
+  v3Set('pmV3PlannedHours',hours(v3HoursFromItems(scheduled)));
+  v3Set('pmV3DoneHours',hours(v3HoursFromItems(groups.completed)));
+
+  const backlog=v3CurrentBacklog(dep,machine,performer);v3Set('pmV3BacklogTotal',backlog.length);
+  const health=document.getElementById('pmV3Health');
+  if(health){
+    const overdue=backlog.filter(x=>x.state==='overdue').length;
+    health.className='pm-v3-health '+(overdue===0&&coverage>=80?'good':overdue<=10&&coverage>=60?'warn':'bad');
+    health.querySelector('strong').textContent=overdue===0&&coverage>=80?'בשליטה':overdue<=10&&coverage>=60?'דורש תשומת לב':'נדרשת התערבות';
+  }
+
+  const attention=[...groups.overdue,...groups.waiting].sort((a,b)=>a.due.localeCompare(b.due)).slice(0,8);
+  const near=[...groups.planned,...groups.postponed].sort((a,b)=>(a.plan?.plannedDate||a.due).localeCompare(b.plan?.plannedDate||b.due)).slice(0,8);
+  const at=document.getElementById('pmV3Attention'),np=document.getElementById('pmV3NearPlan');
+  if(at)at.innerHTML=attention.length?attention.map(x=>v3MiniHtml(x,v3OccurrenceState(x))).join(''):'<div class="empty">אין משימות שממתינות להחלטה.</div>';
+  if(np)np.innerHTML=near.length?near.map(x=>v3MiniHtml(x,v3OccurrenceState(x))).join(''):'<div class="empty">אין משימות מתוכננות בטווח שנבחר.</div>';
+  renderTodayWorkPlan();
 };
 
-isPlanItemDone=function(item){return !!item.plan&&v3IsDone(item.plan)};
+// Planning screen now exposes all six business states.
+filteredPlanningItems=function(){
+  const {start,end}=planningBounds();
+  const dep=document.getElementById('pmPlannerDepartment')?.value||'';
+  const perf=document.getElementById('pmPlannerPerformer')?.value||'';
+  const q=(document.getElementById('pmPlannerSearch')?.value||'').trim().toLowerCase();
+  const status=document.getElementById('pmPlannerStatus')?.value||'';
+  return v3RequirementItems(start,end).filter(x=>{
+    const st=v3OccurrenceState(x);
+    return (!dep||x.t.department===dep)&&(!perf||(x.plan?.assignedTo||x.t.performer)===perf||x.t.performer===perf)&&(!status||st===status)&&(!q||`${x.t.machine} ${x.t.task} ${x.t.department} ${x.t.performer}`.toLowerCase().includes(q));
+  }).sort((a,b)=>{
+    const rank={overdue:0,waiting:1,postponed:2,planned:3,completed:4,cancelled:5};
+    const ra=rank[v3OccurrenceState(a)]??9,rb=rank[v3OccurrenceState(b)]??9;
+    return ra-rb||(a.plan?.plannedDate||a.due).localeCompare(b.plan?.plannedDate||b.due)||String(a.t.machine).localeCompare(String(b.t.machine),'he');
+  });
+};
 
-/* V3 planning screen with explicit status */
 renderPlanner=function(){
-  const startInput=document.getElementById('pmPlannerStart');if(!startInput)return;
-  if(!startInput.value)startInput.value=today();
-  fillPlanningPerformers();
-  const {start,end,label}=planningBounds();
-  const labelEl=document.getElementById('pmPlanRangeLabel');if(labelEl)labelEl.textContent=label;
+  const startInput=document.getElementById('pmPlannerStart');if(!startInput)return;if(!startInput.value)startInput.value=today();fillPlanningPerformers();
+  const {start,end,label}=planningBounds();const labelEl=document.getElementById('pmPlanRangeLabel');if(labelEl)labelEl.textContent=label;
   if(!pmWorkPlanLoaded){document.getElementById('pmPlannerDetail').innerHTML='<div class="empty">תוכנית העבודה עדיין נטענת מהענן…</div>';return}
-
   const items=filteredPlanningItems();
-  const actionable=items.filter(x=>!v3IsCancelled(x.plan));
-  const scheduled=actionable.filter(x=>x.plan&&(v3IsPlanned(x.plan)||v3IsDone(x.plan)));
-  const done=scheduled.filter(isPlanItemDone);
-  const coverage=actionable.length?Math.round(scheduled.length/actionable.length*100):100;
-  const execution=scheduled.length?Math.round(done.length/scheduled.length*100):0;
-  const mins=scheduled.reduce((a,x)=>a+Number(x.t.duration||0),0);
-  document.getElementById('pmPlanRequired').textContent=actionable.length;
-  document.getElementById('pmPlanScheduled').textContent=scheduled.length;
-  document.getElementById('pmPlanCoverage').textContent=coverage+'%';
-  document.getElementById('pmPlanHours').textContent=hours(mins);
-  document.getElementById('pmPlanDone').textContent=execution+'%';
-
-  const people=Number(document.getElementById('pmPlanPeople')?.value||0), hrs=Number(document.getElementById('pmPlanHoursPerDay')?.value||0);
-  const days=planningWorkDays(start,end), capacity=people*hrs*days, load=capacity?Math.round((mins/60)/capacity*100):0;
+  const active=items.filter(x=>!['cancelled','completed'].includes(v3OccurrenceState(x)));
+  const covered=active.filter(x=>x.plan&&!['waiting','cancelled'].includes(v3OccurrenceState(x)));
+  const done=items.filter(x=>v3OccurrenceState(x)==='completed');
+  const coverage=v3Pct(covered.length,active.length);const execution=v3Pct(done.length,covered.length+done.length);const mins=v3HoursFromItems(covered.concat(done));
+  v3Set('pmPlanRequired',items.length);v3Set('pmPlanScheduled',covered.length);v3Set('pmPlanCoverage',coverage+'%');v3Set('pmPlanHours',hours(mins));v3Set('pmPlanDone',execution+'%');
+  const people=Number(document.getElementById('pmPlanPeople')?.value||0),hrs=Number(document.getElementById('pmPlanHoursPerDay')?.value||0),days=planningWorkDays(start,end),capacity=people*hrs*days,load=capacity?Math.round((mins/60)/capacity*100):0;
   const cap=document.getElementById('pmPlanCapacityText');if(cap)cap.textContent=`קיבולת לתקופה: ${capacity.toFixed(1)} שעות · עומס מתוכנן: ${load}% · ${days} ימי עבודה.`;
   if(!document.getElementById('pmPlanDate').value)document.getElementById('pmPlanDate').value=pmPlanningPeriod==='day'?start:(today()>=start&&today()<=end?today():start);
-
-  const pages=Math.max(1,Math.ceil(items.length/PM_PLAN_PAGE_SIZE));pmPlanPage=Math.max(0,Math.min(pmPlanPage,pages-1));
-  const pageItems=items.slice(pmPlanPage*PM_PLAN_PAGE_SIZE,(pmPlanPage+1)*PM_PLAN_PAGE_SIZE);
-  document.getElementById('pmPlanPageInfo').textContent=`עמוד ${pmPlanPage+1} מתוך ${pages} · ${items.length} דרישות`;
-
+  const pages=Math.max(1,Math.ceil(items.length/PM_PLAN_PAGE_SIZE));pmPlanPage=Math.max(0,Math.min(pmPlanPage,pages-1));const pageItems=items.slice(pmPlanPage*PM_PLAN_PAGE_SIZE,(pmPlanPage+1)*PM_PLAN_PAGE_SIZE);v3Set('pmPlanPageInfo',`עמוד ${pmPlanPage+1} מתוך ${pages} · ${items.length} דרישות`);
   document.getElementById('pmPlannerDetail').innerHTML=pageItems.length?pageItems.map(item=>{
-    const p=item.plan, cls=v3Classify(item,today());
-    const status=cls==='done'?'בוצע':cls==='cancelled'?'בוטלה':cls==='postponed'?'נדחתה':cls==='overdue'?'באיחור':p?'מתוכננת':'ממתינה לתכנון';
-    const badge=cls==='done'?'done':cls==='cancelled'?'cancelled':cls==='postponed'?'postponed':cls==='overdue'?'risk':p?'planned':'open';
-    const rowCls=cls==='done'?'done-plan':cls==='cancelled'?'cancelled-plan':cls==='postponed'?'postponed-plan':cls==='overdue'?'late-plan':p?'planned':'';
-    return `<div class="pm-plan-row ${rowCls}">
-      <input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/>
-      <div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong>
-        <small>${esc(item.t.department)} · ${esc(p?.assignedTo||item.t.performer||'')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · צבר':''}</small>
-        ${p?`<small>${v3IsCancelled(p)?'בוטלה':v3IsPostponed(p)?'נדחתה ל־':'שובצה ל־'} ${esc(fDate(p.plannedDate))}${p.postponedReason?' · '+esc(p.postponedReason):''}</small>`:''}
-      </div>
-      <div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div>
-      <div class="pm-plan-meta">${esc(fDate(item.due))}</div>
-      <div class="pm-plan-meta pm-plan-hide-mobile">${p?esc(fDate(p.plannedDate)):'—'}</div>
-      <span class="pm-plan-badge ${badge}">${status}</span>
-    </div>`;
+    const p=item.plan,st=v3OccurrenceState(item);const label={waiting:'ממתינה לתכנון',planned:'מתוכננת',completed:'בוצעה',postponed:'נדחתה',cancelled:'בוטלה',overdue:'באיחור'}[st];
+    const badge={waiting:'open',planned:'planned',completed:'done',postponed:'postponed',cancelled:'cancelled',overdue:'risk'}[st];
+    const cls=st==='completed'?'done-plan':st==='cancelled'?'cancelled-plan':st==='postponed'?'postponed-plan':st==='planned'?'planned':st==='overdue'?'late-plan':'';
+    return `<div class="pm-plan-row ${cls}"><input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · צבר קודם':''}</small>${p?`<small>${p.plannedDate?'תאריך '+esc(fDate(p.plannedDate)):''}${p.assignedTo?' · '+esc(p.assignedTo):''}${p.priority?' · עדיפות '+esc(p.priority):''}${p.postponedReason?' · סיבה: '+esc(p.postponedReason):''}</small>`:''}</div><div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div><div class="pm-plan-meta">${esc(fDate(item.due))}</div><div class="pm-plan-meta pm-plan-hide-mobile">${p?.plannedDate?esc(fDate(p.plannedDate)):'—'}</div><span class="pm-plan-badge ${badge}">${label}</span></div>`;
   }).join(''):'<div class="empty">אין דרישות אחזקה בתקופה ובסינון שנבחרו.</div>';
   updatePlanSelectionInfo();
 };
 
-/* Planning assignment: default performer stays on master task; override only current occurrence. */
+// Scheduling updates the latest occurrence row, including a previously cancelled/unplanned row.
 saveSelectedPlanning=async function(){
   if(!pmCan('manageExceptions'))return statusLine('תכנון עבודה זמין למנהל אחזקה בלבד.','error');
   const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
   const plannedDate=document.getElementById('pmPlanDate')?.value;if(!plannedDate)return statusLine('יש לבחור תאריך מתוכנן.','error');
-  const priority=document.getElementById('pmPlanPriority')?.value||'בינונית';
-  const assignee=(document.getElementById('pmPlanAssignee')?.value||'').trim();
-  const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
-  const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
+  const priority=document.getElementById('pmPlanPriority')?.value||'בינונית';const assignee=(document.getElementById('pmPlanAssignee')?.value||'').trim();const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
   try{
-    for(const key of keys){
-      const item=lookup.get(key);if(!item)continue;
-      const existing=v3OccurrencePlan(item.t.id,item.due);
-      const payload={task_id:item.t.id,planned_date:plannedDate,assigned_to:assignee||item.t.performer||null,priority,status:'Planned',completed_date:null,postponed_reason:null,notes:`PM_DUE:${item.due}`,created_by:actor};
-      const res=existing?await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id):await supabaseClient.from('pm_work_plan').insert(payload);
-      if(res.error)throw res.error;
-    }
+    for(const key of keys){const item=lookup.get(key);if(!item)continue;const existing=v3OccurrenceRow(item.t.id,item.due);const payload={task_id:item.t.id,planned_date:plannedDate,assigned_to:assignee||item.t.performer||null,priority,status:'Planned',completed_date:null,postponed_reason:null,notes:`PM_DUE:${item.due}`,created_by:actor};const res=existing?await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id):await supabaseClient.from('pm_work_plan').insert(payload);if(res.error)throw res.error}
     await reloadCloudData();statusLine(`${keys.length} משימות שובצו לתוכנית העבודה.`,'success');
   }catch(err){statusLine('שמירת תוכנית העבודה נכשלה: '+(err?.message||'שגיאה'),'error')}
 };
 
-/* Remove from plan = back to waiting; it is NOT cancelled. */
+// Returning to waiting is different from cancellation: the requirement remains alive in backlog.
 unplanSelected=async function(){
-  if(!pmCan('manageExceptions'))return statusLine('שינוי תוכנית זמין למנהל אחזקה בלבד.','error');
-  const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
-  const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
-  if(!confirm(`להחזיר ${keys.length} משימות למצב "ממתינה לתכנון"?`))return;
-  try{
-    for(const key of keys){
-      const item=lookup.get(key);if(!item)continue;
-      const existing=v3OccurrencePlan(item.t.id,item.due);if(!existing)continue;
-      const res=await supabaseClient.from('pm_work_plan').delete().eq('id',existing.id);
-      if(res.error)throw res.error;
-    }
-    await reloadCloudData();statusLine(`${keys.length} משימות הוחזרו לממתינות לתכנון.`,'success');
-  }catch(err){statusLine('הסרת השיבוץ נכשלה: '+(err?.message||'שגיאה'),'error')}
+  if(!pmCan('manageExceptions'))return statusLine('שינוי תוכנית זמין למנהל אחזקה בלבד.','error');const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');if(!confirm(`להחזיר ${keys.length} משימות למצב ממתינה לתכנון?`))return;const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
+  try{for(const key of keys){const item=lookup.get(key);if(!item)continue;const existing=v3OccurrenceRow(item.t.id,item.due);if(!existing)continue;const res=await supabaseClient.from('pm_work_plan').update({status:'Unplanned',planned_date:item.due,completed_date:null,postponed_reason:null}).eq('id',existing.id);if(res.error)throw res.error}await reloadCloudData();statusLine(`${keys.length} משימות הוחזרו לממתינה לתכנון.`,'success')}catch(err){statusLine('עדכון המשימות נכשל: '+(err?.message||'שגיאה'),'error')}
 };
 
-/* Manager can waive an occurrence. Mandatory reason, history preserved in pm_work_plan. */
+async function cancelOccurrence(item,reason){
+  const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';const existing=v3OccurrenceRow(item.t.id,item.due);const payload={task_id:item.t.id,planned_date:existing?.plannedDate||item.due,assigned_to:existing?.assignedTo||item.t.performer||null,priority:existing?.priority||'בינונית',status:'Cancelled',completed_date:null,postponed_reason:reason,notes:`PM_DUE:${item.due}`,created_by:actor};
+  const res=existing?await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id):await supabaseClient.from('pm_work_plan').insert(payload);if(res.error)throw res.error;
+}
 async function cancelSelectedPlanning(){
-  if(!pmCan('manageExceptions'))return statusLine('ביטול משימה זמין למנהל אחזקה בלבד.','error');
-  const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
-  const reason=prompt('סיבת ביטול הטיפול (חובה):','');
-  if(!String(reason||'').trim())return statusLine('ביטול טיפול מחייב סיבה.','error');
-  if(!confirm(`לבטל ${keys.length} משימות? המשימות יישארו מתועדות כ"בוטלו".`))return;
-  const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
-  const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
-  try{
-    for(const key of keys){
-      const item=lookup.get(key);if(!item)continue;
-      const existing=v3OccurrencePlan(item.t.id,item.due);
-      const payload={task_id:item.t.id,planned_date:existing?.plannedDate||item.due,assigned_to:existing?.assignedTo||item.t.performer||null,priority:existing?.priority||'בינונית',status:'Cancelled',completed_date:null,postponed_reason:String(reason).trim(),notes:`PM_DUE:${item.due}`,created_by:existing?.createdBy||actor};
-      const res=existing?await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id):await supabaseClient.from('pm_work_plan').insert(payload);
-      if(res.error)throw res.error;
-    }
-    await reloadCloudData();statusLine(`${keys.length} משימות בוטלו ותועדו.`,'success');
-  }catch(err){statusLine('ביטול המשימות נכשל: '+(err?.message||'שגיאה'),'error')}
+  if(!pmCan('manageExceptions'))return statusLine('ביטול טיפול זמין למנהל אחזקה בלבד.','error');const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');const reason=prompt('סיבת ביטול הטיפול (חובה):','');if(!String(reason||'').trim())return statusLine('ביטול טיפול מחייב סיבה.','error');if(!confirm(`לבטל ${keys.length} טיפולים? הביטול יישמר בהיסטוריית תוכנית העבודה.`))return;const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
+  try{for(const key of keys){const item=lookup.get(key);if(item)await cancelOccurrence(item,String(reason).trim())}await reloadCloudData();statusLine(`${keys.length} טיפולים בוטלו עם סיבה מתועדת.`,'success')}catch(err){statusLine('ביטול הטיפולים נכשל: '+(err?.message||'שגיאה'),'error')}
+}
+async function cancelSingleOccurrence(taskId,due){
+  if(!pmCan('manageExceptions'))return;const t=tasks.find(x=>String(x.id)===String(taskId));if(!t)return;const reason=prompt('סיבת ביטול הטיפול (חובה):','');if(!String(reason||'').trim())return;try{await cancelOccurrence({t,due,plan:v3OccurrenceRow(t.id,due)},String(reason).trim());await reloadCloudData();statusLine('הטיפול בוטל ונשמר עם סיבה.','success')}catch(err){statusLine('ביטול הטיפול נכשל: '+(err?.message||'שגיאה'),'error')}
 }
 
-/* Report shows planned work; overdue planned work remains visible when date reaches/passes it. */
-plannedItemsForDate=function(date){
-  return pmWorkPlan.filter(p=>!v3IsCancelled(p)&&!v3IsDone(p)&&p.plannedDate===date).map(p=>{
-    const t=wpTask(p);if(!t)return null;
-    return {t,due:wpDueFromNotes(p.notes)||t.nextDue||date,plan:p};
-  }).filter(Boolean);
+// A postponement is a distinct business status until its new date passes or it is completed.
+moveWorkPlan=async function(planId){
+  if(!pmCan('manageExceptions'))return;const p=pmWorkPlan.find(x=>String(x.id)===String(planId));if(!p)return;const current=p.plannedDate;const newDate=prompt('תאריך חדש לביצוע (YYYY-MM-DD):',current);if(!newDate||!/^\d{4}-\d{2}-\d{2}$/.test(newDate))return;const reason=prompt('סיבת הדחייה (חובה):','');if(!String(reason||'').trim()){alert('יש להזין סיבה לדחייה.');return}const res=await supabaseClient.from('pm_work_plan').update({planned_date:newDate,status:'Postponed',completed_date:null,postponed_reason:String(reason).trim()}).eq('id',p.id);if(res.error){statusLine('דחיית הטיפול נכשלה: '+res.error.message,'error');return}await reloadCloudData();statusLine('הטיפול נדחה עם סיבה ותאריך חדש.','success');
 };
 
-/* Postponing an EXISTING plan changes pm_work_plan status, not the PM master cycle. */
-async function v3PostponePlan(planId){
-  if(!pmCan('manageExceptions'))return;
-  const p=pmWorkPlan.find(x=>String(x.id)===String(planId));if(!p)return;
-  const newDate=prompt('תאריך חדש לביצוע (YYYY-MM-DD):',addDays(p.plannedDate||today(),1));
-  if(!newDate||!/^\d{4}-\d{2}-\d{2}$/.test(newDate))return;
-  const reason=prompt('סיבת הדחייה (חובה):','');
-  if(!String(reason||'').trim())return statusLine('דחיית טיפול מחייבת סיבה.','error');
-  const res=await supabaseClient.from('pm_work_plan').update({planned_date:newDate,status:'Postponed',postponed_reason:String(reason).trim()}).eq('id',p.id);
-  if(res.error)return statusLine('דחיית הטיפול נכשלה: '+res.error.message,'error');
-  await reloadCloudData();statusLine('הטיפול נדחה ונשאר במעקב.','success');
-}
-
-/* V3 report: completion / postpone / cancel current work-plan row. */
+// Daily report is driven by the plan, with optional unplanned backlog visibility and cancel action.
 renderReport=function(){
-  const dep=pmReportDepartment.value, machine=pmReportMachine.value;
-  const performer=document.getElementById('pmReportPerformer')?.value||'', reportDate=pmReportDate.value||today();
-  const includeUnplanned=document.getElementById('pmReportIncludeUnplanned')?.checked===true;
-  const planned=pmWorkPlan.filter(p=>!v3IsCancelled(p)&&!v3IsDone(p)&&p.plannedDate===reportDate)
-    .map(p=>{const t=wpTask(p);return t?{t,s:stateOf({...t,nextDue:wpDueFromNotes(p.notes)||t.nextDue}),plan:p,plannedDue:wpDueFromNotes(p.notes)||t.nextDue}:null}).filter(Boolean)
-    .filter(x=>(!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&(!performer||(x.plan.assignedTo||x.t.performer)===performer));
-  const ids=new Set(planned.map(x=>String(x.t.id)));
-  const extras=includeUnplanned?openTasks(dep).filter(x=>!ids.has(String(x.t.id))).filter(x=>(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer)):[];
+  const dep=pmReportDepartment.value,machine=pmReportMachine.value,performer=document.getElementById('pmReportPerformer')?.value||'',reportDate=pmReportDate.value||today(),includeUnplanned=document.getElementById('pmReportIncludeUnplanned')?.checked===true;
+  const planned=v3RequirementItems(reportDate,reportDate).filter(x=>x.plan&&x.plan.plannedDate===reportDate).filter(x=>!['completed','cancelled','waiting'].includes(v3OccurrenceState(x,reportDate))).filter(x=>v3FilterTask(x.t,dep,machine,performer,x.plan));
+  let extras=[];
+  if(includeUnplanned){extras=v3CurrentBacklog(dep,machine,performer,reportDate).filter(x=>!planned.some(p=>String(p.t.id)===String(x.t.id)&&p.due===x.due));}
   const list=[...planned,...extras];
-  repOpen.textContent=list.length+' משימות להצגה';
-  repLate.textContent=pmWorkPlan.filter(p=>!v3IsCancelled(p)&&!v3IsDone(p)&&p.plannedDate<reportDate).length+' באיחור';
-  repToday.textContent=planned.length+' בתוכנית העבודה';
-  const doneForDate=pmWorkPlan.filter(p=>v3IsDone(p)&&p.completedDate===reportDate).length,total=planned.length+doneForDate;
-  pmProgressFill.style.width=(total?doneForDate/total*100:0)+'%';pmProgressText.textContent=`${doneForDate} מתוך ${total} בוצעו`;
-  if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין משימות בתוכנית העבודה לתאריך ולסינון שנבחרו.</div>';return}
-  const canManage=pmCan('manageExceptions');
-  pmOpenTasks.innerHTML=list.map(x=>`<div class="open-task ${x.s.state} ${x.plan?'topbar-green':(x.s.state==='overdue'?'topbar-red':'topbar-orange')}">
-    <div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div>
-    <div class="big-late">${x.plan?(v3IsPostponed(x.plan)?'נדחה — בתוכנית העבודה':'בתוכנית העבודה'):(x.s.state==='overdue'?Math.abs(x.s.n)+' ימי איחור':'ממתינה לתכנון')}</div>
-    <div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(x.plan?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.plannedDue||x.t.nextDue))}${x.plan?`<br>תאריך מתוכנן: ${esc(fDate(x.plan.plannedDate))}`:''}${x.plan?.postponedReason?`<br>סיבת דחייה: ${esc(x.plan.postponedReason)}`:''}</div></div>
-    <div class="pm-task-actions">
-      <button class="complete" onclick="completeTask('${x.t.id}','${x.plan?.id||''}')">✓ בוצע</button>
-      ${canManage&&x.plan?`<button class="pm-postpone" onclick="v3PostponePlan('${x.plan.id}')">דחה טיפול</button>`:''}
-      ${canManage&&!x.plan?`<button class="pm-postpone" onclick="openPostponeModal('${x.t.id}')">דחה טיפול</button>`:''}
-    </div></div></div>`).join('');
+  repOpen.textContent=list.length+' משימות להצגה';repLate.textContent=list.filter(x=>v3OccurrenceState(x,reportDate)==='overdue').length+' באיחור';repToday.textContent=planned.length+' בתוכנית העבודה';
+  const doneForDate=pmWorkPlan.filter(p=>v3RowStatus(p)==='completed'&&p.completedDate===reportDate).length,total=planned.length+doneForDate;pmProgressFill.style.width=(total?doneForDate/total*100:0)+'%';pmProgressText.textContent=`${doneForDate} מתוך ${total} בוצעו`;
+  if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין משימות לביצוע בתאריך ובסינון שנבחרו.</div>';return}
+  const canManage=pmCan('manageExceptions');pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div><div class="pm-task-actions"><button class="complete" onclick="completeTask('${x.t.id}','${p?.id||''}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
 };
 
-/* Completion marks the exact work-plan occurrence completed, while retaining existing history behavior. */
+// Completion accepts Planned or Postponed rows and closes them as Completed.
+const __v3CompleteBase=completeTask;
 completeTask=async function(id,workPlanId=''){
-  if(!requirePM('report','אין הרשאה לדווח טיפול.'))return;
-  const t=tasks.find(x=>String(x.id)===String(id)), date=pmReportDate.value||today();if(!t)return;
-  const p=workPlanId?pmWorkPlan.find(x=>String(x.id)===String(workPlanId)):null;
+  if(!requirePM('report','אין הרשאה לדווח טיפול.'))return;const t=tasks.find(x=>String(x.id)===String(id)),date=pmReportDate.value||today();if(!t)return;let p=workPlanId?pmWorkPlan.find(x=>String(x.id)===String(workPlanId)):null;
+  if(!p){const due=t.nextDue||date;p=v3OccurrenceRow(t.id,due)}
   if(history.some(h=>String(h.taskId)===String(id)&&h.date===date)){statusLine('כבר קיים דיווח למשימה זו בתאריך שנבחר.','error');return}
-  const oldLast=t.lastDone||null,oldNext=t.nextDue||null,nextDue=addDays(date,FREQ_DAYS[t.frequency]||30);
-  const u=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextDue}).eq('id',t.id);
-  if(u.error)return statusLine('שמירת הטיפול נכשלה: '+u.error.message,'error');
-  try{
-    await insertHistoryAdaptive(t,date);
-    if(p){
-      const wr=await supabaseClient.from('pm_work_plan').update({status:'Completed',completed_date:date}).eq('id',p.id);
-      if(wr.error)throw wr.error;
-    }
-  }catch(err){
-    await supabaseClient.from('pm_tasks').update({last_done:oldLast,next_due:oldNext}).eq('id',t.id);
-    if(p)await supabaseClient.from('pm_work_plan').update({status:'Planned',completed_date:null}).eq('id',p.id);
-    return statusLine('הטיפול לא נשמר באופן מלא: '+(err?.message||'שגיאה'),'error');
-  }
-  await reloadCloudData();statusLine('הטיפול בוצע ונרשם בתוכנית העבודה ובהיסטוריה.','success');
+  const oldLast=t.lastDone||null,oldNext=t.nextDue||null,nextDue=addDays(date,FREQ_DAYS[t.frequency]||30);statusLine('שומר טיפול בענן…');const updateRes=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextDue}).eq('id',t.id);if(updateRes.error){statusLine('שמירת הטיפול נכשלה: '+updateRes.error.message,'error');return}
+  try{await insertHistoryAdaptive(t,date);if(p){const r=await supabaseClient.from('pm_work_plan').update({status:'Completed',completed_date:date}).eq('id',p.id);if(r.error)throw r.error}}catch(err){await supabaseClient.from('pm_tasks').update({last_done:oldLast,next_due:oldNext}).eq('id',t.id);if(p)await supabaseClient.from('pm_work_plan').update({status:v3RowStatus(p)==='postponed'?'Postponed':'Planned',completed_date:null}).eq('id',p.id);statusLine('הטיפול לא נשמר באופן מלא: '+(err?.message||'שגיאה'),'error');return}
+  await reloadCloudData();statusLine('הטיפול בוצע ונרשם מול תוכנית העבודה.','success');
 };
 
-/* When undoing a completion, also reopen the latest matching work-plan record if possible. */
-const __v3BaseUndoCompletion=undoCompletion;
-undoCompletion=async function(historyId,taskId,date){
-  await __v3BaseUndoCompletion(historyId,taskId,date);
-  const candidates=pmWorkPlan.filter(p=>String(p.taskId)===String(taskId)&&v3IsDone(p)&&p.completedDate===date)
-    .sort((a,b)=>String(b.updatedAt||b.createdAt).localeCompare(String(a.updatedAt||a.createdAt)));
-  if(candidates[0]){
-    await supabaseClient.from('pm_work_plan').update({status:'Planned',completed_date:null}).eq('id',candidates[0].id);
-    await loadWorkPlan();refreshAll();
-  }
+renderTodayWorkPlan=function(){
+  const date=today();const items=v3RequirementItems(date,date).filter(x=>x.plan&&x.plan.plannedDate===date);const done=items.filter(x=>v3OccurrenceState(x,date)==='completed');const pending=items.filter(x=>!['completed','cancelled'].includes(v3OccurrenceState(x,date)));const mins=v3HoursFromItems(items.filter(x=>v3OccurrenceState(x,date)!=='cancelled'));
+  v3Set('pmTodayPlanned',items.filter(x=>v3OccurrenceState(x,date)!=='cancelled').length);v3Set('pmTodayDone',done.length);v3Set('pmTodayPending',pending.length);v3Set('pmTodayPlanHours',hours(mins));const list=document.getElementById('pmTodayPlanList');if(!list)return;list.innerHTML=pending.length?pending.slice(0,8).map(x=>`<div class="pm-plan-mini-item"><div><strong>${esc(x.t.machine)}</strong><div>${esc(x.t.task)}</div></div><span>${v3OccurrenceState(x,date)==='postponed'?'נדחתה':esc(x.plan?.assignedTo||x.t.performer||'')}</span></div>`).join(''):(items.length?'<div class="empty">כל המשימות המתוכננות להיום בוצעו.</div>':'<div class="empty">עדיין לא נבנתה תוכנית עבודה להיום.</div>');
 };
 
-/* Restore "all departments" consistently in report/settings. */
-setTimeout(()=>{
-  const r=document.getElementById('pmReportDepartment');
-  if(r&&!Array.from(r.options).some(o=>o.value==='')) r.insertAdjacentHTML('afterbegin','<option value="">כל המחלקות</option>');
-  const s=document.getElementById('pmSettingsDepartment');
-  if(s&&!Array.from(s.options).some(o=>o.value==='')) s.insertAdjacentHTML('afterbegin','<option value="">כל המחלקות</option>');
-},0);
-</script>
-
-
-<script>
-/* ===== V3.0.1 status integrity fixes ===== */
-
-/* Postpone an unplanned/open occurrence by creating a work-plan exception.
-   The PM master due date stays unchanged until the treatment is actually completed. */
-savePostpone=async function(){
-  if(!pmCan('manageExceptions'))return;
-  const t=tasks.find(x=>String(x.id)===String(pmPostponeTaskId));if(!t)return;
-  const newDue=document.getElementById('pmPostponeDate').value;
-  const reason=document.getElementById('pmPostponeReason').value.trim();
-  const status=document.getElementById('pmPostponeStatus'),btn=document.getElementById('pmPostponeSaveButton');
-  status.className='pm-modal-status';
-  if(!newDue||newDue<=today()){status.textContent='יש לבחור מועד עתידי.';status.classList.add('error');return}
-  if(!reason){status.textContent='יש להזין סיבה לדחיית הטיפול.';status.classList.add('error');return}
-  const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
-  const due=t.nextDue||today();
-  const existing=v3OccurrencePlan(t.id,due);
-  const payload={
-    task_id:t.id,
-    planned_date:newDue,
-    assigned_to:existing?.assignedTo||t.performer||null,
-    priority:existing?.priority||'בינונית',
-    status:'Postponed',
-    completed_date:null,
-    postponed_reason:reason,
-    notes:`PM_DUE:${due}`,
-    created_by:existing?.createdBy||actor
-  };
-  status.textContent='שומר דחייה בענן…';btn.disabled=true;
-  const res=existing
-    ? await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id)
-    : await supabaseClient.from('pm_work_plan').insert(payload);
-  btn.disabled=false;
-  if(res.error){status.textContent='שמירת הדחייה נכשלה: '+res.error.message;status.classList.add('error');return}
-  status.textContent='הטיפול נדחה ונשאר במעקב עד לביצוע.';status.classList.add('success');
-  await reloadCloudData();
-  setTimeout(closePostponeModal,650);
-};
-
-/* Cancellation closes only the selected occurrence. If it is the current master occurrence,
-   advance the PM master to the following cycle so the next treatment will appear normally. */
-const __v3CancelSelectedPlanning=cancelSelectedPlanning;
-cancelSelectedPlanning=async function(){
-  if(!pmCan('manageExceptions'))return statusLine('ביטול משימה זמין למנהל אחזקה בלבד.','error');
-  const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
-  const reason=prompt('סיבת ביטול הטיפול (חובה):','');
-  if(!String(reason||'').trim())return statusLine('ביטול טיפול מחייב סיבה.','error');
-  if(!confirm(`לבטל ${keys.length} משימות? המשימות יישארו מתועדות כ"בוטלו".`))return;
-  const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
-  const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
-  try{
-    for(const key of keys){
-      const item=lookup.get(key);if(!item)continue;
-      const existing=v3OccurrencePlan(item.t.id,item.due);
-      const payload={
-        task_id:item.t.id,
-        planned_date:existing?.plannedDate||item.due,
-        assigned_to:existing?.assignedTo||item.t.performer||null,
-        priority:existing?.priority||'בינונית',
-        status:'Cancelled',
-        completed_date:null,
-        postponed_reason:String(reason).trim(),
-        notes:`PM_DUE:${item.due}`,
-        created_by:existing?.createdBy||actor
-      };
-      const res=existing
-        ? await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id)
-        : await supabaseClient.from('pm_work_plan').insert(payload);
-      if(res.error)throw res.error;
-
-      /* Only current master occurrence should roll forward. */
-      if(String(item.t.nextDue||'')===String(item.due)){
-        const nextMaster=addDays(item.due,Math.max(1,Number(FREQ_DAYS[item.t.frequency]||30)));
-        const ur=await supabaseClient.from('pm_tasks').update({next_due:nextMaster}).eq('id',item.t.id);
-        if(ur.error)throw ur.error;
-      }
-    }
-    await reloadCloudData();statusLine(`${keys.length} משימות בוטלו ותועדו. הטיפול הבא במחזור נשמר.`,'success');
-  }catch(err){statusLine('ביטול המשימות נכשל: '+(err?.message||'שגיאה'),'error')}
-};
+// Keep labels consistently managerial.
+document.addEventListener('DOMContentLoaded',()=>{
+  const m=document.getElementById('pmDashboardMachine');if(m&&m.options[0])m.options[0].textContent='כל המכונות';
+  const p=document.getElementById('pmDashboardPerformer');if(p&&p.options[0])p.options[0].textContent='כל המבצעים';
+});
 </script>
 
 </body></html>
