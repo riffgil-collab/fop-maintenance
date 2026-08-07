@@ -483,5 +483,31 @@ function init(){
   fillReportMachines(); fillHistoryMachines(); refreshAll()
 }
 window.addEventListener('DOMContentLoaded',()=>{loadData();init()});
+
+function fillDashboardMachines(){
+ const dep=document.getElementById('pmDashboardDepartment')?.value||"";
+ const sel=document.getElementById('pmDashboardMachine');
+ if(!sel)return;
+ const current=sel.value;
+ const machines=[...new Set(TASK_SEED.filter(t=>!dep||t.department===dep).map(t=>t.machine))].sort();
+ sel.innerHTML='<option value="">כל המכונות</option>'+machines.map(m=>`<option value="${m}">${m}</option>`).join('');
+ if(machines.includes(current)) sel.value=current;
+}
+function fillDashboardPerformers(){
+ const dep=document.getElementById('pmDashboardDepartment')?.value||"";
+ const machine=document.getElementById('pmDashboardMachine')?.value||"";
+ const sel=document.getElementById('pmDashboardPerformer');
+ if(!sel)return;
+ const current=sel.value;
+ const perfs=[...new Set(TASK_SEED.filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)).map(t=>t.performer))].sort();
+ sel.innerHTML='<option value="">כל המבצעים</option>'+perfs.map(p=>`<option value="${p}">${p}</option>`).join('');
+ if(perfs.includes(current)) sel.value=current;
+}
+document.addEventListener('DOMContentLoaded',()=>{
+ try{fillDashboardMachines();fillDashboardPerformers();}catch(e){}
+ const m=document.getElementById('pmDashboardMachine');
+ if(m){m.addEventListener('change',fillDashboardPerformers);}
+});
+
 </script>
 </body></html>
