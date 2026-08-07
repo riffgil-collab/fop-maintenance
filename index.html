@@ -165,7 +165,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     <div class="toolbar">
       <div class="field report-date"><label>תאריך ביצוע</label><input id="pmReportDate" type="date"></div>
       <div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();fillReportPerformers();renderReport()"></select></div>
-      <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
+      <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="fillReportPerformers();renderReport()"><option value="">מכונות</option></select></div>
        <div class="field"><label>מבצע</label><select id="pmReportPerformer" onchange="renderReport()"><option value="">מבצעים</option></select></div>
     </div>
     <div class="report-summary">
@@ -367,16 +367,31 @@ function fillReportMachines(){
   if([...sel.options].some(o=>o.value===old))sel.value=old;
 }
 function renderReport(){
-  const dep=pmReportDepartment.value, machine=pmReportMachine.value;
-  const list=openTasks(dep).filter(x=>!machine||x.t.machine===machine).sort((a,b)=>a.s.n-b.s.n||a.t.machine.localeCompare(b.t.machine,'he'));
+  const dep=pmReportDepartment.value, machine=pmReportMachine.value, performer=pmReportPerformer.value;
+  const list=openTasks(dep)
+    .filter(x=>(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer))
+    .sort((a,b)=>a.s.n-b.s.n||a.t.machine.localeCompare(b.t.machine,'he'));
+
   repOpen.textContent=list.length+' משימות פתוחות';
   repLate.textContent=list.filter(x=>x.s.state==='overdue').length+' באיחור';
   repToday.textContent=list.filter(x=>x.s.state==='today').length+' להיום';
-  const done=history.filter(h=>h.date===today()&&(!dep||h.department===dep)&&(!machine||h.machine===machine)).length;
+
+  const done=history.filter(h=>
+    h.date===today() &&
+    (!dep||h.department===dep) &&
+    (!machine||h.machine===machine) &&
+    (!performer||h.performer===performer)
+  ).length;
+
   const total=list.length+done;
   pmProgressFill.style.width=(total?done/total*100:0)+'%';
   pmProgressText.textContent=`${done} מתוך ${total} בוצעו היום`;
-  if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין טיפולים פתוחים בבחירה הנוכחית.</div>';return}
+
+  if(!list.length){
+    pmOpenTasks.innerHTML='<div class="empty">אין טיפולים פתוחים בבחירה הנוכחית.</div>';
+    return;
+  }
+
   pmOpenTasks.innerHTML=list.map(x=>`<div class="open-task ${x.s.state} ${x.s.state==='overdue'?'topbar-red':'topbar-orange'}" id="open-${x.t.id}">
     <div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div>
     <div class="big-late">${x.s.state==='overdue'?Math.abs(x.s.n)+' ימי איחור':'לביצוע היום'}</div>
@@ -518,12 +533,17 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 
 function fillReportPerformers(){
- const dep=document.getElementById('pmReportDepartment')?.value||'';
- const machine=document.getElementById('pmReportMachine')?.value||'';
- const sel=document.getElementById('pmReportPerformer');
- if(!sel)return;
- const vals=[...new Set(TASK_SEED.filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)).map(t=>t.performer))].sort();
- sel.innerHTML='<option value="">מבצעים</option>'+vals.map(v=>`<option value="${v}">${v}</option>`).join('');
+  const dep=document.getElementById('pmReportDepartment')?.value||'';
+  const machine=document.getElementById('pmReportMachine')?.value||'';
+  const sel=document.getElementById('pmReportPerformer');
+  if(!sel)return;
+  const old=sel.value;
+  const vals=[...new Set(tasks
+    .filter(t=>t.active!==false&&(!dep||t.department===dep)&&(!machine||t.machine===machine))
+    .map(t=>t.performer))]
+    .sort((a,b)=>a.localeCompare(b,'he'));
+  sel.innerHTML='<option value="">מבצעים</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if(vals.includes(old)) sel.value=old;
 }
 document.addEventListener('DOMContentLoaded',()=>{try{fillReportPerformers()}catch(e){}});
 
