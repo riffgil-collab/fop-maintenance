@@ -461,11 +461,11 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 
 <div class="pm-v3-backlog-banner">
   <div><span>צבר פתוח עכשיו</span><strong id="pmV3BacklogTotal">0</strong><small>ממתינות לתכנון + באיחור בכל המערכת</small></div>
-  <button type="button" class="secondary-btn" onclick="showTab('planner')">פתח תכנון עבודה</button>
+  <button type="button" class="secondary-btn" id="pmOpenPlanningBtn" onclick="showTab('planner')">צור תוכנית עבודה</button>
 </div>
 
 <div class="pm-plan-today">
-  <div class="pm-plan-today-head"><h3>תוכנית העבודה להיום</h3><button type="button" class="secondary-btn" onclick="showTab('planner');setPlanningPeriod('day')">פתיחת התכנון</button></div>
+  <div class="pm-plan-today-head"><h3>תוכנית העבודה להיום</h3><button type="button" class="secondary-btn" id="pmTodayPlanningBtn" onclick="showTab('planner');setPlanningPeriod('day')">צור תוכנית להיום</button></div>
   <div class="pm-plan-today-kpis">
     <div class="pm-plan-today-kpi"><strong id="pmTodayPlanned">0</strong><span>מתוכננות</span></div>
     <div class="pm-plan-today-kpi"><strong id="pmTodayDone">0</strong><span>בוצעו</span></div>
@@ -2113,31 +2113,56 @@ function updatePMInitUI(){
  }
 }
 async function initializePMPlan(){
-  if(!requirePM('initialize','Initialize זמין ל-Admin בלבד.'))return;
+  if(!requirePM('initialize','אתחול תוכנית זמין ל-Admin בלבד.'))return;
   if(!pmCurrentUser){await pmMessage('יש להתחבר למערכת.');return}
-  if(!await pmConfirm("Initialize Preventive Maintenance Plan in Supabase?\nThis will recalculate the first due date for every active task.")) return;
+  const activeTasks=tasks.filter(t=>t.active!==false);
+  if(!activeTasks.length){await pmMessage('אין טיפולי אחזקה פעילים לאתחול.');return}
+  if(!await pmConfirm('לאתחל את תוכנית האחזקה?\n\nהפעולה תיצור נקודת התחלה חדשה: כל השיבוצים, הדחיות והביטולים בתוכנית העבודה יאופסו, מועדי הטיפול הבאים יחושבו מחדש, והיסטוריית הביצוע תישמר לצורכי תיעוד.'))return;
+
+  statusLine('מאתחל את תוכנית האחזקה…');
   const now=new Date();
-  const updates=tasks.map(t=>{
+  const fmt=n=>String(n).padStart(2,'0');
+  const updates=activeTasks.map(t=>{
     let d=new Date(now);
     switch(t.frequency){
-      case "יומי": d.setDate(d.getDate()+1); break;
-      case "שבועי": d.setDate(d.getDate()+7); break;
-      case "חודשי": d.setMonth(d.getMonth()+1); break;
-      case "תלת חודשי": d.setMonth(d.getMonth()+3); break;
-      case "חצי שנתי": d.setMonth(d.getMonth()+6); break;
-      case "שנתי": d.setFullYear(d.getFullYear()+1); break;
+      case 'יומי': d.setDate(d.getDate()+1); break;
+      case 'שבועי': d.setDate(d.getDate()+7); break;
+      case 'חודשי': d.setMonth(d.getMonth()+1); break;
+      case 'תלת חודשי': d.setMonth(d.getMonth()+3); break;
+      case 'חצי שנתי': d.setMonth(d.getMonth()+6); break;
+      case 'שנתי': d.setFullYear(d.getFullYear()+1); break;
+      default: d.setDate(d.getDate()+Math.max(1,Number(FREQ_DAYS[t.frequency]||30))); break;
     }
-    const fmt=n=>String(n).padStart(2,"0");
     return {id:t.id,next_due:`${d.getFullYear()}-${fmt(d.getMonth()+1)}-${fmt(d.getDate())}`};
   });
-  for(const u of updates){
-    const {error}=await supabaseClient.from('pm_tasks').update({last_done:null,next_due:u.next_due}).eq('id',u.id);
-    if(error){await pmMessage('Initialization failed: '+error.message);return}
+
+  try{
+    // Reset the operational work-plan state, but preserve pm_history as the audit trail.
+    const ids=activeTasks.map(t=>t.id);
+    for(let i=0;i<ids.length;i+=100){
+      const res=await supabaseClient.from('pm_work_plan').delete().in('task_id',ids.slice(i,i+100));
+      if(res.error)throw res.error;
+    }
+    for(const u of updates){
+      const res=await supabaseClient.from('pm_tasks').update({last_done:null,next_due:u.next_due}).eq('id',u.id);
+      if(res.error)throw res.error;
+    }
+
+    localStorage.setItem(PM_INIT_KEY,JSON.stringify({date:today()}));
+    updatePMInitUI();
+    await reloadCloudData();
+    updatePlanningEntryButtons();
+    renderDashboard();
+    statusLine('התוכנית אופסה בהצלחה. כעת יש לבנות תוכנית עבודה חדשה.','success');
+    pmToast('התוכנית אופסה. עוברים לבניית תוכנית עבודה חדשה.','success');
+    showTab('planner');
+    setPlanningPeriod('week');
+  }catch(err){
+    console.error('PM initialization:',err);
+    await reloadCloudData().catch(()=>{});
+    statusLine('אתחול התוכנית נכשל: '+(err?.message||'שגיאה לא ידועה'),'error');
+    await pmMessage('אתחול התוכנית נכשל: '+(err?.message||'שגיאה לא ידועה'));
   }
-  localStorage.setItem(PM_INIT_KEY,JSON.stringify({date:today()}));
-  updatePMInitUI();
-  await reloadCloudData();
-  await pmMessage("PM Plan initialized successfully.");
 }
 document.addEventListener("DOMContentLoaded",updatePMInitUI);
 
@@ -2710,6 +2735,14 @@ function setV3DashboardPeriod(period){
 function v3HoursFromItems(items){return items.reduce((sum,x)=>sum+Number(x.t?.duration||0),0)}
 function v3Pct(n,d){return d?Math.round(n/d*100):0}
 function v3Set(id,val){const e=document.getElementById(id);if(e)e.textContent=val}
+function updatePlanningEntryButtons(){
+  const hasPlan=Array.isArray(pmWorkPlan)&&pmWorkPlan.some(p=>!['cancelled','canceled','unplanned','waiting'].includes(v3StatusNorm(p?.status)));
+  const main=document.getElementById('pmOpenPlanningBtn');
+  const todayBtn=document.getElementById('pmTodayPlanningBtn');
+  if(main)main.textContent=hasPlan?'עדכן תוכנית עבודה':'צור תוכנית עבודה';
+  const todayHasPlan=Array.isArray(pmWorkPlan)&&pmWorkPlan.some(p=>p.plannedDate===today()&&!['cancelled','canceled','unplanned','waiting'].includes(v3StatusNorm(p?.status)));
+  if(todayBtn)todayBtn.textContent=todayHasPlan?'עדכן תוכנית להיום':'צור תוכנית להיום';
+}
 function v3MiniHtml(item,state){
   const label={waiting:'ממתינה',planned:'מתוכננת',completed:'בוצעה',postponed:'נדחתה',cancelled:'בוטלה',overdue:'באיחור'}[state]||state;
   const cls=state==='overdue'?'red':state==='postponed'?'amber':state==='planned'?'blue':'';
@@ -2748,9 +2781,16 @@ renderDashboard=function(){
   const health=document.getElementById('pmV3Health');
   if(health){
     const overdue=backlog.filter(x=>x.state==='overdue').length;
-    health.className='pm-v3-health '+(overdue===0&&coverage>=80?'good':overdue<=10&&coverage>=60?'warn':'bad');
-    health.querySelector('strong').textContent=overdue===0&&coverage>=80?'בשליטה':overdue<=10&&coverage>=60?'דורש תשומת לב':'נדרשת התערבות';
+    const noPlanYet=scheduled.length===0&&completed===0&&groups.postponed.length===0&&groups.cancelled.length===0;
+    if(noPlanYet){
+      health.className='pm-v3-health warn';
+      health.querySelector('strong').textContent=items.length?'ממתין לתכנון':'אין דרישות בטווח';
+    }else{
+      health.className='pm-v3-health '+(overdue===0&&coverage>=80?'good':overdue<=10&&coverage>=60?'warn':'bad');
+      health.querySelector('strong').textContent=overdue===0&&coverage>=80?'בשליטה':overdue<=10&&coverage>=60?'דורש תשומת לב':'נדרשת התערבות';
+    }
   }
+  updatePlanningEntryButtons();
 
   const attention=[...groups.overdue,...groups.waiting].sort((a,b)=>a.due.localeCompare(b.due)).slice(0,8);
   const near=[...groups.planned,...groups.postponed].sort((a,b)=>(a.plan?.plannedDate||a.due).localeCompare(b.plan?.plannedDate||b.due)).slice(0,8);
