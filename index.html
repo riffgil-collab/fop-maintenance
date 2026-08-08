@@ -2138,7 +2138,7 @@ async function initializePMPlan(){
   if(!pmCurrentUser){await pmMessage('יש להתחבר למערכת.');return}
   const activeTasks=tasks.filter(t=>t.active!==false);
   if(!activeTasks.length){await pmMessage('אין טיפולי אחזקה פעילים לאתחול.');return}
-  if(!await pmConfirm('לאתחל את תוכנית האחזקה?\n\nהפעולה תיצור נקודת התחלה חדשה: כל השיבוצים, הדחיות והביטולים בתוכנית העבודה יאופסו, מועדי הטיפול הבאים יחושבו מחדש, והיסטוריית הביצוע תישמר לצורכי תיעוד.'))return;
+  if(!await pmConfirm('לאתחל את תוכנית האחזקה?\n\nהפעולה תיצור נקודת התחלה חדשה: תוכנית העבודה והיסטוריית התוכנית הקודמת יימחקו, כולל ביצועים ודחיות, ומועדי הטיפול הבאים יחושבו מחדש. מאגר המכונות והטיפולים יישמר.'))return;
 
   statusLine('מאתחל את תוכנית האחזקה…');
   const now=new Date();
@@ -2158,16 +2158,31 @@ async function initializePMPlan(){
   });
 
   try{
-    // Reset the operational work-plan state, but preserve pm_history as the audit trail.
+    // Full program reset: clear the previous operational plan AND its visible history.
+    // Keep the master task/machine definitions, but remove old planning/audit state.
     const ids=activeTasks.map(t=>t.id);
     for(let i=0;i<ids.length;i+=100){
-      const res=await supabaseClient.from('pm_work_plan').delete().in('task_id',ids.slice(i,i+100));
-      if(res.error)throw res.error;
+      const batch=ids.slice(i,i+100);
+      const planRes=await supabaseClient.from('pm_work_plan').delete().in('task_id',batch);
+      if(planRes.error)throw planRes.error;
+
+      // pm_history contains completed reports from the previous initialized program.
+      const histRes=await supabaseClient.from('pm_history').delete().in('task_id',batch);
+      if(histRes.error)throw histRes.error;
     }
     for(const u of updates){
-      const res=await supabaseClient.from('pm_tasks').update({last_done:null,next_due:u.next_due}).eq('id',u.id);
+      const t=activeTasks.find(x=>String(x.id)===String(u.id));
+      // Postpone/plan/undo audit markers are also rendered as history events.
+      // Remove them on initialization while preserving normal free-text task notes.
+      const cleanNotes=visibleTaskNotes(t?.notes||'');
+      const payload={last_done:null,next_due:u.next_due,notes:cleanNotes||null};
+      const res=await supabaseClient.from('pm_tasks').update(payload).eq('id',u.id);
       if(res.error)throw res.error;
     }
+
+    // Clear local copies immediately so stale history cannot flash before cloud reload.
+    history=[];
+    pmWorkPlan=[];
 
     localStorage.setItem(PM_INIT_KEY,JSON.stringify({date:today()}));
     updatePMInitUI();
@@ -2181,7 +2196,7 @@ async function initializePMPlan(){
 
     updatePlanningEntryButtons();
     renderDashboard();
-    statusLine(`התוכנית אופסה בהצלחה. נטענו ${tasks.filter(t=>t.active!==false).length} טיפולי אחזקה מהענן. כעת יש לבנות תוכנית עבודה חדשה.`,'success');
+    statusLine(`התוכנית אופסה בהצלחה. היסטוריית התוכנית הקודמת נוקתה ונטענו ${tasks.filter(t=>t.active!==false).length} טיפולי אחזקה מהענן. כעת יש לבנות תוכנית עבודה חדשה.`,'success');
     pmToast('הנתונים נטענו מהענן. עוברים לבניית תוכנית עבודה חדשה.','success');
     openPlanningWorkspace('week');
   }catch(err){
