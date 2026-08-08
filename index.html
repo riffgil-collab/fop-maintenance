@@ -5,6 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
 <title>FOP — Preventive Maintenance</title>
+<!-- build: 2026-08-08 workload-hours-dashboard-sync -->
 <style>
 :root{--navy:#07172c;--navy2:#0a2c59;--green:#11865b;--green2:#42c98c;--blue:#1473e6;--red:#cf002c;--amber:#ef8b17;--text:#10213d;--muted:#6d7b91;--line:#dfe7f1;--bg:#f3f6fb;--shadow:0 14px 38px rgba(13,39,77,.12)}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text)}
@@ -329,6 +330,12 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 }
 
 
+/* ===== FOP PLANNING WORKLOAD — HOURS BY ROLE ===== */
+.pm-workload-box{margin:0 0 13px;border:1px solid #dce7f3;border-radius:18px;padding:14px;background:linear-gradient(135deg,#fbfdff,#f8fbf9)}
+.pm-workload-box h3{margin:0 0 5px;color:var(--navy2);font-size:16px}.pm-workload-box .pm-workload-note{font-size:9px;color:var(--muted);margin-bottom:10px;line-height:1.45}
+.pm-workload-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px}.pm-workload-stat{border:1px solid var(--line);border-radius:14px;background:#fff;padding:11px 8px;text-align:center}.pm-workload-stat strong{display:block;color:var(--navy2);font-size:22px;line-height:1.1}.pm-workload-stat span{display:block;color:var(--muted);font-size:9px;font-weight:850;margin-top:5px}.pm-workload-stat.total strong{color:var(--green)}
+@media(max-width:760px){.pm-workload-grid{grid-template-columns:1fr 1fr}.pm-workload-stat.total{grid-column:1/-1}}
+
 /* ===== FOP MAINTENANCE V3 — MANAGEMENT WORKFLOW ===== */
 .pm-v3-hero{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:17px;border:1px solid #dce7f3;border-radius:20px;background:linear-gradient(135deg,#f8fbff,#f5faf7);margin-bottom:12px}
 .pm-v3-hero h2{margin:2px 0 4px;color:var(--navy2);font-size:22px}.pm-v3-hero p{margin:0;color:var(--muted);font-size:10px}.pm-v3-eyebrow{font-size:9px;font-weight:950;color:var(--green);letter-spacing:.4px}
@@ -507,6 +514,18 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     <div class="pm-plan-stat coverage"><strong id="pmPlanCoverage">0%</strong><span>כיסוי תכנון</span></div>
     <div class="pm-plan-stat"><strong id="pmPlanHours">0</strong><span>שעות ששובצו</span></div>
     <div class="pm-plan-stat"><strong id="pmPlanDone">0%</strong><span>ביצוע מול תוכנית</span></div>
+  </div>
+
+  <div class="pm-workload-box">
+    <h3>עומס עבודה לפי הסינון</h3>
+    <div class="pm-workload-note">השעות מחושבות מהמשימות הפתוחות בתקופה ובסינון שנבחר. משימה שבוטלה, הושלמה או הועברה לתקופה אחרת אינה נכללת בעומס הנדרש של התקופה.</div>
+    <div class="pm-workload-grid">
+      <div class="pm-workload-stat total"><strong id="pmWorkRequiredHours">0.0</strong><span>שעות עבודה נדרשות</span></div>
+      <div class="pm-workload-stat"><strong id="pmWorkOperatorHours">0.0</strong><span>שעות מפעיל</span></div>
+      <div class="pm-workload-stat"><strong id="pmWorkTechnicianHours">0.0</strong><span>שעות טכנאי אחזקה</span></div>
+      <div class="pm-workload-stat"><strong id="pmWorkScheduledHours">0.0</strong><span>שעות שכבר שובצו</span></div>
+      <div class="pm-workload-stat"><strong id="pmWorkUnplannedHours">0.0</strong><span>שעות שנותרו לתכנון</span></div>
+    </div>
   </div>
 
   <div class="panel-box">
@@ -2676,9 +2695,15 @@ function v3OccurrenceState(item,refDate=today()){
   return item.due<refDate?'overdue':'waiting';
 }
 function v3PeriodBounds(period=pmV3DashboardPeriod,anchor=today()){
+  // The dashboard and the planning screen must look at the same operational period.
+  // If the current calendar week has no PM requirements (for example immediately after Initialize),
+  // move the weekly dashboard to the first week that actually contains requirements.
+  if(period==='week' && anchor===today()) anchor=pmBestPlanningAnchor(today());
   const d=dObj(anchor)||new Date(); let start,end,label;
   if(period==='week'){
-    start=weekStartFrom(anchor);end=addDays(start,6);label=`השבוע · ${fDate(start)} – ${fDate(end)}`;
+    start=weekStartFrom(anchor);end=addDays(start,6);
+    const currentStart=weekStartFrom(today());
+    label=`${start===currentStart?'השבוע':'שבוע לתכנון'} · ${fDate(start)} – ${fDate(end)}`;
   }else if(period==='month'){
     start=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;end=dateStr(new Date(d.getFullYear(),d.getMonth()+1,0,12));label=d.toLocaleDateString('he-IL',{month:'long',year:'numeric'});
   }else if(period==='half'){
@@ -2728,6 +2753,36 @@ function setV3DashboardPeriod(period){
   renderDashboard();
 }
 function v3HoursFromItems(items){return items.reduce((sum,x)=>sum+Number(x.t?.duration||0),0)}
+function v3ItemRole(item){
+  const p=String(item?.t?.performer||'').trim().toLowerCase();
+  if(p.includes('מפעיל')||p.includes('operator'))return 'operator';
+  if(p.includes('טכנאי')||p.includes('maintenance')||p.includes('technician'))return 'technician';
+  return 'other';
+}
+function v3InRange(date,start,end){return !!date&&String(date)>=start&&String(date)<=end}
+function v3WorkloadItemInPeriod(item,start,end){
+  const st=v3OccurrenceState(item);
+  if(st==='cancelled'||st==='completed')return false;
+  // A scheduled/postponed task belongs to the workload of the period where it will actually be executed.
+  if(item.plan && ['planned','postponed'].includes(st))return v3InRange(item.plan.plannedDate,start,end);
+  // Waiting/overdue requirements (including carried backlog) are still work that must be planned now.
+  return st==='waiting'||st==='overdue';
+}
+function v3WorkloadMetrics(items,start,end){
+  const open=items.filter(x=>v3WorkloadItemInPeriod(x,start,end));
+  const scheduled=open.filter(x=>x.plan&&['planned','postponed'].includes(v3OccurrenceState(x)));
+  const unplanned=open.filter(x=>!x.plan||['waiting','overdue'].includes(v3OccurrenceState(x)));
+  const minutes=list=>v3HoursFromItems(list);
+  return {
+    open,scheduled,unplanned,
+    requiredMin:minutes(open),
+    operatorMin:minutes(open.filter(x=>v3ItemRole(x)==='operator')),
+    technicianMin:minutes(open.filter(x=>v3ItemRole(x)==='technician')),
+    scheduledMin:minutes(scheduled),
+    unplannedMin:minutes(unplanned)
+  };
+}
+function v3Hours1(mins){return (Number(mins||0)/60).toFixed(1)}
 function v3Pct(n,d){return d?Math.round(n/d*100):0}
 function v3Set(id,val){const e=document.getElementById(id);if(e)e.textContent=val}
 function updatePlanningEntryButtons(){
@@ -2793,8 +2848,10 @@ renderDashboard=function(){
   v3Set('pmV3Coverage',coverage+'%');v3Set('pmV3CoverageDetail',`${covered} מתוך ${actionable.length}`);
   v3Set('pmV3Execution',execution+'%');v3Set('pmV3ExecutionDetail',`${completed} מתוך ${scheduled.length}`);
   const cb=document.getElementById('pmV3CoverageBar'),eb=document.getElementById('pmV3ExecutionBar');if(cb)cb.style.width=Math.min(100,coverage)+'%';if(eb)eb.style.width=Math.min(100,execution)+'%';
-  v3Set('pmV3PlannedHours',hours(v3HoursFromItems(scheduled)));
-  v3Set('pmV3DoneHours',hours(v3HoursFromItems(groups.completed)));
+  const dashWork=v3WorkloadMetrics(items,start,end);
+  v3Set('pmV3PlannedHours',v3Hours1(dashWork.scheduledMin));
+  const dashDone=groups.completed.filter(x=>!x.plan?.completedDate||v3InRange(x.plan.completedDate,start,end));
+  v3Set('pmV3DoneHours',v3Hours1(v3HoursFromItems(dashDone)));
 
   const backlog=v3CurrentBacklog(dep,machine,performer);v3Set('pmV3BacklogTotal',backlog.length);
   const health=document.getElementById('pmV3Health');
@@ -2840,14 +2897,36 @@ renderPlanner=function(){
   const startInput=document.getElementById('pmPlannerStart');if(!startInput)return;if(!startInput.value)startInput.value=today();fillPlanningPerformers();
   const {start,end,label}=planningBounds();const labelEl=document.getElementById('pmPlanRangeLabel');if(labelEl)labelEl.textContent=label;
   if(!pmWorkPlanLoaded){document.getElementById('pmPlannerDetail').innerHTML='<div class="empty">תוכנית העבודה עדיין נטענת מהענן…</div>';return}
+
+  // One filtered requirement set drives BOTH task counts and workload hours.
   const items=filteredPlanningItems();
-  const active=items.filter(x=>!['cancelled','completed'].includes(v3OccurrenceState(x)));
-  const covered=active.filter(x=>x.plan&&!['waiting','cancelled'].includes(v3OccurrenceState(x)));
-  const done=items.filter(x=>v3OccurrenceState(x)==='completed');
-  const coverage=v3Pct(covered.length,active.length);const execution=v3Pct(done.length,covered.length+done.length);const mins=v3HoursFromItems(covered.concat(done));
-  v3Set('pmPlanRequired',items.length);v3Set('pmPlanScheduled',covered.length);v3Set('pmPlanCoverage',coverage+'%');v3Set('pmPlanHours',hours(mins));v3Set('pmPlanDone',execution+'%');
-  const people=Number(document.getElementById('pmPlanPeople')?.value||0),hrs=Number(document.getElementById('pmPlanHoursPerDay')?.value||0),days=planningWorkDays(start,end),capacity=people*hrs*days,load=capacity?Math.round((mins/60)/capacity*100):0;
-  const cap=document.getElementById('pmPlanCapacityText');if(cap)cap.textContent=`קיבולת לתקופה: ${capacity.toFixed(1)} שעות · עומס מתוכנן: ${load}% · ${days} ימי עבודה.`;
+  const metrics=v3WorkloadMetrics(items,start,end);
+  const covered=metrics.scheduled;
+  const done=items.filter(x=>v3OccurrenceState(x)==='completed' && (!x.plan?.completedDate || v3InRange(x.plan.completedDate,start,end)));
+  const coverage=v3Pct(covered.length,metrics.open.length);
+  const execution=v3Pct(done.length,covered.length+done.length);
+
+  v3Set('pmPlanRequired',items.length);
+  v3Set('pmPlanScheduled',covered.length);
+  v3Set('pmPlanCoverage',coverage+'%');
+  v3Set('pmPlanHours',v3Hours1(metrics.scheduledMin));
+  v3Set('pmPlanDone',execution+'%');
+  v3Set('pmWorkRequiredHours',v3Hours1(metrics.requiredMin));
+  v3Set('pmWorkOperatorHours',v3Hours1(metrics.operatorMin));
+  v3Set('pmWorkTechnicianHours',v3Hours1(metrics.technicianMin));
+  v3Set('pmWorkScheduledHours',v3Hours1(metrics.scheduledMin));
+  v3Set('pmWorkUnplannedHours',v3Hours1(metrics.unplannedMin));
+
+  const people=Number(document.getElementById('pmPlanPeople')?.value||0),hrs=Number(document.getElementById('pmPlanHoursPerDay')?.value||0),days=planningWorkDays(start,end),capacity=people*hrs*days;
+  const requiredHours=metrics.requiredMin/60;
+  const load=capacity?Math.round(requiredHours/capacity*100):0;
+  const gap=capacity-requiredHours;
+  const cap=document.getElementById('pmPlanCapacityText');
+  if(cap){
+    const gapText=gap>=0?`יתרה ${gap.toFixed(1)} שעות`:`חסרות ${Math.abs(gap).toFixed(1)} שעות`;
+    cap.textContent=`קיבולת לתקופה: ${capacity.toFixed(1)} שעות · דרישה פתוחה: ${requiredHours.toFixed(1)} שעות · עומס: ${load}% · ${gapText} · ${days} ימי עבודה.`;
+  }
+
   if(!document.getElementById('pmPlanDate').value)document.getElementById('pmPlanDate').value=pmPlanningPeriod==='day'?start:(today()>=start&&today()<=end?today():start);
   const pages=Math.max(1,Math.ceil(items.length/PM_PLAN_PAGE_SIZE));pmPlanPage=Math.max(0,Math.min(pmPlanPage,pages-1));const pageItems=items.slice(pmPlanPage*PM_PLAN_PAGE_SIZE,(pmPlanPage+1)*PM_PLAN_PAGE_SIZE);v3Set('pmPlanPageInfo',`עמוד ${pmPlanPage+1} מתוך ${pages} · ${items.length} דרישות`);
   document.getElementById('pmPlannerDetail').innerHTML=pageItems.length?pageItems.map(item=>{
