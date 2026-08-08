@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
 <title>FOP — Preventive Maintenance</title>
-<!-- build: 2026-08-08 workload-hours-dashboard-sync -->
+<!-- build: 2026-08-08 dashboard-planner-single-engine-sync -->
 <style>
 :root{--navy:#07172c;--navy2:#0a2c59;--green:#11865b;--green2:#42c98c;--blue:#1473e6;--red:#cf002c;--amber:#ef8b17;--text:#10213d;--muted:#6d7b91;--line:#dfe7f1;--bg:#f3f6fb;--shadow:0 14px 38px rgba(13,39,77,.12)}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text)}
@@ -446,7 +446,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </div>
 
 <div class="toolbar pm-v3-filterbar">
-  <div class="field"><label>תאריך עוגן</label><input id="pmDashboardAnchor" type="date" onchange="renderDashboard()"/></div>
+  <div class="field"><label>תאריך עוגן</label><input id="pmDashboardAnchor" type="date" onchange="syncPlanningAnchorFromDashboard()"/></div>
   <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();fillDashboardPerformers();renderDashboard()"></select></div>
   <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">כל המכונות</option></select></div>
   <div class="field"><label>מבצע</label><select id="pmDashboardPerformer" onchange="renderDashboard()"><option value="">כל המבצעים</option></select></div>
@@ -503,7 +503,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   </div>
 
   <div class="toolbar">
-    <div class="field"><label>תאריך עוגן</label><input id="pmPlannerStart" type="date" onchange="renderPlanner()"/></div>
+    <div class="field"><label>תאריך עוגן</label><input id="pmPlannerStart" type="date" onchange="syncDashboardAnchorFromPlanning()"/></div>
     <div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="fillPlanningMachines();pmPlanPage=0;renderPlanner()"></select></div>
     <div class="field"><label>מכונה</label><select id="pmPlannerMachine" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המכונות</option></select></div>
     <div class="field"><label>מבצע</label><select id="pmPlannerPerformer" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המבצעים</option><option value="מפעיל">מפעיל</option><option value="טכנאי אחזקה">טכנאי אחזקה</option></select></div>
@@ -1448,7 +1448,7 @@ function showTab(name){
   document.querySelectorAll('.pm-panel').forEach(p=>p.classList.remove('active'));
   const id={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',history:'pmHistory',settings:'pmSettings',users:'pmUsers'}[name];
   document.getElementById(id)?.classList.add('active');
-  if(name==='dashboard')renderDashboard();
+  if(name==='dashboard'){syncDashboardViewFromPlanner();renderDashboard();}
   if(name==='planner')renderPlanner();
   if(name==='report')renderReport();
   if(name==='history')renderHistory();
@@ -2749,6 +2749,27 @@ function v3CurrentBacklog(dep='',machine='',performer='',refDate=today()){
     return {...item,state:v3OccurrenceState(item,refDate)};
   }).filter(x=>x.due<=refDate&&(x.state==='waiting'||x.state==='overdue'));
 }
+function syncPlanningAnchorFromDashboard(){
+  const d=document.getElementById('pmDashboardAnchor');
+  const p=document.getElementById('pmPlannerStart');
+  if(d&&p&&d.value)p.value=d.value;
+  renderDashboard();
+}
+function syncDashboardAnchorFromPlanning(){
+  const p=document.getElementById('pmPlannerStart');
+  const d=document.getElementById('pmDashboardAnchor');
+  if(p&&d&&p.value)d.value=p.value;
+  renderPlanner();
+}
+function syncDashboardViewFromPlanner(){
+  const p=document.getElementById('pmPlannerStart');
+  const d=document.getElementById('pmDashboardAnchor');
+  if(p&&p.value&&d)d.value=p.value;
+  if(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod){
+    pmV3DashboardPeriod=pmPlanningPeriod;
+    document.querySelectorAll('#pmV3Periods button').forEach(b=>b.classList.toggle('active',b.dataset.v3period===pmV3DashboardPeriod));
+  }
+}
 function setV3DashboardPeriod(period){
   pmV3DashboardPeriod=period;
   const anchor=document.getElementById('pmDashboardAnchor');
@@ -2836,9 +2857,9 @@ renderDashboard=function(){
   const machine=document.getElementById('pmDashboardMachine')?.value||'';
   const performer=document.getElementById('pmDashboardPerformer')?.value||'';
   const dashAnchor=document.getElementById('pmDashboardAnchor');
-  if(dashAnchor&&!dashAnchor.value)dashAnchor.value=today();
+  if(dashAnchor&&!dashAnchor.value)dashAnchor.value=document.getElementById('pmPlannerStart')?.value||pmBestPlanningAnchor(today());
   const {start,end,label}=v3PeriodBounds(pmV3DashboardPeriod,dashAnchor?.value||today());
-  const items=v3RequirementItems(start,end).filter(x=>v3FilterTask(x.t,dep,machine,performer,x.plan));
+  const items=occurrenceItems(start,end).filter(x=>v3FilterTask(x.t,dep,machine,performer,x.plan));
   const groups={waiting:[],planned:[],completed:[],postponed:[],cancelled:[],overdue:[]};
   items.forEach(x=>{const st=v3OccurrenceState(x);(groups[st]||(groups[st]=[])).push(x)});
 
