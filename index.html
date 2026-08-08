@@ -438,6 +438,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </div>
 
 <div class="pm-v3-periods" id="pmV3Periods">
+  <button type="button" data-v3period="day" onclick="setV3DashboardPeriod('day')">יום</button>
   <button type="button" data-v3period="week" class="active" onclick="setV3DashboardPeriod('week')">שבוע</button>
   <button type="button" data-v3period="month" onclick="setV3DashboardPeriod('month')">חודש</button>
   <button type="button" data-v3period="half" onclick="setV3DashboardPeriod('half')">חצי שנה</button>
@@ -2664,7 +2665,7 @@ document.addEventListener('DOMContentLoaded',()=>{
    FOP MAINTENANCE V3 — MANAGEMENT STATUS ENGINE
    Uses existing pm_tasks + pm_history + pm_work_plan schema.
    ============================================================ */
-let pmV3DashboardPeriod='week';
+let pmV3DashboardPeriod='day';
 
 function v3StatusNorm(v){return String(v||'').trim().toLowerCase()}
 function v3RowStatus(p){
