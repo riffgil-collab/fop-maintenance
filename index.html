@@ -2153,8 +2153,33 @@ document.addEventListener('DOMContentLoaded',()=>{try{fillReportPerformers()}cat
 
 
 const PM_INIT_KEY="pm_plan_initialized";
+function getPMCloudInitData(){
+  // Supabase is the source of truth. Initialization is stamped on pm_tasks notes
+  // as [PM_INIT|YYYY-MM-DD|timestamp|actor]. Rebuild the UI state from cloud data
+  // so reopening the PWA / clearing localStorage never asks for initialization again.
+  let latest=null;
+  for(const t of (Array.isArray(tasks)?tasks:[])){
+    const notes=String(t?.notes||'');
+    const re=/\[PM_INIT\|([^|\]]+)\|([^|\]]*)\|([^\]]*)\]/g;
+    let m;
+    while((m=re.exec(notes))!==null){
+      const candidate={date:m[1],stamp:m[2]||'',actor:m[3]||''};
+      const key=candidate.stamp||candidate.date;
+      const latestKey=latest?(latest.stamp||latest.date):'';
+      if(!latest||String(key)>String(latestKey))latest=candidate;
+    }
+  }
+  return latest;
+}
 function updatePMInitUI(){
- const data=JSON.parse(localStorage.getItem(PM_INIT_KEY)||"null");
+ const cloudData=getPMCloudInitData();
+ let localData=null;
+ try{localData=JSON.parse(localStorage.getItem(PM_INIT_KEY)||"null");}catch(e){}
+ const data=cloudData||localData;
+ // Heal the local cache from Supabase whenever the cloud marker exists.
+ if(cloudData){
+   try{localStorage.setItem(PM_INIT_KEY,JSON.stringify({date:cloudData.date,stamp:cloudData.stamp||'',actor:cloudData.actor||''}));}catch(e){}
+ }
  const s=document.getElementById("pmInitStatus"),d=document.getElementById("pmInitDate"),b=document.getElementById("pmInitBtn");
  if(!s)return;
  if(data){
@@ -2371,7 +2396,7 @@ loadCloudData=async function(){
     return false;
   }
 };
-reloadCloudData=async function(){return await loadCloudData()};
+reloadCloudData=async function(){const ok=await loadCloudData();try{updatePMInitUI()}catch(e){}return ok};
 
 /* ---------- Requirement generator ---------- */
 function wpRequirementItems(start,end){
