@@ -5,7 +5,7 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
 <title>FOP — Preventive Maintenance</title>
-<!-- build: 2026-08-08 dashboard-planner-single-engine-sync -->
+<!-- build: 2026-08-08 reset-generation-boundary-fix -->
 <style>
 :root{--navy:#07172c;--navy2:#0a2c59;--green:#11865b;--green2:#42c98c;--blue:#1473e6;--red:#cf002c;--amber:#ef8b17;--text:#10213d;--muted:#6d7b91;--line:#dfe7f1;--bg:#f3f6fb;--shadow:0 14px 38px rgba(13,39,77,.12)}
 *{box-sizing:border-box}html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text)}
@@ -993,6 +993,7 @@ async function loadCloudData(){
     else console.warn('pm_history load:',historyRes.error.message);
 
     history=historyRows.map(normalizeHistoryRow)
+      .filter(historyBelongsToCurrentProgram)
       .filter(h=>!isCompletionUndone(h))
       .sort((a,b)=>
         String(b.date||'').localeCompare(String(a.date||'')) ||
@@ -1084,8 +1085,8 @@ function hours(mins){return (Number(mins||0)/60).toFixed(1)}
 function statusLine(msg,type=''){const e=document.getElementById('pmStatus');e.textContent=msg||'';e.className='status-line '+type}
 
 function cleanAuditValue(v){return String(v??'').replace(/\|/g,'/').replace(/\r?\n/g,' ').trim()}
-function taskAuditLines(notes){return String(notes||'').split(/\r?\n/).filter(x=>/^\[PM_(POSTPONE|UNDO|PLAN|UNPLAN)\|/.test(x.trim()))}
-function visibleTaskNotes(notes){return String(notes||'').split(/\r?\n/).filter(x=>!/^\[PM_(POSTPONE|UNDO|PLAN|UNPLAN)\|/.test(x.trim())).join('\n').trim()}
+function taskAuditLines(notes){return String(notes||'').split(/\r?\n/).filter(x=>/^\[PM_(POSTPONE|UNDO|PLAN|UNPLAN|INIT)\|/.test(x.trim()))}
+function visibleTaskNotes(notes){return String(notes||'').split(/\r?\n/).filter(x=>!/^\[PM_(POSTPONE|UNDO|PLAN|UNPLAN|INIT)\|/.test(x.trim())).join('\n').trim()}
 function preserveAuditNotes(oldNotes,newVisible){
   const audits=taskAuditLines(oldNotes);
   const clean=String(newVisible||'').trim();
@@ -1106,6 +1107,26 @@ function parseUndoAudits(t){
     const p=body.split('|');
     return {taskId:String(t.id),date:p[0]||'',reportedBy:p[1]||'',reportedAt:p[2]||''};
   });
+}
+function parseInitAudits(t){
+  return taskAuditLines(t.notes).filter(x=>x.startsWith('[PM_INIT|')).map(line=>{
+    const body=line.replace(/^\[PM_INIT\|/,'').replace(/\]$/,'');
+    const p=body.split('|');
+    return {taskId:String(t.id),date:p[0]||'',reportedAt:p[1]||'',reportedBy:p[2]||''};
+  }).sort((a,b)=>String(b.reportedAt||b.date||'').localeCompare(String(a.reportedAt||a.date||'')));
+}
+function currentProgramStart(t){
+  return parseInitAudits(t)[0]||null;
+}
+function historyBelongsToCurrentProgram(h){
+  const t=tasks.find(x=>String(x.id)===String(h.taskId));
+  if(!t)return true;
+  const init=currentProgramStart(t);
+  if(!init)return true;
+  const stamp=String(h.reportedAt||'');
+  if(stamp&&init.reportedAt)return stamp>=init.reportedAt;
+  // Fallback for old pm_history schemas without a timestamp: dates before the reset are old history.
+  return String(h.date||'')>=String(init.date||'');
 }
 function isCompletionUndone(h){
   const t=tasks.find(x=>String(x.id)===String(h.taskId));
@@ -1753,6 +1774,9 @@ async function undoCompletion(historyId,taskId,date){
 
   const t=tasks.find(x=>String(x.id)===String(taskId));
   if(!t)return statusLine('משימת הטיפול לא נמצאה.','error');
+  if(!historyBelongsToCurrentProgram(h)){
+    return statusLine('לא ניתן לבצע Undo לדיווח מתוכנית קודמת. היסטוריה ישנה נשארת ארכיון בלבד.','error');
+  }
 
   statusLine('מבטל את דיווח הביצוע…');
 
@@ -1781,7 +1805,9 @@ async function undoCompletion(historyId,taskId,date){
     const taskUpdate={notes:newNotes};
     if(isLatest){
       taskUpdate.last_done=previousDone;
-      taskUpdate.next_due=h.date;
+      const init=currentProgramStart(t);
+      // Never resurrect a due date from before the active initialized program.
+      taskUpdate.next_due=init&&String(h.date)<String(init.date)?(t.nextDue||init.date):h.date;
     }
     const upd=await supabaseClient.from('pm_tasks').update(taskUpdate).eq('id',t.id);
     if(upd.error)throw upd.error;
@@ -2126,7 +2152,7 @@ function updatePMInitUI(){
  if(data){
    s.innerHTML="🟢 Status: Initialized";
    d.textContent="Initialized on: "+data.date;
-   if(b)b.style.display="none";
+   if(b){b.style.display=pmCan('initialize')?'':'none';b.textContent='אתחול מחדש';}
  }else{
    s.innerHTML="🔴 Status: Not Initialized";
    d.textContent="";
@@ -2142,6 +2168,8 @@ async function initializePMPlan(){
 
   statusLine('מאתחל את תוכנית האחזקה…');
   const now=new Date();
+  const initStamp=now.toISOString();
+  const initActor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
   const fmt=n=>String(n).padStart(2,'0');
   const updates=activeTasks.map(t=>{
     let d=new Date(now);
@@ -2166,16 +2194,18 @@ async function initializePMPlan(){
       const planRes=await supabaseClient.from('pm_work_plan').delete().in('task_id',batch);
       if(planRes.error)throw planRes.error;
 
-      // pm_history contains completed reports from the previous initialized program.
+      // Best-effort physical cleanup only. RLS may legally block DELETE without returning
+      // a useful matched-row count, so the PM_INIT marker below is the source of truth.
       const histRes=await supabaseClient.from('pm_history').delete().in('task_id',batch);
-      if(histRes.error)throw histRes.error;
+      if(histRes.error)console.warn('pm_history reset cleanup skipped; old rows will stay archived:',histRes.error.message);
     }
     for(const u of updates){
       const t=activeTasks.find(x=>String(x.id)===String(u.id));
-      // Postpone/plan/undo audit markers are also rendered as history events.
-      // Remove them on initialization while preserving normal free-text task notes.
+      // Remove old program audit markers, preserve normal notes, and stamp a new program boundary.
+      // Any old pm_history rows that survive RLS DELETE are excluded by this marker.
       const cleanNotes=visibleTaskNotes(t?.notes||'');
-      const payload={last_done:null,next_due:u.next_due,notes:cleanNotes||null};
+      const initMarker=`[PM_INIT|${today()}|${cleanAuditValue(initStamp)}|${cleanAuditValue(initActor)}]`;
+      const payload={last_done:null,next_due:u.next_due,notes:[cleanNotes,initMarker].filter(Boolean).join('\n')};
       const res=await supabaseClient.from('pm_tasks').update(payload).eq('id',u.id);
       if(res.error)throw res.error;
     }
@@ -2196,7 +2226,7 @@ async function initializePMPlan(){
 
     updatePlanningEntryButtons();
     renderDashboard();
-    statusLine(`התוכנית אופסה בהצלחה. היסטוריית התוכנית הקודמת נוקתה ונטענו ${tasks.filter(t=>t.active!==false).length} טיפולי אחזקה מהענן. כעת יש לבנות תוכנית עבודה חדשה.`,'success');
+    statusLine(`התוכנית אופסה בהצלחה. היסטוריית התוכנית הקודמת הועברה לארכיון ואינה משפיעה על הדשבורד. נטענו ${tasks.filter(t=>t.active!==false).length} טיפולי אחזקה מהענן. כעת יש לבנות תוכנית עבודה חדשה.`,'success');
     pmToast('הנתונים נטענו מהענן. עוברים לבניית תוכנית עבודה חדשה.','success');
     openPlanningWorkspace('week');
   }catch(err){
