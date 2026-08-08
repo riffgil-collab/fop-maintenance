@@ -438,14 +438,15 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </div>
 
 <div class="pm-v3-periods" id="pmV3Periods">
-  <button type="button" data-v3period="day" onclick="setV3DashboardPeriod('day')">יום</button>
-  <button type="button" data-v3period="week" class="active" onclick="setV3DashboardPeriod('week')">שבוע</button>
+  <button type="button" data-v3period="day" class="active" onclick="setV3DashboardPeriod('day')">יום</button>
+  <button type="button" data-v3period="week" onclick="setV3DashboardPeriod('week')">שבוע</button>
   <button type="button" data-v3period="month" onclick="setV3DashboardPeriod('month')">חודש</button>
   <button type="button" data-v3period="half" onclick="setV3DashboardPeriod('half')">חצי שנה</button>
   <button type="button" data-v3period="year" onclick="setV3DashboardPeriod('year')">שנה</button>
 </div>
 
 <div class="toolbar pm-v3-filterbar">
+  <div class="field"><label>תאריך עוגן</label><input id="pmDashboardAnchor" type="date" onchange="renderDashboard()"/></div>
   <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();fillDashboardPerformers();renderDashboard()"></select></div>
   <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">כל המכונות</option></select></div>
   <div class="field"><label>מבצע</label><select id="pmDashboardPerformer" onchange="renderDashboard()"><option value="">כל המבצעים</option></select></div>
@@ -2695,16 +2696,16 @@ function v3OccurrenceState(item,refDate=today()){
   }
   return item.due<refDate?'overdue':'waiting';
 }
-function v3PeriodBounds(period=pmV3DashboardPeriod,anchor=today()){
-  // The dashboard and the planning screen must look at the same operational period.
-  // If the current calendar week has no PM requirements (for example immediately after Initialize),
-  // move the weekly dashboard to the first week that actually contains requirements.
-  if(period==='week' && anchor===today()) anchor=pmBestPlanningAnchor(today());
+function v3PeriodBounds(period=pmV3DashboardPeriod,anchor=null){
+  // Dashboard and planner use identical date-period semantics.
+  anchor=anchor||document.getElementById('pmDashboardAnchor')?.value||today();
   const d=dObj(anchor)||new Date(); let start,end,label;
-  if(period==='week'){
+  if(period==='day'){
+    start=anchor;end=anchor;label=`יום · ${fDate(anchor)}`;
+  }else if(period==='week'){
     start=weekStartFrom(anchor);end=addDays(start,6);
     const currentStart=weekStartFrom(today());
-    label=`${start===currentStart?'השבוע':'שבוע לתכנון'} · ${fDate(start)} – ${fDate(end)}`;
+    label=`${start===currentStart?'השבוע':'שבוע'} · ${fDate(start)} – ${fDate(end)}`;
   }else if(period==='month'){
     start=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`;end=dateStr(new Date(d.getFullYear(),d.getMonth()+1,0,12));label=d.toLocaleDateString('he-IL',{month:'long',year:'numeric'});
   }else if(period==='half'){
@@ -2750,6 +2751,8 @@ function v3CurrentBacklog(dep='',machine='',performer='',refDate=today()){
 }
 function setV3DashboardPeriod(period){
   pmV3DashboardPeriod=period;
+  const anchor=document.getElementById('pmDashboardAnchor');
+  if(anchor&&!anchor.value)anchor.value=today();
   document.querySelectorAll('#pmV3Periods button').forEach(b=>b.classList.toggle('active',b.dataset.v3period===period));
   renderDashboard();
 }
@@ -2832,7 +2835,9 @@ renderDashboard=function(){
   const dep=document.getElementById('pmDashboardDepartment')?.value||'';
   const machine=document.getElementById('pmDashboardMachine')?.value||'';
   const performer=document.getElementById('pmDashboardPerformer')?.value||'';
-  const {start,end,label}=v3PeriodBounds();
+  const dashAnchor=document.getElementById('pmDashboardAnchor');
+  if(dashAnchor&&!dashAnchor.value)dashAnchor.value=today();
+  const {start,end,label}=v3PeriodBounds(pmV3DashboardPeriod,dashAnchor?.value||today());
   const items=v3RequirementItems(start,end).filter(x=>v3FilterTask(x.t,dep,machine,performer,x.plan));
   const groups={waiting:[],planned:[],completed:[],postponed:[],cancelled:[],overdue:[]};
   items.forEach(x=>{const st=v3OccurrenceState(x);(groups[st]||(groups[st]=[])).push(x)});
