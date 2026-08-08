@@ -2995,7 +2995,7 @@ renderDashboard=function(){
     const noPlanYet=scheduled.length===0&&completed===0&&groups.postponed.length===0&&groups.cancelled.length===0;
     if(noPlanYet){
       health.className='pm-v3-health warn';
-      health.querySelector('strong').textContent=items.length?'ממתין לתכנון':'אין דרישות בטווח';
+      health.querySelector('strong').textContent=items.length?(window.pmLang==='en'?'Pending Planning':'ממתין לתכנון'):(window.pmLang==='en'?'No Requirements in Range':'אין דרישות בטווח');
     }else{
       health.className='pm-v3-health '+(overdue===0&&coverage>=80?'good':overdue<=10&&coverage>=60?'warn':'bad');
       health.querySelector('strong').textContent=overdue===0&&coverage>=80?'בשליטה':overdue<=10&&coverage>=60?'דורש תשומת לב':'נדרשת התערבות';
