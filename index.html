@@ -713,8 +713,8 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div style="margin-top:12px"><button class="back" id="pmResetDataBtn" onclick="resetData()">טעינה מחדש מהענן</button></div>
 </section>
 <section class="pm-panel" id="pmUsers">
-<div class="section-title"><h3>ניהול משתמשים</h3><small>Admin בלבד</small></div>
-<div class="note">המשתמשים משותפים לכל FOP ונשמרים בטבלת <b>profiles</b>. שינוי תפקיד כאן משפיע על הרשאות המשתמש במודול האחזקה.</div>
+<div class="section-title"><h3>משתמשי אחזקה</h3><small>Admin בלבד</small></div>
+<div class="note">החשבון נשמר ב-FOP המשותף, אך במסך זה מנוהלת <b>רק הגישה לאפליקציית האחזקה</b>. הסרה מאחזקה אינה מוחקת את המשתמש ואינה משפיעה על אפליקציית התפעול.</div>
 <div class="user-admin-toolbar">
 <button class="main" onclick="openPMCreateUserModal()" type="button">➕ יצירת משתמש חדש</button>
 <button class="soft" onclick="loadPMUsers()" type="button">↻ רענון הרשימה</button>
@@ -812,13 +812,18 @@ function normalizePMRole(raw){
 function pmCan(cap){return !!(PM_ROLES[pmCurrentRole]||PM_ROLES.viewer)[cap]}
 
 async function loadCurrentPMProfile(user){
-  const {data,error}=await supabaseClient.from('profiles').select('*').eq('id',user.id).maybeSingle();
-  if(error) throw error;
-  if(!data) throw new Error('לא נמצא פרופיל משתמש ב-FOP.');
-  if(data.is_active===false) throw new Error('המשתמש אינו פעיל במערכת.');
-  pmCurrentProfile=data;
-  pmCurrentRole=normalizePMRole(data.role);
-  return data;
+  const [{data:profile,error:profileError},{data:access,error:accessError}]=await Promise.all([
+    supabaseClient.from('profiles').select('*').eq('id',user.id).maybeSingle(),
+    supabaseClient.from('app_access').select('role,is_active').eq('user_id',user.id).eq('app','maintenance').maybeSingle()
+  ]);
+  if(profileError) throw profileError;
+  if(accessError) throw accessError;
+  if(!profile) throw new Error('לא נמצא פרופיל משתמש ב-FOP.');
+  if(profile.is_active===false) throw new Error('המשתמש אינו פעיל ב-FOP.');
+  if(!access || access.is_active===false) throw new Error('אין למשתמש הרשאה לאפליקציית האחזקה.');
+  pmCurrentProfile=profile;
+  pmCurrentRole=normalizePMRole(access.role);
+  return profile;
 }
 
 function applyPMPermissions(){
@@ -1967,7 +1972,7 @@ async function resetData(){
 
 
 /* ============================================================
-   USER MANAGEMENT — shared FOP profiles
+   USER MANAGEMENT — Maintenance access only (app_access)
    ============================================================ */
 function openPMCreateUserModal(){
   if(!pmCan('users'))return;
@@ -1990,84 +1995,88 @@ async function createPMUserFromApp(){
   }
   status.textContent='יוצר משתמש…';btn.disabled=true;
   try{
-    // Existing FOP Edge Function accepts the legacy role set.
-    // Maintenance roles are created as operator and then assigned in profiles.
     const functionRole=role==='admin'||role==='viewer'?role:'operator';
     const {data,error}=await supabaseClient.functions.invoke('rapid-action',{body:{full_name,email,password,role:functionRole}});
-    if(error){
-      let details='';try{details=await error.context?.json?.()}catch(_e){}
-      throw new Error(details?.error||error.message||'שגיאה בקריאה לפונקציה');
-    }
+    if(error){let details='';try{details=await error.context?.json?.()}catch(_e){};throw new Error(details?.error||error.message||'שגיאה בקריאה לפונקציה')}
     if(!data?.success)throw new Error(data?.error||'הפונקציה לא אישרה את יצירת המשתמש');
     const createdId=data?.user?.id||data?.user_id||data?.id||null;
-    if(role!==functionRole){
-      const roleUpdate=createdId
-        ? await supabaseClient.from('profiles').update({role,is_active:true}).eq('id',createdId)
-        : await supabaseClient.from('profiles').update({role,is_active:true}).ilike('email',email);
-      if(roleUpdate.error)throw new Error('המשתמש נוצר, אך שמירת תפקיד האחזקה נכשלה: '+roleUpdate.error.message);
+    let userId=createdId;
+    if(!userId){
+      const {data:p,error:pe}=await supabaseClient.from('profiles').select('id').ilike('email',email).maybeSingle();
+      if(pe)throw pe; userId=p?.id;
     }
-    status.textContent='המשתמש נוצר בהצלחה.';status.classList.add('success');
+    if(!userId)throw new Error('המשתמש נוצר אך לא נמצא מזהה משתמש לשמירת הרשאת אחזקה.');
+    const {error:ae}=await supabaseClient.from('app_access').upsert({user_id:userId,app:'maintenance',role,is_active:true},{onConflict:'user_id,app'});
+    if(ae)throw new Error('המשתמש נוצר, אך שמירת הרשאת האחזקה נכשלה: '+ae.message);
+    status.textContent='המשתמש נוצר וקיבל גישה לאחזקה.';status.classList.add('success');
     ['pmNewFullName','pmNewUserEmail','pmNewUserPassword'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('pmNewUserRole').value='technician';
-    await loadPMUsers();
-    setTimeout(closePMCreateUserModal,700);
-  }catch(err){
-    status.textContent='יצירת המשתמש נכשלה: '+(err?.message||'שגיאה לא ידועה');status.classList.add('error');
-  }finally{btn.disabled=false}
+    await loadPMUsers(); setTimeout(closePMCreateUserModal,700);
+  }catch(err){status.textContent='יצירת המשתמש נכשלה: '+(err?.message||'שגיאה לא ידועה');status.classList.add('error')}
+  finally{btn.disabled=false}
 }
 
 async function loadPMUsers(){
   if(!pmCan('users'))return;
-  pmUserStatus('טוען משתמשים…');
-  const {data,error}=await supabaseClient.from('profiles').select('*').order('created_at',{ascending:true});
-  if(error){pmUserStatus('לא ניתן לטעון משתמשים: '+error.message,'error');return}
+  pmUserStatus('טוען משתמשי אחזקה…');
+  const [{data:profiles,error:pErr},{data:accessRows,error:aErr}]=await Promise.all([
+    supabaseClient.from('profiles').select('*').order('created_at',{ascending:true}),
+    supabaseClient.from('app_access').select('user_id,role,is_active').eq('app','maintenance')
+  ]);
+  if(pErr||aErr){pmUserStatus('לא ניתן לטעון משתמשים: '+(pErr?.message||aErr?.message),'error');return}
+  const accessMap=new Map((accessRows||[]).map(a=>[String(a.user_id),a]));
+  const users=(profiles||[]).filter(u=>accessMap.has(String(u.id)));
   const box=document.getElementById('pmUserTable');box.innerHTML='';
-  (data||[]).forEach(u=>{
+  users.forEach(u=>{
+    const a=accessMap.get(String(u.id));
     const email=[u.email,u.user_email,u.login_email].find(v=>String(v||'').includes('@'))||'';
     const displayName=u.full_name||email||u.id;
     const row=document.createElement('div');row.className='pm-user-row';
     row.innerHTML=`<div class="pm-user-name"><strong>${esc(displayName)}</strong><small>${esc(email||u.id)}</small></div>
       <select class="pm-role-select">
-        <option value="admin">Admin</option>
-        <option value="maintenance_manager">Maintenance Manager</option>
-        <option value="technician">Technician</option>
-        <option value="viewer">Viewer</option>
+        <option value="admin">Admin</option><option value="maintenance_manager">Maintenance Manager</option>
+        <option value="technician">Technician</option><option value="viewer">Viewer</option>
       </select>
-      <label class="pm-user-active"><input type="checkbox" ${u.is_active===false?'':'checked'}> פעיל</label>
+      <label class="pm-user-active"><input type="checkbox" ${a.is_active===false?'':'checked'}> פעיל באחזקה</label>
+      <button class="pm-user-btn pm-remove-maint" type="button">הסרה מאחזקה</button>
       <button class="pm-user-btn" type="button" ${email?'':'disabled'}>איפוס סיסמה</button>`;
-    const sel=row.querySelector('select'),active=row.querySelector('input'),reset=row.querySelector('button');
-    sel.value=normalizePMRole(u.role);
-    sel.onchange=()=>changePMUserRole(u.id,sel.value);
-    active.onchange=()=>changePMUserActive(u.id,active.checked);
-    if(email)reset.onclick=()=>sendPMPasswordReset(email);
+    const sel=row.querySelector('select'),inputs=row.querySelectorAll('input'),buttons=row.querySelectorAll('button');
+    sel.value=normalizePMRole(a.role); sel.onchange=()=>changePMUserRole(u.id,sel.value);
+    inputs[0].onchange=()=>changePMUserActive(u.id,inputs[0].checked);
+    buttons[0].onclick=()=>removePMUserAccess(u.id,displayName);
+    if(email)buttons[1].onclick=()=>sendPMPasswordReset(email);
     box.appendChild(row);
   });
-  if(!(data||[]).length)box.innerHTML='<div class="empty">לא נמצאו משתמשים.</div>';
-  pmUserStatus(`נטענו ${(data||[]).length} משתמשים`,'success');
+  if(!users.length)box.innerHTML='<div class="empty">אין כרגע משתמשים עם הרשאה לאחזקה.</div>';
+  pmUserStatus(`נטענו ${users.length} משתמשי אחזקה`,'success');
 }
 
 async function changePMUserRole(id,role){
   if(!pmCan('users'))return;
-  pmUserStatus('שומר תפקיד…');
-  const {error}=await supabaseClient.from('profiles').update({role}).eq('id',id);
+  pmUserStatus('שומר תפקיד באחזקה…');
+  const {error}=await supabaseClient.from('app_access').update({role,updated_at:new Date().toISOString()}).eq('user_id',id).eq('app','maintenance');
   if(error){pmUserStatus('שמירת התפקיד נכשלה: '+error.message,'error');await loadPMUsers();return}
-  pmUserStatus('התפקיד נשמר.','success');
-  if(pmCurrentUser && String(id)===String(pmCurrentUser.id)){
-    pmCurrentRole=normalizePMRole(role);applyPMPermissions();
-    if(pmCurrentRole!=='admin')showTab('dashboard');
-  }
+  pmUserStatus('תפקיד האחזקה נשמר.','success');
+  if(pmCurrentUser&&String(id)===String(pmCurrentUser.id)){pmCurrentRole=normalizePMRole(role);applyPMPermissions();if(pmCurrentRole!=='admin')showTab('dashboard')}
 }
 
 async function changePMUserActive(id,is_active){
   if(!pmCan('users'))return;
-  if(pmCurrentUser && String(id)===String(pmCurrentUser.id) && !is_active){
-    pmUserStatus('לא ניתן להשבית את המשתמש המחובר מתוך המודול.','error');
-    await loadPMUsers();return;
-  }
-  pmUserStatus('שומר סטטוס…');
-  const {error}=await supabaseClient.from('profiles').update({is_active}).eq('id',id);
-  if(error){pmUserStatus('שמירת הסטטוס נכשלה: '+error.message,'error');await loadPMUsers();return}
-  pmUserStatus(is_active?'המשתמש הופעל.':'המשתמש הושבת.','success');
+  if(pmCurrentUser&&String(id)===String(pmCurrentUser.id)&&!is_active){pmUserStatus('לא ניתן לבטל לעצמך גישה לאחזקה מתוך המודול.','error');await loadPMUsers();return}
+  pmUserStatus('שומר הרשאת אחזקה…');
+  const {error}=await supabaseClient.from('app_access').update({is_active,updated_at:new Date().toISOString()}).eq('user_id',id).eq('app','maintenance');
+  if(error){pmUserStatus('שמירת ההרשאה נכשלה: '+error.message,'error');await loadPMUsers();return}
+  pmUserStatus(is_active?'הגישה לאחזקה הופעלה.':'הגישה לאחזקה הושבתה.','success');
+}
+
+async function removePMUserAccess(id,name){
+  if(!pmCan('users'))return;
+  if(pmCurrentUser&&String(id)===String(pmCurrentUser.id)){pmUserStatus('לא ניתן להסיר את המשתמש המחובר מאחזקה.','error');return}
+  if(!await pmConfirm(`להסיר את ${name} מאפליקציית האחזקה?\nהחשבון והגישה לאפליקציית התפעול לא ייפגעו.`))return;
+  pmUserStatus('מסיר הרשאת אחזקה…');
+  const {error}=await supabaseClient.from('app_access').delete().eq('user_id',id).eq('app','maintenance');
+  if(error){pmUserStatus('ההסרה נכשלה: '+error.message,'error');return}
+  pmUserStatus('המשתמש הוסר מאפליקציית האחזקה בלבד.','success'); await loadPMUsers();
 }
 
 async function sendPMPasswordReset(email){
