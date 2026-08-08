@@ -2385,8 +2385,22 @@ loadCloudData=async function(){
   if(!ok)return false;
   try{
     await loadWorkPlan();
+    // On a fresh app open after Initialize, today may be the last day of the
+    // current week while all newly initialized requirements start tomorrow or later.
+    // In that case the dashboard used to reopen on an empty current week and looked
+    // as if the cloud data had disappeared. Anchor the first dashboard view to the
+    // nearest period that actually contains a maintenance requirement.
+    const dashAnchor=document.getElementById('pmDashboardAnchor');
+    if(dashAnchor && !dashAnchor.dataset.userSelected){
+      const preferred=today();
+      const best=pmBestPlanningAnchor(preferred);
+      dashAnchor.value=best||preferred;
+      const plannerAnchor=document.getElementById('pmPlannerStart');
+      if(plannerAnchor)plannerAnchor.value=dashAnchor.value;
+    }
     refillAll();
     refreshAll();
+    try{updatePMInitUI()}catch(e){}
     statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב, ${pmWorkPlan.length} משימות בתוכנית, ${history.length} דיווחים.`,'success');
     return true;
   }catch(err){
@@ -2829,6 +2843,7 @@ function v3CurrentBacklog(dep='',machine='',performer='',refDate=today()){
 }
 function syncPlanningAnchorFromDashboard(){
   const d=document.getElementById('pmDashboardAnchor');
+  if(d)d.dataset.userSelected='1';
   const p=document.getElementById('pmPlannerStart');
   if(d&&p&&d.value)p.value=d.value;
   renderDashboard();
