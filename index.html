@@ -722,7 +722,6 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="section-title"><h3>משתמשי אחזקה</h3><small>Admin בלבד</small></div>
 <div class="note">החשבון נשמר ב-FOP המשותף, אך במסך זה מנוהלת <b>רק הגישה לאפליקציית האחזקה</b>. הסרה מאחזקה אינה מוחקת את המשתמש ואינה משפיעה על אפליקציית התפעול.</div>
 <div class="user-admin-toolbar">
-<button class="main" onclick="openPMCreateUserModal()" type="button">➕ יצירת משתמש חדש</button>
 <button class="soft" onclick="loadPMUsers()" type="button">↻ רענון הרשימה</button>
 </div>
 <div class="pm-user-table" id="pmUserTable"></div>
@@ -745,8 +744,6 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="pm-modal-status" id="pmPostponeStatus"></div>
 </div>
 </div>
-<div class="pm-modal-backdrop" id="pmCreateUserModal" onclick="if(event.target===this)closePMCreateUserModal()">
-<div aria-modal="true" class="pm-modal-card" role="dialog"><h3>ניהול משתמשים מרכזי</h3><p>יצירת חשבון, הרשאות ואיפוס סיסמה מתבצעים רק ב־FOP הראשי. באפליקציית האחזקה מוצגים המשתמשים שקיבלו הרשאת Maintenance.</p><div class="pm-modal-actions"><button class="cancel" onclick="closePMCreateUserModal()" type="button">סגירה</button></div></div></div>
 <!--
   ============================================================
   FOP PREVENTIVE MAINTENANCE — SINGLE FILE ARCHITECTURE
@@ -1964,16 +1961,6 @@ async function resetData(){
 /* ============================================================
    USER MANAGEMENT — Maintenance access only (app_access)
    ============================================================ */
-function openPMCreateUserModal(){
-  if(!pmCan('users'))return;
-  document.getElementById('pmCreateUserStatus').textContent='';
-  document.getElementById('pmCreateUserModal').classList.add('open');
-  setTimeout(()=>document.getElementById('pmNewFullName').focus(),50);
-}
-function closePMCreateUserModal(){document.getElementById('pmCreateUserModal').classList.remove('open')}
-
-async function createPMUserFromApp(){pmUserStatus('יצירת משתמשים מתבצעת ב־FOP הראשי.','error');closePMCreateUserModal()}
-
 async function loadPMUsers(){
   if(!pmCan('users'))return;
   pmUserStatus('טוען משתמשי אחזקה…');
@@ -3298,7 +3285,7 @@ const D={
 'תאריך מתוכנן':'Planned Date','עדיפות':'Priority','גבוהה':'High','בינונית':'Medium','נמוכה':'Low','שיבוץ למבצע':'Assign To','בחירה':'Selection','בחר הכל המוצג':'Select All Shown','שבץ לתוכנית':'Add to Plan','החזר לממתינה':'Return to Waiting','לא נבחרו משימות.':'No tasks selected.','הקודם':'Previous','הבא':'Next',
 'תאריך ביצוע':'Execution Date','הצג גם טיפולים פתוחים שלא שובצו לתוכנית העבודה':'Also show open tasks not scheduled in the work plan','טיפולים פתוחים':'Open Maintenance Tasks','לפי המחלקה והמכונה שנבחרו':'Based on selected department and machine','הפק תוכנית עבודה מסוננת לשבוע או לחודש, להדפסה, PDF או Excel.':'Generate a filtered weekly or monthly work plan for print, PDF, or Excel.','משימות בדוח':'Tasks in Report','תקופה':'Period','🖨️ הדפסה':'🖨️ Print','תאריך':'Date','משימה':'Task','משך':'Duration','הערות / חתימה':'Notes / Signature','סה״כ משימות:':'Total Tasks:','סה״כ שעות מתוכננות:':'Total Planned Hours:','מתאריך':'From Date','עד תאריך':'To Date','חיפוש':'Search','ייצוא לאקסל':'Export to Excel',
 'תוכנית אחזקה מונעת':'Preventive Maintenance Plan','☁️ עבודה בענן — Supabase':'☁️ Cloud Operation — Supabase','🔴 סטטוס: לא אותחל':'🔴 Status: Not Initialized','אתחול תוכנית':'Initialize Plan','⬆️ ייבוא תוכנית אחזקה לענן':'⬆️ Import Maintenance Plan to Cloud','הוספת משימת טיפול':'Add Maintenance Task','מועד טיפול ראשון':'First Maintenance Date','+ הוספת משימה':'+ Add Task','שכפול משימה':'Duplicate Task','הפעלה / ביטול משימה':'Activate / Deactivate Task','טעינה מחדש מהענן':'Reload from Cloud',
-'Admin בלבד':'Admin Only','החשבון נשמר ב-FOP המשותף, אך במסך זה מנוהלת':'The account is stored in the shared FOP, but this screen manages','רק הגישה לאפליקציית האחזקה':'maintenance application access only','. הסרה מאחזקה אינה מוחקת את המשתמש ואינה משפיעה על אפליקציית התפעול.':'. Removing maintenance access does not delete the user or affect the Operations application.','➕ יצירת משתמש חדש':'➕ Create New User','↻ רענון הרשימה':'↻ Refresh List','יצירת משתמש חדש':'Create New User','המשתמש יקבל חשבון FOP ויוכל להתחבר עם אותו אימייל וסיסמה לכל המערכת.':'The user will receive an FOP account and can use the same email and password across the system.','שם מלא':'Full Name','אימייל':'Email','סיסמה זמנית':'Temporary Password','תפקיד':'Role','Maintenance Manager — מנהל אחזקה':'Maintenance Manager','Technician — טכנאי אחזקה':'Technician','Viewer — צפייה בלבד':'Viewer — Read Only','Admin — מנהל מערכת':'Admin — System Administrator','יצירת משתמש':'Create User','פעיל באחזקה':'Active in Maintenance','הסרה מאחזקה':'Remove from Maintenance','איפוס סיסמה':'Reset Password',
+'Admin בלבד':'Admin Only','החשבון נשמר ב-FOP המשותף, אך במסך זה מנוהלת':'The account is stored in the shared FOP, but this screen manages','רק הגישה לאפליקציית האחזקה':'maintenance application access only','. הסרה מאחזקה אינה מוחקת את המשתמש ואינה משפיעה על אפליקציית התפעול.':'. Removing maintenance access does not delete the user or affect the Operations application.','↻ רענון הרשימה':'↻ Refresh List','המשתמש יקבל חשבון FOP ויוכל להתחבר עם אותו אימייל וסיסמה לכל המערכת.':'The user will receive an FOP account and can use the same email and password across the system.','שם מלא':'Full Name','אימייל':'Email','סיסמה זמנית':'Temporary Password','תפקיד':'Role','Maintenance Manager — מנהל אחזקה':'Maintenance Manager','Technician — טכנאי אחזקה':'Technician','Viewer — צפייה בלבד':'Viewer — Read Only','Admin — מנהל מערכת':'Admin — System Administrator','יצירת משתמש':'Create User','פעיל באחזקה':'Active in Maintenance','הסרה מאחזקה':'Remove from Maintenance','איפוס סיסמה':'Reset Password',
 'מועד חדש':'New Date','סיבת הדחייה':'Postponement Reason','ביטול':'Cancel','שמירת דחייה':'Save Postponement','אישור':'Confirm','בחר סיבה':'Select Reason','אילוץ ייצור':'Production Constraint','חוסר זמן / עומס':'Insufficient Time / Workload','חוסר חלקים':'Parts Unavailable','המכונה אינה זמינה':'Machine Unavailable','המתנה לספק / שירות':'Waiting for Supplier / Service','אחר':'Other','הערה':'Note','סיבת ביטול':'Cancellation Reason','הטיפול אינו נדרש':'Maintenance No Longer Required','המכונה הושבתה / הוצאה משימוש':'Machine Shut Down / Decommissioned','המשימה הוחלפה בטיפול אחר':'Task Replaced by Another Maintenance Activity','כפילות בתוכנית':'Duplicate in Plan','החלטת מנהל אחזקה':'Maintenance Manager Decision',
 'סטטוס':'Status','כל הסטטוסים':'All Statuses','ממתינה לתכנון':'Awaiting Planning','מתוכננת':'Planned','נדחתה':'Postponed','בוטלה':'Cancelled','בוצעה':'Completed','בטל טיפול':'Cancel Maintenance','משך טיפול (דקות)':'Duration (minutes)','הערות':'Notes','דחיית טיפול':'Postpone Maintenance','תדירות':'Frequency','מבצעים':'Performers','מכונות':'Machines','משימת טיפול':'Maintenance Task','לא פעיל':'Inactive','מבצע טיפול':'Performed By','מועד טיפול הבא':'Next Maintenance Date','משימה פעילה בתוכנית':'Task Active in Plan','שמירת הגדרות המשימה':'Save Task Settings','✓ בוצע':'✓ Completed','📅 דחיית טיפול':'📅 Postpone Maintenance','דחה / שנה תאריך':'Postpone / Change Date','דחה':'Postpone',
 'אין כרגע משתמשים עם הרשאה לאחזקה.':'There are currently no users with Maintenance access.','אין דרישות אחזקה בתקופה ובסינון שנבחרו.':'No maintenance requirements match the selected period and filters.','אין משימות ברשימה זו.':'No tasks in this list.','אין טיפולים פתוחים בבחירה הנוכחית.':'No open maintenance tasks in the current selection.','אין משימות שממתינות להחלטה.':'No tasks awaiting a decision.','אין משימות מתוכננות בטווח שנבחר.':'No planned tasks in the selected range.','אין משימות לביצוע בתאריך ובסינון שנבחרו.':'No tasks to execute for the selected date and filters.','אין משימות בתוכנית העבודה לתאריך ולסינון שנבחרו.':'No work-plan tasks match the selected date and filters.','אין טיפולים מתוכננים ליום זה.':'No maintenance tasks planned for this day.','אין עומס מתוכנן ל־7 ימים.':'No planned workload for the next 7 days.','עדיין לא נבנתה תוכנית עבודה להיום.':'Today’s work plan has not been created yet.','כל המשימות המתוכננות להיום בוצעו.':'All tasks planned for today have been completed.','תוכנית העבודה עדיין נטענת מהענן…':'Work plan is still loading from the cloud…','לא נמצאו דיווחי טיפול.':'No maintenance reports found.','בחר משימת טיפול.':'Select a maintenance task.'
