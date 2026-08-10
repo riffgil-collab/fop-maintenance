@@ -746,23 +746,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </div>
 </div>
 <div class="pm-modal-backdrop" id="pmCreateUserModal" onclick="if(event.target===this)closePMCreateUserModal()">
-<div aria-labelledby="pmCreateUserTitle" aria-modal="true" class="pm-modal-card" role="dialog">
-<h3 id="pmCreateUserTitle">יצירת משתמש חדש</h3>
-<p>המשתמש יקבל חשבון FOP ויוכל להתחבר עם אותו אימייל וסיסמה לכל המערכת.</p>
-<label for="pmNewFullName">שם מלא</label><input autocomplete="name" id="pmNewFullName" placeholder="שם מלא" type="text"/>
-<label for="pmNewUserEmail">אימייל</label><input autocomplete="email" id="pmNewUserEmail" placeholder="name@company.com" type="email"/>
-<label for="pmNewUserPassword">סיסמה זמנית</label><input autocomplete="new-password" id="pmNewUserPassword" minlength="8" placeholder="לפחות 8 תווים" type="password"/>
-<label for="pmNewUserRole">תפקיד</label>
-<select class="pm-role-select" id="pmNewUserRole" style="margin-bottom:12px">
-<option value="maintenance_manager">Maintenance Manager — מנהל אחזקה</option>
-<option selected="" value="technician">Technician — טכנאי אחזקה</option>
-<option value="viewer">Viewer — צפייה בלבד</option>
-<option value="admin">Admin — מנהל מערכת</option>
-</select>
-<div class="pm-modal-actions"><button class="cancel" onclick="closePMCreateUserModal()" type="button">ביטול</button><button class="create" id="pmCreateUserButton" onclick="createPMUserFromApp()" type="button">יצירת משתמש</button></div>
-<div class="pm-modal-status" id="pmCreateUserStatus"></div>
-</div>
-</div>
+<div aria-modal="true" class="pm-modal-card" role="dialog"><h3>ניהול משתמשים מרכזי</h3><p>יצירת חשבון, הרשאות ואיפוס סיסמה מתבצעים רק ב־FOP הראשי. באפליקציית האחזקה מוצגים המשתמשים שקיבלו הרשאת Maintenance.</p><div class="pm-modal-actions"><button class="cancel" onclick="closePMCreateUserModal()" type="button">סגירה</button></div></div></div>
 <!--
   ============================================================
   FOP PREVENTIVE MAINTENANCE — SINGLE FILE ARCHITECTURE
@@ -1988,39 +1972,7 @@ function openPMCreateUserModal(){
 }
 function closePMCreateUserModal(){document.getElementById('pmCreateUserModal').classList.remove('open')}
 
-async function createPMUserFromApp(){
-  if(!pmCan('users'))return;
-  const full_name=document.getElementById('pmNewFullName').value.trim();
-  const email=document.getElementById('pmNewUserEmail').value.trim().toLowerCase();
-  const password=document.getElementById('pmNewUserPassword').value;
-  const role=document.getElementById('pmNewUserRole').value;
-  const status=document.getElementById('pmCreateUserStatus'),btn=document.getElementById('pmCreateUserButton');
-  status.className='pm-modal-status';
-  if(!full_name||!email||!email.includes('@')||password.length<8){
-    status.textContent='יש למלא שם, אימייל תקין וסיסמה של לפחות 8 תווים.';status.classList.add('error');return;
-  }
-  status.textContent='יוצר משתמש…';btn.disabled=true;
-  try{
-    const functionRole=role==='admin'||role==='viewer'?role:'operator';
-    const {data,error}=await supabaseClient.functions.invoke('rapid-action',{body:{full_name,email,password,role:functionRole}});
-    if(error){let details='';try{details=await error.context?.json?.()}catch(_e){};throw new Error(details?.error||error.message||'שגיאה בקריאה לפונקציה')}
-    if(!data?.success)throw new Error(data?.error||'הפונקציה לא אישרה את יצירת המשתמש');
-    const createdId=data?.user?.id||data?.user_id||data?.id||null;
-    let userId=createdId;
-    if(!userId){
-      const {data:p,error:pe}=await supabaseClient.from('profiles').select('id').ilike('email',email).maybeSingle();
-      if(pe)throw pe; userId=p?.id;
-    }
-    if(!userId)throw new Error('המשתמש נוצר אך לא נמצא מזהה משתמש לשמירת הרשאת אחזקה.');
-    const {error:ae}=await supabaseClient.from('app_access').upsert({user_id:userId,app:'maintenance',role,is_active:true},{onConflict:'user_id,app'});
-    if(ae)throw new Error('המשתמש נוצר, אך שמירת הרשאת האחזקה נכשלה: '+ae.message);
-    status.textContent='המשתמש נוצר וקיבל גישה לאחזקה.';status.classList.add('success');
-    ['pmNewFullName','pmNewUserEmail','pmNewUserPassword'].forEach(id=>document.getElementById(id).value='');
-    document.getElementById('pmNewUserRole').value='technician';
-    await loadPMUsers(); setTimeout(closePMCreateUserModal,700);
-  }catch(err){status.textContent='יצירת המשתמש נכשלה: '+(err?.message||'שגיאה לא ידועה');status.classList.add('error')}
-  finally{btn.disabled=false}
-}
+async function createPMUserFromApp(){pmUserStatus('יצירת משתמשים מתבצעת ב־FOP הראשי.','error');closePMCreateUserModal()}
 
 async function loadPMUsers(){
   if(!pmCan('users'))return;
@@ -2044,13 +1996,11 @@ async function loadPMUsers(){
         <option value="technician">Technician</option><option value="viewer">Viewer</option>
       </select>
       <label class="pm-user-active"><input type="checkbox" ${a.is_active===false?'':'checked'}> פעיל באחזקה</label>
-      <button class="pm-user-btn pm-remove-maint" type="button">הסרה מאחזקה</button>
-      <button class="pm-user-btn" type="button" ${email?'':'disabled'}>איפוס סיסמה</button>`;
+      <button class="pm-user-btn pm-remove-maint" type="button">הסרה מאחזקה</button>`;
     const sel=row.querySelector('select'),inputs=row.querySelectorAll('input'),buttons=row.querySelectorAll('button');
     sel.value=normalizePMRole(a.role); sel.onchange=()=>changePMUserRole(u.id,sel.value);
     inputs[0].onchange=()=>changePMUserActive(u.id,inputs[0].checked);
     buttons[0].onclick=()=>removePMUserAccess(u.id,displayName);
-    if(email)buttons[1].onclick=()=>sendPMPasswordReset(email);
     box.appendChild(row);
   });
   if(!users.length)box.innerHTML='<div class="empty">אין כרגע משתמשים עם הרשאה לאחזקה.</div>';
@@ -2080,7 +2030,7 @@ async function removePMUserAccess(id,name){
   if(pmCurrentUser&&String(id)===String(pmCurrentUser.id)){pmUserStatus('לא ניתן להסיר את המשתמש המחובר מאחזקה.','error');return}
   if(!await pmConfirm(`להסיר את ${name} מאפליקציית האחזקה?\nהחשבון והגישה לאפליקציית התפעול לא ייפגעו.`))return;
   pmUserStatus('מסיר הרשאת אחזקה…');
-  const {error}=await supabaseClient.from('app_access').delete().eq('user_id',id).eq('app','maintenance');
+  const {error}=await supabaseClient.from('app_access').update({is_active:false,updated_at:new Date().toISOString()}).eq('user_id',id).eq('app','maintenance');
   if(error){pmUserStatus('ההסרה נכשלה: '+error.message,'error');return}
   pmUserStatus('המשתמש הוסר מאפליקציית האחזקה בלבד.','success'); await loadPMUsers();
 }
