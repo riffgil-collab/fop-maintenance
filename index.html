@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260812-1445-global-auto-update-v2"/>
+<meta name="fop-build" content="20260812-undo-workplan-fix-v1"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -1815,6 +1815,26 @@ async function undoCompletion(historyId,taskId,date){
     }
     const upd=await supabaseClient.from('pm_tasks').update(taskUpdate).eq('id',t.id);
     if(upd.error)throw upd.error;
+
+    // Undo must also reopen the matching work-plan occurrence. Completion writes
+    // status=Completed + completed_date into pm_work_plan; without reversing that row
+    // the V3 dashboard continues to count the occurrence as completed.
+    const completedPlanRows=pmWorkPlan
+      .filter(p=>String(p.taskId)===String(taskId)
+        && v3RowStatus(p)==='completed'
+        && String(p.completedDate||'')===String(h.date))
+      .sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+    const completedPlan=completedPlanRows[0]||null;
+    if(completedPlan){
+      const originalDue=wpDueFromNotes(completedPlan.notes)||completedPlan.plannedDate||h.date;
+      const wpUndo=await supabaseClient.from('pm_work_plan').update({
+        status:'Unplanned',
+        planned_date:originalDue,
+        completed_date:null,
+        postponed_reason:null
+      }).eq('id',completedPlan.id);
+      if(wpUndo.error)throw wpUndo.error;
+    }
 
     // Then try to physically remove the history row. If RLS does not permit DELETE,
     // the PM_UNDO audit marker still makes the completion disappear from History,
