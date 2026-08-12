@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260812-undo-workplan-fix-v1"/>
+<meta name="fop-build" content="20260812-maintenance-QA-release-v1"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -399,7 +399,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 .pm-lang-switch.pm-login-lang{position:static;display:flex;justify-content:center;width:max-content;margin:0 auto 14px;direction:ltr;background:#fff;padding:5px;border-radius:12px;box-shadow:0 2px 12px #0002;border:1px solid #ddd;z-index:auto}
 #pmAuthOverlay[style*="display: none"] .pm-login-lang,#pmAuthOverlay[style*="display:none"] .pm-login-lang{display:none!important}
 </style>
-</head>
+<style id="fop-qa-release-polish">html{scroll-behavior:smooth}body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}button,input,select,textarea{-webkit-tap-highlight-color:transparent}button{touch-action:manipulation}.card,.panel-box,.pm-v3-health,.pm-workload-box{box-shadow:0 10px 30px rgba(12,38,78,.07)}input:focus,select:focus,textarea:focus{outline:none!important;border-color:#8fb8ef!important;box-shadow:0 0 0 4px rgba(22,109,213,.10)!important}button:active{transform:translateY(1px)}@media(max-width:680px){button,.btn,input,select{min-height:44px}.pm-plan-row{gap:10px!important}.pm-plan-main strong{line-height:1.35}.pm-plan-main small{line-height:1.45}.task-card,.open-task{overflow-wrap:anywhere}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}</style></head>
 <body>
 <div aria-hidden="true" id="pmAuthOverlay">
 <div class="pm-auth-card">
@@ -1027,14 +1027,16 @@ async function reloadCloudData(){
   return await loadCloudData();
 }
 
+function validateTaskDefinition(t){const e=[];if(!String(t?.department||'').trim())e.push('מחלקה חסרה');if(!String(t?.machine||'').trim())e.push('מכונה חסרה');if(!String(t?.task||'').trim())e.push('תיאור טיפול חסר');if(!Object.prototype.hasOwnProperty.call(FREQ_DAYS,String(t?.frequency||'')))e.push('תדירות לא מוכרת');if(!['מפעיל','טכנאי אחזקה'].includes(String(t?.performer||'')))e.push('מבצע טיפול לא מוכר');if(t?.duration!==null&&t?.duration!==''&&t?.duration!==undefined&&(!Number.isFinite(Number(t.duration))||Number(t.duration)<0))e.push('משך טיפול לא תקין');return e}
 function taskDbPayload(t){
+  const definitionErrors=validateTaskDefinition(t);if(definitionErrors.length)throw new Error('הגדרת טיפול לא תקינה: '+definitionErrors.join(', '));
   return {
-    department:t.department,
-    machine:t.machine,
-    task:t.task,
+    department:String(t.department||'').trim(),
+    machine:String(t.machine||'').trim(),
+    task:String(t.task||'').trim(),
     frequency:t.frequency,
     performer:t.performer||null,
-    duration:t.duration===null||t.duration===''?null:Number(t.duration||0),
+    duration:t.duration===null||t.duration===''||t.duration===undefined?null:Number(t.duration),
     parts:t.parts||null,
     notes:t.notes||null,
     next_due:t.nextDue||null,
@@ -1083,6 +1085,8 @@ function today(){const d=new Date();return `${d.getFullYear()}-${String(d.getMon
 function dObj(s){if(!s)return null;const [y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d,12)}
 function dateStr(d){return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
 function addDays(s,n){const d=dObj(s)||new Date();d.setDate(d.getDate()+Number(n||0));return dateStr(d)}
+function addMonthsClamped(s,n){const d=dObj(s)||new Date(),day=d.getDate(),x=new Date(d.getFullYear(),d.getMonth()+Number(n||0),1,12),last=new Date(x.getFullYear(),x.getMonth()+1,0,12).getDate();x.setDate(Math.min(day,last));return dateStr(x)}
+function nextDueFrom(s,f,n=1){n=Math.max(1,Number(n||1));switch(String(f||'')){case 'יומי':return addDays(s,n);case 'שבועי':return addDays(s,7*n);case 'חודשי':return addMonthsClamped(s,n);case 'תלת חודשי':return addMonthsClamped(s,3*n);case 'חצי שנתי':return addMonthsClamped(s,6*n);case 'שנתי':return addMonthsClamped(s,12*n);default:return addDays(s,Math.max(1,Number(FREQ_DAYS[f]||30))*n)}}
 function diff(a,b){return Math.round((dObj(a)-dObj(b))/86400000)}
 function fDate(s){return s?dObj(s).toLocaleDateString('he-IL'):'—'}
 function hours(mins){return (Number(mins||0)/60).toFixed(1)}
@@ -1135,7 +1139,12 @@ function historyBelongsToCurrentProgram(h){
 function isCompletionUndone(h){
   const t=tasks.find(x=>String(x.id)===String(h.taskId));
   if(!t)return false;
-  return parseUndoAudits(t).some(u=>String(u.taskId)===String(h.taskId)&&String(u.date)===String(h.date));
+  const completionStamp=String(h.reportedAt||h.reported_at||h.created_at||'');
+  return parseUndoAudits(t).some(u=>{
+    if(String(u.taskId)!==String(h.taskId)||String(u.date)!==String(h.date))return false;
+    if(!completionStamp||!u.reportedAt)return true;
+    return completionStamp<=String(u.reportedAt);
+  });
 }
 
 function allHistoryEvents(){
@@ -1220,7 +1229,6 @@ function planningWorkDays(start,end){
 function occurrenceItems(start,end){
   const items=[];
   for(const t of tasks.filter(x=>x.active!==false)){
-    const step=Math.max(1,Number(FREQ_DAYS[t.frequency]||30));
     let due=t.nextDue||today();
     if(!due)continue;
     // Keep one overdue backlog occurrence visible in current/future periods.
@@ -1229,7 +1237,7 @@ function occurrenceItems(start,end){
       if(!p || (p.plannedDate>=start&&p.plannedDate<=end)) items.push({t,due,plan:p,backlog:true});
       // Project the periodic stream forward from the current due date.
       let guard=0;
-      while(due<start&&guard++<5000)due=addDays(due,step);
+      while(due<start&&guard++<5000)due=nextDueFrom(due,t.frequency);
     }
     let guard=0;
     while(due<=end&&guard++<5000){
@@ -1237,7 +1245,7 @@ function occurrenceItems(start,end){
         const p=planForOccurrence(t,due);
         items.push({t,due,plan:p,backlog:false});
       }
-      due=addDays(due,step);
+      due=nextDueFrom(due,t.frequency);
     }
     // Include a task planned into this period even if its due date lies outside it.
     latestPlansForTask(t).forEach(p=>{
@@ -1659,7 +1667,7 @@ async function completeTask(id){
     return;
   }
 
-  const nextDue=addDays(date,FREQ_DAYS[t.frequency]||30);
+  const nextDue=nextDueFrom(date,t.frequency);
   statusLine('שומר טיפול בענן…','');
 
   const updateRes=await supabaseClient
@@ -2181,17 +2189,8 @@ async function initializePMPlan(){
   const initActor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
   const fmt=n=>String(n).padStart(2,'0');
   const updates=activeTasks.map(t=>{
-    let d=new Date(now);
-    switch(t.frequency){
-      case 'יומי': d.setDate(d.getDate()+1); break;
-      case 'שבועי': d.setDate(d.getDate()+7); break;
-      case 'חודשי': d.setMonth(d.getMonth()+1); break;
-      case 'תלת חודשי': d.setMonth(d.getMonth()+3); break;
-      case 'חצי שנתי': d.setMonth(d.getMonth()+6); break;
-      case 'שנתי': d.setFullYear(d.getFullYear()+1); break;
-      default: d.setDate(d.getDate()+Math.max(1,Number(FREQ_DAYS[t.frequency]||30))); break;
-    }
-    return {id:t.id,next_due:`${d.getFullYear()}-${fmt(d.getMonth()+1)}-${fmt(d.getDate())}`};
+    const base=`${now.getFullYear()}-${fmt(now.getMonth()+1)}-${fmt(now.getDate())}`;
+    return {id:t.id,next_due:nextDueFrom(base,t.frequency)};
   });
 
   try{
@@ -2282,7 +2281,7 @@ async function importPMPlanToSupabase(){
     task:t.task,
     frequency:t.frequency,
     performer:t.performer||null,
-    duration:Number(t.duration||0),
+    duration:t.duration===null||t.duration===undefined||t.duration===''?null:Number(t.duration),
     parts:t.parts||null,
     notes:t.notes||null,
     next_due:t.nextDue||null,
@@ -2392,7 +2391,6 @@ reloadCloudData=async function(){const ok=await loadCloudData();try{updatePMInit
 function wpRequirementItems(start,end){
   const items=[];
   for(const t of tasks.filter(x=>x.active!==false)){
-    const step=Math.max(1,Number(FREQ_DAYS[t.frequency]||30));
     let due=t.nextDue||today();
     if(!due)continue;
 
@@ -2401,12 +2399,12 @@ function wpRequirementItems(start,end){
       const p=wpForOccurrence(t.id,due);
       if(!p || (p.plannedDate>=start&&p.plannedDate<=end)) items.push({t,due,plan:p,backlog:true});
       let guard=0;
-      while(due<start&&guard++<5000)due=addDays(due,step);
+      while(due<start&&guard++<5000)due=nextDueFrom(due,t.frequency);
     }
     let guard=0;
     while(due<=end&&guard++<5000){
       if(due>=start)items.push({t,due,plan:wpForOccurrence(t.id,due),backlog:false});
-      due=addDays(due,step);
+      due=nextDueFrom(due,t.frequency);
     }
   }
 
@@ -2688,7 +2686,7 @@ completeTask=async function(id,workPlanId=''){
   }
 
   const oldLast=t.lastDone||null, oldNext=t.nextDue||null;
-  const nextDue=addDays(date,FREQ_DAYS[t.frequency]||30);
+  const nextDue=nextDueFrom(date,t.frequency);
   statusLine('שומר טיפול בענן…');
   const updateRes=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextDue}).eq('id',t.id);
   if(updateRes.error){statusLine('שמירת הטיפול נכשלה: '+updateRes.error.message,'error');return}
@@ -2786,7 +2784,6 @@ function v3PeriodBounds(period=pmV3DashboardPeriod,anchor=null){
 function v3RequirementItems(start,end){
   const items=[];
   for(const t of tasks.filter(x=>x.active!==false)){
-    const step=Math.max(1,Number(FREQ_DAYS[t.frequency]||30));
     let due=t.nextDue||today(); if(!due)continue;
     if(due<start){
       const oldPlan=v3OccurrenceRow(t.id,due);
@@ -2794,10 +2791,10 @@ function v3RequirementItems(start,end){
       const oldState=v3OccurrenceState(oldItem);
       // Carry only unresolved backlog forward. Completed/cancelled old occurrences stay historical.
       if(!['completed','cancelled'].includes(oldState))items.push(oldItem);
-      let guard=0;while(due<start&&guard++<5000)due=addDays(due,step);
+      let guard=0;while(due<start&&guard++<5000)due=nextDueFrom(due,t.frequency);
     }
     let guard=0;
-    while(due<=end&&guard++<5000){if(due>=start)items.push({t,due,plan:v3OccurrenceRow(t.id,due),backlog:false});due=addDays(due,step)}
+    while(due<=end&&guard++<5000){if(due>=start)items.push({t,due,plan:v3OccurrenceRow(t.id,due),backlog:false});due=nextDueFrom(due,t.frequency)}
   }
   // Keep rows explicitly scheduled into the period visible even when original due is outside it.
   pmWorkPlan.forEach(p=>{
@@ -2928,7 +2925,7 @@ renderDashboard=function(){
   const dashAnchor=document.getElementById('pmDashboardAnchor');
   if(dashAnchor&&!dashAnchor.value)dashAnchor.value=document.getElementById('pmPlannerStart')?.value||pmBestPlanningAnchor(today());
   const {start,end,label}=v3PeriodBounds(pmV3DashboardPeriod,dashAnchor?.value||today());
-  const items=occurrenceItems(start,end).filter(x=>v3FilterTask(x.t,dep,machine,performer,x.plan));
+  const items=v3RequirementItems(start,end).filter(x=>v3FilterTask(x.t,dep,machine,performer,x.plan));
   const groups={waiting:[],planned:[],completed:[],postponed:[],cancelled:[],overdue:[]};
   items.forEach(x=>{const st=v3OccurrenceState(x);(groups[st]||(groups[st]=[])).push(x)});
 
@@ -3002,7 +2999,7 @@ renderPlanner=function(){
   const coverage=v3Pct(covered.length,metrics.open.length);
   const execution=v3Pct(done.length,covered.length+done.length);
 
-  v3Set('pmPlanRequired',items.length);
+  v3Set('pmPlanRequired',metrics.open.length);
   v3Set('pmPlanScheduled',covered.length);
   v3Set('pmPlanCoverage',coverage+'%');
   v3Set('pmPlanHours',v3Hours1(metrics.scheduledMin));
