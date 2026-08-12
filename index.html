@@ -3,7 +3,10 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260812-1435-maintenance-reports-fix"/>
+<meta name="fop-build" content="20260812-1445-global-auto-update-v2"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
 <title>FOP — Preventive Maintenance</title>
 <!-- FOP Maintenance iPhone / PWA icon -->
@@ -3311,25 +3314,36 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
   let checking=false,lastCheck=0;
   async function checkForFOPUpdate(){
     const now=Date.now();
-    if(checking||now-lastCheck<5000||!navigator.onLine)return;
+    if(checking||now-lastCheck<3000||!navigator.onLine)return;
     checking=true;lastCheck=now;
     try{
-      const u=new URL(window.location.href);
-      u.hash='';u.searchParams.set('__fop_update_check',String(now));
-      const r=await fetch(u.toString(),{cache:'no-store',credentials:'same-origin',headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}});
+      const checkUrl=new URL(window.location.href);
+      checkUrl.hash='';
+      checkUrl.searchParams.delete('__fop_build');
+      checkUrl.searchParams.set('__fop_update_check',String(now));
+      const r=await fetch(checkUrl.toString(),{cache:'no-store',credentials:'same-origin',headers:{'Cache-Control':'no-cache, no-store, must-revalidate','Pragma':'no-cache'}});
       if(!r.ok)return;
       const remoteHtml=await r.text();
       const m=remoteHtml.match(/<meta\s+name=["']fop-build["']\s+content=["']([^"']+)["']/i)||remoteHtml.match(/<meta\s+content=["']([^"']+)["']\s+name=["']fop-build["']/i);
       const remoteBuild=m&&m[1];
       if(remoteBuild&&remoteBuild!==CURRENT_BUILD){
-        document.open();document.write(remoteHtml);document.close();
+        const freshUrl=new URL(window.location.href);
+        freshUrl.hash='';
+        freshUrl.searchParams.delete('__fop_update_check');
+        freshUrl.searchParams.set('__fop_build',remoteBuild);
+        window.location.replace(freshUrl.toString());
       }
     }catch(e){console.debug('FOP update check skipped',e)}finally{checking=false}
   }
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations().then(rs=>rs.forEach(r=>r.unregister())).catch(()=>{});
+  }
+  if('caches' in window){caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).catch(()=>{});}
   window.addEventListener('pageshow',checkForFOPUpdate);
   window.addEventListener('focus',checkForFOPUpdate);
+  window.addEventListener('online',checkForFOPUpdate);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkForFOPUpdate()});
-  setTimeout(checkForFOPUpdate,1200);
+  setTimeout(checkForFOPUpdate,500);
 })();
 </script>
 </body></html>
