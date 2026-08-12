@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260811-1541-maintenance"/>
+<meta name="fop-build" content="20260812-1435-maintenance-reports-fix"/>
 <meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
 <title>FOP — Preventive Maintenance</title>
 <!-- FOP Maintenance iPhone / PWA icon -->
@@ -3237,7 +3237,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     const rows=currentRows.map(r=>{const t=r.item.t;return [fDate(r.date),t.department,t.machine,t.task,t.frequency,Number(t.duration||0),r.assigned,statusLabels[r.state]||r.state,r.item.plan?.postponedReason||'']});
     const head=['תאריך','מחלקה','מכונה','משימה','תדירות','משך (דקות)','מבצע','סטטוס','הערות'];
     const html=`<!doctype html><html dir="rtl"><head><meta charset="utf-8"></head><body><h2>תוכנית עבודה</h2><p>${xlsEscape(label)}</p><table border="1"><thead><tr>${head.map(x=>`<th>${xlsEscape(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(x=>`<td>${xlsEscape(x)}</td>`).join('')}</tr>`).join('')}</tbody></table>
-\n<script id="fop-auto-update">\n/* FOP automatic update checker: keeps installed Home Screen shortcut on latest Vercel production HTML. */\n(function(){\n  const CURRENT_BUILD = (document.querySelector('meta[name="fop-build"]')||{}).content || '';\n  let checking=false, lastCheck=0;\n  async function checkForFOPUpdate(){\n    const now=Date.now();\n    if(checking || now-lastCheck<5000) return;\n    checking=true; lastCheck=now;\n    try{\n      const u=new URL(window.location.href);\n      u.searchParams.set('__fop_update_check', String(now));\n      const r=await fetch(u.toString(), {cache:'no-store', credentials:'same-origin', headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}});\n      if(!r.ok) return;\n      const html=await r.text();\n      const m=html.match(/<meta\\s+name=["']fop-build["']\\s+content=["']([^"']+)["']\\s*\\/?\s*>/i) ||\n              html.match(/<meta\\s+content=["']([^"']+)["']\\s+name=["']fop-build["']\\s*\\/?\s*>/i);\n      const remoteBuild=m&&m[1];\n      if(remoteBuild && remoteBuild!==CURRENT_BUILD){\n        const clean=new URL(window.location.href);\n        clean.searchParams.delete('__fop_update_check');\n        clean.searchParams.set('__fop_refresh', String(now));\n        window.location.replace(clean.toString());\n      }\n    }catch(e){ console.debug('FOP update check skipped',e); }\n    finally{ checking=false; }\n  }\n  window.addEventListener('pageshow', checkForFOPUpdate);\n  window.addEventListener('focus', checkForFOPUpdate);\n  document.addEventListener('visibilitychange', function(){ if(document.visibilityState==='visible') checkForFOPUpdate(); });\n  setTimeout(checkForFOPUpdate, 1200);\n})();\n</script>\n
+
 </body></html>`;
     const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`FOP_Work_Plan_${reportBounds().start}_${reportBounds().end}.xls`;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1500);
@@ -3303,4 +3303,33 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 })();
 </script>
 
+
+<script id="fop-auto-update">
+(function(){
+  'use strict';
+  const CURRENT_BUILD=(document.querySelector('meta[name="fop-build"]')||{}).content||'';
+  let checking=false,lastCheck=0;
+  async function checkForFOPUpdate(){
+    const now=Date.now();
+    if(checking||now-lastCheck<5000||!navigator.onLine)return;
+    checking=true;lastCheck=now;
+    try{
+      const u=new URL(window.location.href);
+      u.hash='';u.searchParams.set('__fop_update_check',String(now));
+      const r=await fetch(u.toString(),{cache:'no-store',credentials:'same-origin',headers:{'Cache-Control':'no-cache','Pragma':'no-cache'}});
+      if(!r.ok)return;
+      const remoteHtml=await r.text();
+      const m=remoteHtml.match(/<meta\s+name=["']fop-build["']\s+content=["']([^"']+)["']/i)||remoteHtml.match(/<meta\s+content=["']([^"']+)["']\s+name=["']fop-build["']/i);
+      const remoteBuild=m&&m[1];
+      if(remoteBuild&&remoteBuild!==CURRENT_BUILD){
+        document.open();document.write(remoteHtml);document.close();
+      }
+    }catch(e){console.debug('FOP update check skipped',e)}finally{checking=false}
+  }
+  window.addEventListener('pageshow',checkForFOPUpdate);
+  window.addEventListener('focus',checkForFOPUpdate);
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkForFOPUpdate()});
+  setTimeout(checkForFOPUpdate,1200);
+})();
+</script>
 </body></html>
