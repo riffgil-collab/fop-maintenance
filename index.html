@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-maintenance-focus-v6"/>
+<meta name="fop-build" content="20260819-strict-technician-only-v7"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -541,7 +541,6 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     <div class="pm-workload-note">השעות מחושבות מהמשימות הפתוחות בתקופה ובסינון שנבחר. משימה שבוטלה, הושלמה או הועברה לתקופה אחרת אינה נכללת בעומס הנדרש של התקופה.</div>
     <div class="pm-workload-grid">
       <div class="pm-workload-stat total"><strong id="pmWorkRequiredHours">0.0</strong><span>שעות עבודה נדרשות</span></div>
-      <div class="pm-workload-stat"><strong id="pmWorkOperatorHours">0.0</strong><span>שעות מפעיל</span></div>
       <div class="pm-workload-stat"><strong id="pmWorkTechnicianHours">0.0</strong><span>שעות טכנאי אחזקה</span></div>
       <div class="pm-workload-stat"><strong id="pmWorkScheduledHours">0.0</strong><span>שעות שכבר שובצו</span></div>
       <div class="pm-workload-stat"><strong id="pmWorkUnplannedHours">0.0</strong><span>שעות שנותרו לתכנון</span></div>
@@ -1242,7 +1241,7 @@ function planningWorkDays(start,end){
 }
 function occurrenceItems(start,end){
   const items=[];
-  for(const t of tasks.filter(x=>x.active!==false)){
+  for(const t of maintenanceTasks()){
     let due=t.nextDue||today();
     if(!due)continue;
     // Keep one overdue backlog occurrence visible in current/future periods.
@@ -1277,18 +1276,11 @@ function setPlanningPeriod(period){
   const anchor=document.getElementById('pmPlannerStart'); if(anchor&&!anchor.value)anchor.value=today();
   renderPlanner();
 }
-function fillPlanningPerformers(){
-  const sel=document.getElementById('pmPlannerPerformer');if(!sel)return;
-  const old=sel.value;
-  const vals=['מפעיל','טכנאי אחזקה'];
-  sel.innerHTML='<option value="">כל המבצעים</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  if(vals.includes(old))sel.value=old;
-}
 function fillPlanningMachines(){
   const sel=document.getElementById('pmPlannerMachine');if(!sel)return;
   const dep=document.getElementById('pmPlannerDepartment')?.value||'';
   const old=sel.value;
-  const vals=[...new Set(tasks.filter(t=>t.active!==false&&isMaintenanceTask(t)&&(!dep||t.department===dep)).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  const vals=[...new Set(maintenanceTasks().filter(t=>t.active!==false&&isMaintenanceTask(t)&&(!dep||t.department===dep)).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
   sel.innerHTML='<option value="">כל המכונות</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
   if(vals.includes(old))sel.value=old;
 }
@@ -1308,7 +1300,7 @@ function filteredPlanningItems(){
   const {start,end}=planningBounds();
   const dep=document.getElementById('pmPlannerDepartment')?.value||'';
   const machine=document.getElementById('pmPlannerMachine')?.value||'';
-  return occurrenceItems(start,end).filter(x=>
+  return occurrenceItems(start,end).filter(x=>isMaintenanceTask(x.t)&&
     (!dep||x.t.department===dep)&&
     (!machine||x.t.machine===machine)&&
     isMaintenanceTask(x.t)
@@ -1453,6 +1445,7 @@ function isMaintenancePerformer(p){
   return v==='טכנאי אחזקה'||v==='technician'||v==='maintenance technician'||v.includes('אחזקה');
 }
 function isMaintenanceTask(t){ return !!t && t.active!==false && isMaintenancePerformer(t.performer); }
+function maintenanceTasks(){ return tasks.filter(t=>isMaintenanceTask(t)); }
 function isOperatorTask(t){
   const v=String(t?.performer||'').trim().toLowerCase();
   return !!t && t.active!==false && (v==='מפעיל'||v==='operator');
@@ -1571,11 +1564,11 @@ const dashboardFilter=t=>(!selectedDepartment||t.department===selectedDepartment
   const active=dashboardSource.filter(t=>t.active!==false&&(!dep||t.department===dep)).filter(dashboardFilter);
   const rows=active.map(t=>({t,s:stateOf(t)}));
   const over=rows.filter(x=>x.s.state==='overdue'), due=rows.filter(x=>x.s.state==='today'), up=rows.filter(x=>x.s.state==='upcoming');
-  const doneToday=history.filter(h=>h.date===today()&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&isMaintenancePerformer(h.performer));
+  const doneToday=history.filter(h=>isMaintenancePerformer(h.performer)&&h.date===today()&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&isMaintenancePerformer(h.performer));
   pmOverdueCount.textContent=over.length; pmDueTodayCount.textContent=due.length; pmCompletedTodayCount.textContent=doneToday.length; pmUpcomingCount.textContent=up.length;
 
   const [mStart,mEnd]=monthBounds();
-  const monthDone=history.filter(h=>h.date>=mStart&&h.date<=mEnd&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&isMaintenancePerformer(h.performer));
+  const monthDone=history.filter(h=>isMaintenancePerformer(h.performer)&&h.date>=mStart&&h.date<=mEnd&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&isMaintenancePerformer(h.performer));
   const monthTaskIds=new Set(monthDone.map(h=>h.taskId));
   const postponedInMonth=active.flatMap(t=>parsePostponeAudits(t).filter(e=>e.oldDue>=mStart&&e.oldDue<=mEnd).map(e=>({...e,taskRef:t})));
   const postponedTaskIds=new Set(postponedInMonth.map(e=>e.taskId));
@@ -3090,7 +3083,7 @@ renderDashboard=function(){
   const groups={waiting:[],planned:[],completed:[],postponed:[],cancelled:[],overdue:[]};
   items.forEach(x=>{const st=v3OccurrenceState(x);(groups[st]||(groups[st]=[])).push(x)});
 
-  v3Set('pmV3RangeText',`${label} · ${items.length} דרישות אחזקה בטווח שנבחר`);
+  v3Set('pmV3RangeText',`${label} · ${items.length} טיפולי אחזקה בטווח שנבחר`);
   v3Set('pmV3Waiting',groups.waiting.length);v3Set('pmV3Planned',groups.planned.length);v3Set('pmV3Completed',groups.completed.length);v3Set('pmV3Postponed',groups.postponed.length);v3Set('pmV3Cancelled',groups.cancelled.length);v3Set('pmV3Overdue',groups.overdue.length);
 
   const actionable=items.filter(x=>v3OccurrenceState(x)!=='cancelled');
