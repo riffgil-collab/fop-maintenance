@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-maintenance-settings-filters-v3"/>
+<meta name="fop-build" content="20260819-maintenance-planning-frequency-v3"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -96,7 +96,6 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 .secondary-btn{background:#edf2f8;color:var(--navy2)}
 .danger-btn{background:#fff0f3;color:#b60029}
 .settings-actions{display:flex;gap:8px;flex-wrap:wrap;margin:11px 0}
-.settings-filter-summary{font-size:12px;color:var(--muted);padding:2px 2px 6px;font-weight:700}
 .add-box{border:1px dashed #a9bdd5;background:#f9fbfe;border-radius:17px;padding:14px;margin-bottom:14px}
 .add-box h3{margin:0 0 10px;color:var(--navy2)}
 .textarea{width:100%;min-height:74px;border:1px solid #d7e0eb;border-radius:12px;padding:10px;font:inherit;resize:vertical;background:#fff}
@@ -713,12 +712,8 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div style="margin-top:10px"><button class="btn" onclick="addTask()">+ הוספת משימה</button></div>
 </div>
 <div class="settings-grid">
-<div class="field"><label>מחלקה</label><select id="pmSettingsDepartment" onchange="refreshSettingsFilters('department')"></select></div>
-<div class="field"><label>מכונה</label><select id="pmSettingsMachine" onchange="refreshSettingsFilters('machine')"></select></div>
-<div class="field"><label>תדירות טיפול</label><select id="pmSettingsFrequency" onchange="refreshSettingsFilters('frequency')"></select></div>
-<div class="field"><label>חיפוש במשימה</label><input id="pmSettingsSearch" type="search" placeholder="הקלד מילה מתוך המשימה" oninput="renderSettingsTaskList()"/></div>
-<div class="field full"><label>משימת טיפול</label><select id="pmSettingsTask" onchange="renderEditor()"></select></div>
-<div class="full"><div class="settings-filter-summary" id="pmSettingsFilterSummary"></div></div>
+<div class="field"><label>מחלקה</label><select id="pmSettingsDepartment" onchange="renderSettingsTaskList()"></select></div>
+<div class="field"><label>משימת טיפול</label><select id="pmSettingsTask" onchange="renderEditor()"></select></div>
 </div>
 <div class="settings-actions">
 <button class="secondary-btn" onclick="duplicateCurrentTask()">שכפול משימה</button>
@@ -1430,7 +1425,7 @@ function renderPlanner(){
     const cls=doneNow?'done-plan':latePlan?'late-plan':planned?'planned':'';
     return `<div class="pm-plan-row ${cls}">
       <input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/>
-      <div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · פיגור קודם':''}</small>${planned?`<small>שובץ: ${esc(fDate(planned.plannedDate))}${planned.assignee?' · '+esc(planned.assignee):''} · עדיפות ${esc(planned.priority)}</small>`:''}</div>
+      <div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · תדירות: ${esc(item.t.frequency||'—')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · פיגור קודם':''}</small>${planned?`<small>שובץ: ${esc(fDate(planned.plannedDate))}${planned.assignee?' · '+esc(planned.assignee):''} · עדיפות ${esc(planned.priority)}</small>`:''}</div>
       <div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div>
       <div class="pm-plan-meta">${esc(fDate(item.due))}</div>
       <div class="pm-plan-meta pm-plan-hide-mobile">${planned?esc(fDate(planned.plannedDate)):'—'}</div>
@@ -1893,68 +1888,12 @@ function exportHistoryCSV(){
    SETTINGS / TASK MANAGEMENT
    ============================================================ */
 /* ----- Settings ----- */
-function settingsUnique(values){
-  return [...new Set(values.filter(v=>String(v||'').trim()).map(v=>String(v).trim()))]
-    .sort((a,b)=>a.localeCompare(b,'he'));
-}
-function setSettingsFilterOptions(id,values,allLabel,keepValue=true){
-  const sel=document.getElementById(id);
-  if(!sel)return;
-  const previous=keepValue?sel.value:'';
-  sel.innerHTML=`<option value="">${esc(allLabel)}</option>`+
-    settingsUnique(values).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  if(previous && [...sel.options].some(o=>o.value===previous))sel.value=previous;
-  else sel.value='';
-}
-function refreshSettingsFilters(changed=''){
-  const dep=document.getElementById('pmSettingsDepartment')?.value||'';
-  const machineSel=document.getElementById('pmSettingsMachine');
-  const freqSel=document.getElementById('pmSettingsFrequency');
-
-  // Machine list follows the selected department.
-  const machineSource=tasks.filter(t=>!dep||t.department===dep);
-  setSettingsFilterOptions('pmSettingsMachine',machineSource.map(t=>t.machine),'כל המכונות',changed!=='department');
-
-  const machine=machineSel?.value||'';
-
-  // Frequency list follows department + machine, and also includes every supported frequency.
-  const freqSource=tasks.filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine));
-  const allFreqs=[...Object.keys(FREQ_DAYS),...freqSource.map(t=>t.frequency)];
-  setSettingsFilterOptions('pmSettingsFrequency',allFreqs,'כל התדירויות',changed!=='department'&&changed!=='machine');
-
-  renderSettingsTaskList();
-}
 function renderSettingsTaskList(){
-  const dep=document.getElementById('pmSettingsDepartment')?.value||'';
-  const machine=document.getElementById('pmSettingsMachine')?.value||'';
-  const frequency=document.getElementById('pmSettingsFrequency')?.value||'';
-  const search=(document.getElementById('pmSettingsSearch')?.value||'').trim().toLowerCase();
-  const sel=document.getElementById('pmSettingsTask');
-  if(!sel)return;
-  const old=sel.value;
-  const list=tasks.filter(t=>
-    (!dep||t.department===dep) &&
-    (!machine||t.machine===machine) &&
-    (!frequency||t.frequency===frequency) &&
-    (!search||String(t.task||'').toLowerCase().includes(search)||
-              String(t.machine||'').toLowerCase().includes(search))
-  ).sort((a,b)=>
-    a.department.localeCompare(b.department,'he')||
-    a.machine.localeCompare(b.machine,'he')||
-    a.task.localeCompare(b.task,'he')
-  );
-
-  sel.innerHTML=list.length
-    ? list.map(t=>`<option value="${t.id}">${t.active===false?'[לא פעיל] ':''}${esc(t.machine)} — ${esc(t.task)} (${esc(t.frequency)})</option>`).join('')
-    : '<option value="">לא נמצאו משימות לפי הסינון</option>';
-
+  const dep=pmSettingsDepartment.value, sel=pmSettingsTask, old=sel.value;
+  const list=tasks.filter(t=>!dep||t.department===dep).sort((a,b)=>a.machine.localeCompare(b.machine,'he')||a.task.localeCompare(b.task,'he'));
+  sel.innerHTML=list.map(t=>`<option value="${t.id}">${t.active===false?'[לא פעיל] ':''}${esc(t.machine)} — ${esc(t.task)}</option>`).join('');
   if(list.some(t=>String(t.id)===String(old)))sel.value=old;
-  else if(list.length)sel.value=String(list[0].id);
-
-  const summary=document.getElementById('pmSettingsFilterSummary');
-  if(summary)summary.textContent=`נמצאו ${list.length} משימות מתוך ${tasks.length}`;
-
-  renderEditor();
+  renderEditor()
 }
 function renderEditor(){
   const t=tasks.find(x=>String(x.id)===String(pmSettingsTask.value));
@@ -1996,13 +1935,7 @@ async function saveSettings(id){
   if(error){statusLine('שמירת ההגדרות נכשלה: '+error.message,'error');return}
   await reloadCloudData();
   pmSettingsDepartment.value=updated.department;
-  refreshSettingsFilters('department');
-  if(pmSettingsMachine && [...pmSettingsMachine.options].some(o=>o.value===updated.machine))pmSettingsMachine.value=updated.machine;
-  refreshSettingsFilters('machine');
-  if(pmSettingsFrequency && [...pmSettingsFrequency.options].some(o=>o.value===updated.frequency))pmSettingsFrequency.value=updated.frequency;
   renderSettingsTaskList();
-  if(pmSettingsTask && [...pmSettingsTask.options].some(o=>o.value===String(updated.id)))pmSettingsTask.value=String(updated.id);
-  renderEditor();
   statusLine('הגדרות המשימה נשמרו בענן.','success');
 }
 async function addTask(){
@@ -2146,7 +2079,6 @@ function refillAll(){
   fillSelect('pmReportDepartment',true);
   fillSelect('pmHistoryDepartment',true);
   fillSelect('pmSettingsDepartment',true);
-  refreshSettingsFilters('department');
   fillDashboardMachines();
   fillDashboardPerformers();
   fillReportMachines();
@@ -2159,8 +2091,7 @@ function refreshAll(){
 function init(){
   refillAll();
   if(!pmReportDepartment.value&&pmReportDepartment.options.length)pmReportDepartment.selectedIndex=0;
-  if(pmSettingsDepartment)pmSettingsDepartment.value='';
-  refreshSettingsFilters('department');
+  if(!pmSettingsDepartment.value&&pmSettingsDepartment.options.length)pmSettingsDepartment.selectedIndex=0;
   pmReportDate.value=today(); pmPlannerStart.value=today(); loadPlanningCapacity();
   const [mStart,mEnd]=monthBounds(); pmHistoryFrom.value=mStart; pmHistoryTo.value=mEnd;
   newFrequency.innerHTML=Object.keys(FREQ_DAYS).map(f=>`<option>${f}</option>`).join(''); newFrequency.value='חודשי'; newDue.value=today();
@@ -2634,7 +2565,7 @@ renderPlanner=function(){
       <input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/>
       <div class="pm-plan-main">
         <strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong>
-        <small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · פיגור קודם':''}</small>
+        <small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · תדירות: ${esc(item.t.frequency||'—')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · פיגור קודם':''}</small>
         ${p?`<small>שובץ ל־${esc(fDate(p.plannedDate))}${p.assignedTo?' · '+esc(p.assignedTo):''} · עדיפות ${esc(p.priority)}</small>`:''}
       </div>
       <div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div>
@@ -3099,7 +3030,7 @@ renderPlanner=function(){
     const p=item.plan,st=v3OccurrenceState(item);const label={waiting:'ממתינה לתכנון',planned:'מתוכננת',completed:'בוצעה',postponed:'נדחתה',cancelled:'בוטלה',overdue:'באיחור'}[st];
     const badge={waiting:'open',planned:'planned',completed:'done',postponed:'postponed',cancelled:'cancelled',overdue:'risk'}[st];
     const cls=st==='completed'?'done-plan':st==='cancelled'?'cancelled-plan':st==='postponed'?'postponed-plan':st==='planned'?'planned':st==='overdue'?'late-plan':'';
-    return `<div class="pm-plan-row ${cls}"><input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · צבר קודם':''}</small>${p?`<small>${p.plannedDate?'תאריך '+esc(fDate(p.plannedDate)):''}${p.assignedTo?' · '+esc(p.assignedTo):''}${p.priority?' · עדיפות '+esc(p.priority):''}${p.postponedReason?' · סיבה: '+esc(p.postponedReason):''}</small>`:''}</div><div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div><div class="pm-plan-meta">${esc(fDate(item.due))}</div><div class="pm-plan-meta pm-plan-hide-mobile">${p?.plannedDate?esc(fDate(p.plannedDate)):'—'}</div><span class="pm-plan-badge ${badge}">${label}</span></div>`;
+    return `<div class="pm-plan-row ${cls}"><input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · תדירות: ${esc(item.t.frequency||'—')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · צבר קודם':''}</small>${p?`<small>${p.plannedDate?'תאריך '+esc(fDate(p.plannedDate)):''}${p.assignedTo?' · '+esc(p.assignedTo):''}${p.priority?' · עדיפות '+esc(p.priority):''}${p.postponedReason?' · סיבה: '+esc(p.postponedReason):''}</small>`:''}</div><div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div><div class="pm-plan-meta">${esc(fDate(item.due))}</div><div class="pm-plan-meta pm-plan-hide-mobile">${p?.plannedDate?esc(fDate(p.plannedDate)):'—'}</div><span class="pm-plan-badge ${badge}">${label}</span></div>`;
   }).join(''):'<div class="empty">אין דרישות אחזקה בתקופה ובסינון שנבחרו.</div>';
   updatePlanSelectionInfo();
 };
