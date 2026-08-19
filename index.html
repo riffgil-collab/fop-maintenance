@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-operator-excluded-fixed-v8"/>
+<meta name="fop-build" content="20260819-performer-exact-fixed-v9"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -596,7 +596,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </section>
 
 <section class="pm-panel" id="pmOperatorChecks">
-  <div class="section-title"><h3>בדיקות מפעיל</h3><small>צ׳ק ליסטים להדפסה — אינם חלק מתכנון האחזקה</small></div>
+  <div class="section-title"><h3>בדיקות מפעיל</h3><small>צ׳ק ליסטים להדפסה — אינם חלק מתכנון האחזקה</small></div><div class="muted" id="pmOperatorCount" style="margin-bottom:10px"></div>
   <div class="toolbar">
     <div class="field"><label>מחלקה</label><select id="pmOperatorDepartment" onchange="fillOperatorMachines();renderOperatorChecks()"><option value="">כל המחלקות</option></select></div>
     <div class="field"><label>מכונה</label><select id="pmOperatorMachine" onchange="renderOperatorChecks()"><option value="">כל המכונות</option></select></div>
@@ -1439,27 +1439,25 @@ function renderPlanner(){
 }
 
 
-function performerText(v){return String(v||'').trim().toLowerCase();}
-function isOperatorPerformer(v){
-  const p=performerText(v);
-  return p==='מפעיל'||p==='operator'||p.includes('מפעיל')||p.includes('operator');
-}
+function performerText(v){return String(v||'').trim();}
+function isOperatorPerformer(v){return performerText(v)==='מפעיל';}
+function isMaintenancePerformer(v){return performerText(v)==='טכנאי אחזקה';}
 function isOperatorTask(t){return !!t&&t.active!==false&&isOperatorPerformer(t.performer);}
-function isMaintenancePerformer(p){return !isOperatorPerformer(p);}
-function isMaintenanceTask(t){return !!t&&t.active!==false&&!isOperatorTask(t);}
+function isMaintenanceTask(t){return !!t&&t.active!==false&&isMaintenancePerformer(t.performer);}
 function maintenanceTasks(){return tasks.filter(isMaintenanceTask);}
+function operatorTasks(){return tasks.filter(isOperatorTask);}
 function fillOperatorFilters(){
   const dep=document.getElementById('pmOperatorDepartment');
   const freq=document.getElementById('pmOperatorFrequency');
   if(dep){
     const old=dep.value;
-    const vals=[...new Set(tasks.filter(isOperatorTask).map(t=>t.department).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+    const vals=[...new Set(operatorTasks().map(t=>t.department).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
     dep.innerHTML='<option value="">כל המחלקות</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
     if(vals.includes(old))dep.value=old;
   }
   if(freq){
     const old=freq.value;
-    const vals=[...new Set(tasks.filter(isOperatorTask).map(t=>t.frequency).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+    const vals=[...new Set(operatorTasks().map(t=>t.frequency).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
     freq.innerHTML='<option value="">כל התדירויות</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
     if(vals.includes(old))freq.value=old;
   }
@@ -1469,7 +1467,7 @@ function fillOperatorMachines(){
   const sel=document.getElementById('pmOperatorMachine');if(!sel)return;
   const dep=document.getElementById('pmOperatorDepartment')?.value||'';
   const old=sel.value;
-  const vals=[...new Set(tasks.filter(t=>isOperatorTask(t)&&(!dep||t.department===dep)).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  const vals=[...new Set(operatorTasks().filter(t=>(!dep||t.department===dep)).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
   sel.innerHTML='<option value="">כל המכונות</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
   if(vals.includes(old))sel.value=old;
 }
@@ -1477,12 +1475,13 @@ function operatorChecklistItems(){
   const dep=document.getElementById('pmOperatorDepartment')?.value||'';
   const machine=document.getElementById('pmOperatorMachine')?.value||'';
   const frequency=document.getElementById('pmOperatorFrequency')?.value||'';
-  return tasks.filter(t=>isOperatorTask(t)&&(!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!frequency||t.frequency===frequency))
+  return operatorTasks().filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!frequency||t.frequency===frequency))
     .sort((a,b)=>String(a.department).localeCompare(String(b.department),'he')||String(a.machine).localeCompare(String(b.machine),'he')||String(a.frequency).localeCompare(String(b.frequency),'he')||String(a.task).localeCompare(String(b.task),'he'));
 }
 function renderOperatorChecks(){
   const box=document.getElementById('pmOperatorChecksList');if(!box)return;
   const items=operatorChecklistItems();
+  const countBox=document.getElementById('pmOperatorCount');if(countBox)countBox.textContent=`${operatorTasks().length} משימות מפעיל במאגר · ${items.length} מוצגות לפי הסינון`;
   box.innerHTML=items.length?items.map(t=>`<div class="task-card"><div><div class="task-machine">${esc(t.machine)}</div><div class="task-desc">${esc(t.task)}</div><div class="task-meta">${esc(t.department)} · ${esc(t.frequency)} · ${Number(t.duration||0)} דק׳</div></div><span class="status">☐</span></div>`).join(''):'<div class="empty">אין בדיקות מפעיל לפי הסינון שנבחר.</div>';
 }
 function printOperatorChecklist(){
@@ -2931,7 +2930,7 @@ function v3PeriodBounds(period=pmV3DashboardPeriod,anchor=null){
 }
 function v3RequirementItems(start,end){
   const items=[];
-  for(const t of tasks.filter(x=>x.active!==false)){
+  for(const t of maintenanceTasks()){
     let due=t.nextDue||today(); if(!due)continue;
     if(due<start){
       const oldPlan=v3OccurrenceRow(t.id,due);
