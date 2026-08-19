@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-open-backlog-v15"/>
+<meta name="fop-build" content="20260819-open-backlog-v16"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -472,7 +472,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </div>
 
 <div class="pm-v3-status-grid">
-  <div class="pm-v3-status waiting"><strong id="pmV3Waiting">0</strong><span>ממתינות לתכנון</span><small>טרם התקבלה החלטת תכנון</small></div>
+  <div class="pm-v3-status waiting"><strong id="pmV3Waiting">0</strong><span>עבודה פתוחה עד סוף התקופה</span><small id="pmV3WaitingDetail">0 צבר קודם | 0 בתקופה שנבחרה</small></div>
   <div class="pm-v3-status planned"><strong id="pmV3Planned">0</strong><span>מתוכננות</span><small>נמצאות בתוכנית העבודה</small></div>
   <div class="pm-v3-status completed"><strong id="pmV3Completed">0</strong><span>בוצעו</span><small>הושלמו בתקופה</small></div>
   <div class="pm-v3-status postponed"><strong id="pmV3Postponed">0</strong><span>נדחו</span><small>נדחו עם סיבה ותאריך חדש</small></div>
@@ -3136,7 +3136,15 @@ renderDashboard=function(){
   items.forEach(x=>{const st=v3OccurrenceState(x);(groups[st]||(groups[st]=[])).push(x)});
 
   v3Set('pmV3RangeText',`${label} · ${items.length} טיפולי אחזקה ייחודיים בטווח שנבחר`);
-  v3Set('pmV3Waiting',groups.waiting.length);v3Set('pmV3Planned',groups.planned.length);v3Set('pmV3Completed',groups.completed.length);v3Set('pmV3Postponed',groups.postponed.length);v3Set('pmV3Cancelled',groups.cancelled.length);v3Set('pmV3Overdue',groups.overdue.length);
+  const openThroughEnd=v3OpenWorkThrough(end,dep,machine,'');
+  const previousBacklog=openThroughEnd.filter(x=>x.due<start);
+  const dueInSelectedPeriod=openThroughEnd.filter(x=>x.due>=start&&x.due<=end);
+  v3Set('pmV3Waiting',openThroughEnd.length);
+  const waitingDetail=document.getElementById('pmV3WaitingDetail');
+  if(waitingDetail) waitingDetail.textContent=document.documentElement.lang==='en'
+    ? `${previousBacklog.length} previous backlog | ${dueInSelectedPeriod.length} in selected period`
+    : `${previousBacklog.length} צבר קודם | ${dueInSelectedPeriod.length} בתקופה שנבחרה`;
+  v3Set('pmV3Planned',groups.planned.length);v3Set('pmV3Completed',groups.completed.length);v3Set('pmV3Postponed',groups.postponed.length);v3Set('pmV3Cancelled',groups.cancelled.length);v3Set('pmV3Overdue',previousBacklog.length);
 
   const actionable=items.filter(x=>v3OccurrenceState(x)!=='cancelled');
   const covered=actionable.filter(x=>x.plan&&['planned','postponed','completed','overdue'].includes(v3OccurrenceState(x))).length;
@@ -3152,9 +3160,6 @@ renderDashboard=function(){
   const dashDone=groups.completed.filter(x=>!x.plan?.completedDate||v3InRange(x.plan.completedDate,start,end));
   v3Set('pmV3DoneHours',v3Hours1(v3HoursFromItems(dashDone)));
 
-  const openThroughEnd=v3OpenWorkThrough(end,dep,machine,'');
-  const previousBacklog=openThroughEnd.filter(x=>x.due<start);
-  const dueInSelectedPeriod=openThroughEnd.filter(x=>x.due>=start&&x.due<=end);
   v3Set('pmV3BacklogTotal',openThroughEnd.length);
   const backlogDetail=document.getElementById('pmV3BacklogDetail');
   if(backlogDetail){
