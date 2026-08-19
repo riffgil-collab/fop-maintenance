@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-task-tabs-separated-v4"/>
+<meta name="fop-build" content="20260819-task-filters-fixed-duration-v5"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -693,10 +693,11 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="section-title"><h3>עריכת משימות</h3><small>איתור ועריכת משימה קיימת</small></div>
 <div class="panel-box">
   <div class="settings-grid" style="display:flex;flex-direction:column;gap:12px">
-    <div class="field"><label>1. מחלקה</label><select id="pmSettingsDepartment" onchange="renderSettingsTaskList()"></select></div>
-    <div class="field"><label>2. מכונה</label><select id="pmSettingsMachine" onchange="renderSettingsTaskList()"><option value="">כל המכונות</option></select></div>
-    <div class="field"><label>3. תדירות טיפול</label><select id="pmSettingsFrequency" onchange="renderSettingsTaskList()"><option value="">כל התדירויות</option></select></div>
-    <div class="field"><label>4. משימת טיפול</label><select id="pmSettingsTask" onchange="renderEditor()"></select></div>
+    <div class="field"><label>1. מחלקה</label><select id="pmSettingsDepartment" onchange="refreshEditTaskFilters('department')"></select></div>
+    <div class="field"><label>2. מכונה</label><select id="pmSettingsMachine" onchange="refreshEditTaskFilters('machine')"><option value="">כל המכונות</option></select></div>
+    <div class="field"><label>3. תדירות טיפול</label><select id="pmSettingsFrequency" onchange="refreshEditTaskFilters('frequency')"><option value="">כל התדירויות</option></select></div>
+    <div class="field"><label>4. משך טיפול</label><select id="pmSettingsDuration" onchange="refreshEditTaskFilters('duration')"><option value="">כל משכי הטיפול</option></select></div>
+    <div class="field"><label>5. משימת טיפול</label><select id="pmSettingsTask" onchange="renderEditor()"></select></div>
   </div>
 </div>
 <div class="settings-actions">
@@ -1486,7 +1487,7 @@ function showTab(name){
   if(name==='planner')renderPlanner();
   if(name==='report')renderReport();
   if(name==='history')renderHistory();
-  if(name==='editTasks'){renderSettingsTaskList();renderEditor()}
+  if(name==='editTasks'){refreshEditTaskFilters('department');renderEditor()}
   if(name==='users')loadPMUsers();
 }
 function renderDashboard(){
@@ -1889,12 +1890,92 @@ function exportHistoryCSV(){
    SETTINGS / TASK MANAGEMENT
    ============================================================ */
 /* ----- Settings ----- */
+function editUnique(values){
+  return [...new Set(values
+    .filter(v=>v!==null&&v!==undefined&&String(v).trim()!=='')
+    .map(v=>String(v).trim()))]
+    .sort((a,b)=>a.localeCompare(b,'he',{numeric:true}));
+}
+function setEditFilterOptions(id, values, allLabel, keep=true){
+  const el=document.getElementById(id);
+  if(!el)return;
+  const prev=keep?el.value:'';
+  el.innerHTML=`<option value="">${esc(allLabel)}</option>`+
+    editUnique(values).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if(prev && [...el.options].some(o=>o.value===prev))el.value=prev;
+  else el.value='';
+}
+function refreshEditTaskFilters(changed=''){
+  const dep=document.getElementById('pmSettingsDepartment')?.value||'';
+  const machineEl=document.getElementById('pmSettingsMachine');
+  const freqEl=document.getElementById('pmSettingsFrequency');
+  const durationEl=document.getElementById('pmSettingsDuration');
+
+  // 1. Machines depend on department
+  let source=tasks.filter(t=>!dep||t.department===dep);
+  setEditFilterOptions('pmSettingsMachine',source.map(t=>t.machine),'כל המכונות',changed!=='department');
+  const machine=machineEl?.value||'';
+
+  // 2. Frequencies depend on department + machine
+  source=tasks.filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine));
+  setEditFilterOptions(
+    'pmSettingsFrequency',
+    [...Object.keys(FREQ_DAYS),...source.map(t=>t.frequency)],
+    'כל התדירויות',
+    changed!=='department'&&changed!=='machine'
+  );
+  const frequency=freqEl?.value||'';
+
+  // 3. Durations depend on department + machine + frequency
+  source=tasks.filter(t=>
+    (!dep||t.department===dep)&&
+    (!machine||t.machine===machine)&&
+    (!frequency||t.frequency===frequency)
+  );
+  const durations=source
+    .map(t=>Number(t.duration))
+    .filter(n=>Number.isFinite(n))
+    .sort((a,b)=>a-b)
+    .map(n=>String(n));
+  const prevDuration=(changed==='department'||changed==='machine'||changed==='frequency')?false:true;
+  setEditFilterOptions(
+    'pmSettingsDuration',
+    durations.map(v=>`${v} דקות`),
+    'כל משכי הטיפול',
+    prevDuration
+  );
+
+  renderSettingsTaskList();
+}
 function renderSettingsTaskList(){
-  const dep=pmSettingsDepartment.value, sel=pmSettingsTask, old=sel.value;
-  const list=tasks.filter(t=>!dep||t.department===dep).sort((a,b)=>a.machine.localeCompare(b.machine,'he')||a.task.localeCompare(b.task,'he'));
-  sel.innerHTML=list.map(t=>`<option value="${t.id}">${t.active===false?'[לא פעיל] ':''}${esc(t.machine)} — ${esc(t.task)}</option>`).join('');
+  const dep=document.getElementById('pmSettingsDepartment')?.value||'';
+  const machine=document.getElementById('pmSettingsMachine')?.value||'';
+  const frequency=document.getElementById('pmSettingsFrequency')?.value||'';
+  const durationLabel=document.getElementById('pmSettingsDuration')?.value||'';
+  const duration=durationLabel ? Number(String(durationLabel).replace(/[^\d.]/g,'')) : null;
+  const sel=document.getElementById('pmSettingsTask');
+  if(!sel)return;
+  const old=sel.value;
+
+  const list=tasks.filter(t=>
+    (!dep||t.department===dep)&&
+    (!machine||t.machine===machine)&&
+    (!frequency||t.frequency===frequency)&&
+    (duration===null||Number(t.duration)===duration)
+  ).sort((a,b)=>
+    a.department.localeCompare(b.department,'he')||
+    a.machine.localeCompare(b.machine,'he')||
+    a.task.localeCompare(b.task,'he')
+  );
+
+  sel.innerHTML=list.length
+    ? list.map(t=>`<option value="${t.id}">${t.active===false?'[לא פעיל] ':''}${esc(t.machine)} — ${esc(t.task)} · ${esc(t.frequency)} · ${Number(t.duration||0)} דק׳</option>`).join('')
+    : '<option value="">לא נמצאו משימות לפי הסינון</option>';
+
   if(list.some(t=>String(t.id)===String(old)))sel.value=old;
-  renderEditor()
+  else if(list.length)sel.value=String(list[0].id);
+
+  renderEditor();
 }
 function renderEditor(){
   const t=tasks.find(x=>String(x.id)===String(pmSettingsTask.value));
@@ -1936,6 +2017,13 @@ async function saveSettings(id){
   if(error){statusLine('שמירת ההגדרות נכשלה: '+error.message,'error');return}
   await reloadCloudData();
   pmSettingsDepartment.value=updated.department;
+  refreshEditTaskFilters('department');
+  if(pmSettingsMachine && [...pmSettingsMachine.options].some(o=>o.value===updated.machine))pmSettingsMachine.value=updated.machine;
+  refreshEditTaskFilters('machine');
+  if(pmSettingsFrequency && [...pmSettingsFrequency.options].some(o=>o.value===updated.frequency))pmSettingsFrequency.value=updated.frequency;
+  refreshEditTaskFilters('frequency');
+  const durLabel=updated.duration==null?'':`${Number(updated.duration)} דקות`;
+  if(pmSettingsDuration && [...pmSettingsDuration.options].some(o=>o.value===durLabel))pmSettingsDuration.value=durLabel;
   renderSettingsTaskList();
   statusLine('הגדרות המשימה נשמרו בענן.','success');
 }
@@ -2079,7 +2167,7 @@ function refillAll(){
   fillPlanningMachines();
   fillSelect('pmReportDepartment',true);
   fillSelect('pmHistoryDepartment',true);
-  fillSelect('pmSettingsDepartment',true);
+  fillSelect('pmSettingsDepartment',true); refreshEditTaskFilters('department');
   fillDashboardMachines();
   fillDashboardPerformers();
   fillReportMachines();
@@ -3311,7 +3399,7 @@ const D={
 'סך״כ משימות בתקופה':'Total Tasks in Period','סה״כ משימות בתקופה':'Total Tasks in Period','שובצו לתוכנית':'Scheduled','כיסוי תכנון':'Planning Coverage','שעות ששובצו':'Scheduled Hours','ביצוע מול תוכנית':'Execution vs Plan','עומס עבודה לפי הסינון':'Workload by Current Filter','השעות מחושבות מהמשימות הפתוחות בתקופה ובסינון שנבחר. משימה שבוטלה, הושלמה או הועברה לתקופה אחרת אינה נכללת בעומס הנדרש של התקופה.':'Hours are calculated from open tasks in the selected period and filters. Cancelled, completed, or rescheduled tasks are excluded from the required workload.','שעות עבודה נדרשות':'Required Labor Hours','שעות מפעיל':'Operator Hours','שעות טכנאי אחזקה':'Maintenance Technician Hours','שעות שכבר שובצו':'Already Scheduled Hours','שעות שנותרו לתכנון':'Hours Remaining to Plan','קיבולת צוות':'Team Capacity','מספר עובדים זמינים':'Available Employees','שעות עבודה לעובד ביום':'Work Hours per Employee / Day',
 'תאריך מתוכנן':'Planned Date','עדיפות':'Priority','גבוהה':'High','בינונית':'Medium','נמוכה':'Low','שיבוץ למבצע':'Assign To','בחירה':'Selection','בחר הכל המוצג':'Select All Shown','שבץ לתוכנית':'Add to Plan','החזר לממתינה':'Return to Waiting','לא נבחרו משימות.':'No tasks selected.','הקודם':'Previous','הבא':'Next',
 'תאריך ביצוע':'Execution Date','הצג גם טיפולים פתוחים שלא שובצו לתוכנית העבודה':'Also show open tasks not scheduled in the work plan','טיפולים פתוחים':'Open Maintenance Tasks','לפי המחלקה והמכונה שנבחרו':'Based on selected department and machine','הפק תוכנית עבודה מסוננת לשבוע או לחודש, להדפסה, PDF או Excel.':'Generate a filtered weekly or monthly work plan for print, PDF, or Excel.','משימות בדוח':'Tasks in Report','תקופה':'Period','🖨️ הדפסה':'🖨️ Print','תאריך':'Date','משימה':'Task','משך':'Duration','הערות / חתימה':'Notes / Signature','סה״כ משימות:':'Total Tasks:','סה״כ שעות מתוכננות:':'Total Planned Hours:','מתאריך':'From Date','עד תאריך':'To Date','חיפוש':'Search','ייצוא לאקסל':'Export to Excel',
-'תוכנית אחזקה מונעת':'Preventive Maintenance Plan','☁️ עבודה בענן — Supabase':'☁️ Cloud Operation — Supabase','🔴 סטטוס: לא אותחל':'🔴 Status: Not Initialized','אתחול תוכנית':'Initialize Plan','⬆️ ייבוא תוכנית אחזקה לענן':'⬆️ Import Maintenance Plan to Cloud','הוספת משימת טיפול':'Add Maintenance Task','איתור ועריכת משימה קיימת':'Find and edit an existing task','יצירת משימת אחזקה חדשה':'Create a new maintenance task','כל התדירויות':'All Frequencies','מועד טיפול ראשון':'First Maintenance Date','+ הוספת משימה':'+ Add Task','שכפול משימה':'Duplicate Task','הפעלה / ביטול משימה':'Activate / Deactivate Task','טעינה מחדש מהענן':'Reload from Cloud',
+'תוכנית אחזקה מונעת':'Preventive Maintenance Plan','☁️ עבודה בענן — Supabase':'☁️ Cloud Operation — Supabase','🔴 סטטוס: לא אותחל':'🔴 Status: Not Initialized','אתחול תוכנית':'Initialize Plan','⬆️ ייבוא תוכנית אחזקה לענן':'⬆️ Import Maintenance Plan to Cloud','הוספת משימת טיפול':'Add Maintenance Task','איתור ועריכת משימה קיימת':'Find and edit an existing task','יצירת משימת אחזקה חדשה':'Create a new maintenance task','כל התדירויות':'All Frequencies','משך טיפול':'Duration','כל משכי הטיפול':'All Durations','דקות':'minutes','מועד טיפול ראשון':'First Maintenance Date','+ הוספת משימה':'+ Add Task','שכפול משימה':'Duplicate Task','הפעלה / ביטול משימה':'Activate / Deactivate Task','טעינה מחדש מהענן':'Reload from Cloud',
 'Admin בלבד':'Admin Only','החשבון נשמר ב-FOP המשותף, אך במסך זה מנוהלת':'The account is stored in the shared FOP, but this screen manages','רק הגישה לאפליקציית האחזקה':'maintenance application access only','. הסרה מאחזקה אינה מוחקת את המשתמש ואינה משפיעה על אפליקציית התפעול.':'. Removing maintenance access does not delete the user or affect the Operations application.','↻ רענון הרשימה':'↻ Refresh List','המשתמש יקבל חשבון FOP ויוכל להתחבר עם אותו אימייל וסיסמה לכל המערכת.':'The user will receive an FOP account and can use the same email and password across the system.','שם מלא':'Full Name','אימייל':'Email','סיסמה זמנית':'Temporary Password','תפקיד':'Role','Maintenance Manager — מנהל אחזקה':'Maintenance Manager','Technician — טכנאי אחזקה':'Technician','Viewer — צפייה בלבד':'Viewer — Read Only','Admin — מנהל מערכת':'Admin — System Administrator','יצירת משתמש':'Create User','פעיל באחזקה':'Active in Maintenance','הסרה מאחזקה':'Remove from Maintenance','איפוס סיסמה':'Reset Password',
 'מועד חדש':'New Date','סיבת הדחייה':'Postponement Reason','ביטול':'Cancel','שמירת דחייה':'Save Postponement','אישור':'Confirm','בחר סיבה':'Select Reason','אילוץ ייצור':'Production Constraint','חוסר זמן / עומס':'Insufficient Time / Workload','חוסר חלקים':'Parts Unavailable','המכונה אינה זמינה':'Machine Unavailable','המתנה לספק / שירות':'Waiting for Supplier / Service','אחר':'Other','הערה':'Note','סיבת ביטול':'Cancellation Reason','הטיפול אינו נדרש':'Maintenance No Longer Required','המכונה הושבתה / הוצאה משימוש':'Machine Shut Down / Decommissioned','המשימה הוחלפה בטיפול אחר':'Task Replaced by Another Maintenance Activity','כפילות בתוכנית':'Duplicate in Plan','החלטת מנהל אחזקה':'Maintenance Manager Decision',
 'סטטוס':'Status','כל הסטטוסים':'All Statuses','ממתינה לתכנון':'Awaiting Planning','מתוכננת':'Planned','נדחתה':'Postponed','בוטלה':'Cancelled','בוצעה':'Completed','בטל טיפול':'Cancel Maintenance','משך טיפול (דקות)':'Duration (minutes)','הערות':'Notes','דחיית טיפול':'Postpone Maintenance','תדירות':'Frequency','מבצעים':'Performers','מכונות':'Machines','משימת טיפול':'Maintenance Task','לא פעיל':'Inactive','מבצע טיפול':'Performed By','מועד טיפול הבא':'Next Maintenance Date','משימה פעילה בתוכנית':'Task Active in Plan','שמירת הגדרות המשימה':'Save Task Settings','✓ בוצע':'✓ Completed','📅 דחיית טיפול':'📅 Postpone Maintenance','דחה / שנה תאריך':'Postpone / Change Date','דחה':'Postpone',
