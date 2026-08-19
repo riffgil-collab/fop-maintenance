@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-unique-next-due-v14"/>
+<meta name="fop-build" content="20260819-open-backlog-v15"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -488,7 +488,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </div>
 
 <div class="pm-v3-backlog-banner">
-  <div><span>צבר פתוח עכשיו</span><strong id="pmV3BacklogTotal">0</strong><small>ממתינות לתכנון + באיחור בכל המערכת</small></div>
+  <div><span>עבודה פתוחה עד סוף התקופה</span><strong id="pmV3BacklogTotal">0</strong><small id="pmV3BacklogDetail">צבר קודם + טיפולים בתקופה</small></div>
   <button type="button" class="secondary-btn" id="pmOpenPlanningBtn" onclick="openPlanningWorkspace('week')">צור תוכנית עבודה</button>
 </div>
 
@@ -3007,6 +3007,20 @@ function v3CurrentBacklog(dep='',machine='',performer='',refDate=today()){
     return {...item,state:v3OccurrenceState(item,refDate)};
   }).filter(x=>x&&x.due<=refDate&&(x.state==='waiting'||x.state==='overdue'));
 }
+function v3OpenWorkThrough(end,dep='',machine='',performer=''){
+  const byTask=new Map();
+  for(const t of maintenanceTasks()){
+    if(!v3FilterTask(t,dep,machine,performer,null))continue;
+    const due=maintenancePlanningAnchor(t);
+    if(!due||due>end)continue;
+    const plan=v3OccurrenceRow(t.id,due);
+    const item={t,due,plan,backlog:due<today()};
+    const st=v3OccurrenceState(item);
+    if(st==='completed'||st==='cancelled')continue;
+    byTask.set(String(t.id),{...item,state:st});
+  }
+  return [...byTask.values()];
+}
 function syncPlanningAnchorFromDashboard(){
   const d=document.getElementById('pmDashboardAnchor');
   if(d)d.dataset.userSelected='1';
@@ -3121,7 +3135,7 @@ renderDashboard=function(){
   const groups={waiting:[],planned:[],completed:[],postponed:[],cancelled:[],overdue:[]};
   items.forEach(x=>{const st=v3OccurrenceState(x);(groups[st]||(groups[st]=[])).push(x)});
 
-  v3Set('pmV3RangeText',`${label} · ${items.length} טיפולי אחזקה בטווח שנבחר`);
+  v3Set('pmV3RangeText',`${label} · ${items.length} טיפולי אחזקה ייחודיים בטווח שנבחר`);
   v3Set('pmV3Waiting',groups.waiting.length);v3Set('pmV3Planned',groups.planned.length);v3Set('pmV3Completed',groups.completed.length);v3Set('pmV3Postponed',groups.postponed.length);v3Set('pmV3Cancelled',groups.cancelled.length);v3Set('pmV3Overdue',groups.overdue.length);
 
   const actionable=items.filter(x=>v3OccurrenceState(x)!=='cancelled');
@@ -3138,10 +3152,19 @@ renderDashboard=function(){
   const dashDone=groups.completed.filter(x=>!x.plan?.completedDate||v3InRange(x.plan.completedDate,start,end));
   v3Set('pmV3DoneHours',v3Hours1(v3HoursFromItems(dashDone)));
 
-  const backlog=v3CurrentBacklog(dep,machine,'');v3Set('pmV3BacklogTotal',backlog.length);
+  const openThroughEnd=v3OpenWorkThrough(end,dep,machine,'');
+  const previousBacklog=openThroughEnd.filter(x=>x.due<start);
+  const dueInSelectedPeriod=openThroughEnd.filter(x=>x.due>=start&&x.due<=end);
+  v3Set('pmV3BacklogTotal',openThroughEnd.length);
+  const backlogDetail=document.getElementById('pmV3BacklogDetail');
+  if(backlogDetail){
+    backlogDetail.textContent=document.documentElement.lang==='en'
+      ? `${previousBacklog.length} previous backlog | ${dueInSelectedPeriod.length} in selected period`
+      : `${previousBacklog.length} צבר קודם | ${dueInSelectedPeriod.length} בתקופה שנבחרה`;
+  }
   const health=document.getElementById('pmV3Health');
   if(health){
-    const overdue=backlog.filter(x=>x.state==='overdue').length;
+    const overdue=previousBacklog.length;
     const noPlanYet=scheduled.length===0&&completed===0&&groups.postponed.length===0&&groups.cancelled.length===0;
     if(noPlanYet){
       health.className='pm-v3-health warn';
@@ -3493,7 +3516,7 @@ const D={
 'תמונת מצב ניהולית':'Management Overview','שליטה בתוכנית האחזקה':'Maintenance Plan Control','הנתונים מתעדכנים לפי התקופה והפילטרים שנבחרו.':'Data is updated according to the selected period and filters.','מצב המחלקה':'Department Status',
 'יום':'Day','שבוע':'Week','חודש':'Month','חצי שנה':'6 Months','שנה':'Year','תאריך עוגן':'Anchor Date','מחלקה':'Department','מכונה':'Machine','מבצע':'Performer','כל המחלקות':'All Departments','כל המכונות':'All Machines','כל המבצעים':'All Performers','מפעיל':'Operator','טכנאי אחזקה':'Maintenance Technician','טכנאי':'Technician',
 'ממתינות לתכנון':'Awaiting Planning','טרם התקבלה החלטת תכנון':'Planning decision pending','מתוכננות':'Planned','נמצאות בתוכנית העבודה':'Included in work plan','בוצעו':'Completed','הושלמו בתקופה':'Completed in period','נדחו':'Postponed','נדחו עם סיבה ותאריך חדש':'Postponed with reason and new date','בוטלו':'Cancelled','ויתור ניהולי מתועד':'Documented management cancellation','באיחור':'Overdue','עבר מועד היעד ועדיין פתוחות':'Past due and still open',
-'כיסוי תוכנית':'Plan Coverage','עמידה בתוכנית':'Plan Execution','שעות מתוכננות':'Planned Hours','לפי משך הטיפולים':'Based on task duration','שעות שבוצעו':'Completed Hours','טיפולים שהושלמו':'Completed maintenance tasks','צבר פתוח עכשיו':'Current Open Backlog','ממתינות לתכנון + באיחור בכל המערכת':'Awaiting planning + overdue across the system','צור תוכנית עבודה':'Create Work Plan','תוכנית העבודה להיום':'Today’s Work Plan','צור תוכנית להיום':'Create Today’s Plan','נותרו לביצוע':'Remaining','דורש החלטה ניהולית':'Management Decision Required','תוכנית קרובה':'Upcoming Plan',
+'כיסוי תוכנית':'Plan Coverage','עמידה בתוכנית':'Plan Execution','שעות מתוכננות':'Planned Hours','לפי משך הטיפולים':'Based on task duration','שעות שבוצעו':'Completed Hours','טיפולים שהושלמו':'Completed maintenance tasks','צבר פתוח עכשיו':'Current Open Backlog','ממתינות לתכנון + באיחור בכל המערכת':'Awaiting planning + overdue across the system','עבודה פתוחה עד סוף התקופה':'Open Work Through Period End','צבר קודם + טיפולים בתקופה':'Previous backlog + tasks in period','צור תוכנית עבודה':'Create Work Plan','תוכנית העבודה להיום':'Today’s Work Plan','צור תוכנית להיום':'Create Today’s Plan','נותרו לביצוע':'Remaining','דורש החלטה ניהולית':'Management Decision Required','תוכנית קרובה':'Upcoming Plan',
 'בחר תקופה, ראה את כל דרישות האחזקה, ושבץ אותן לתאריך ביצוע. תאריך היעד נשאר ללא שינוי; התאריך המתוכנן הוא החלטת מנהל האחזקה.':'Select a period, review all maintenance requirements, and schedule them for execution. The PM due date remains unchanged; the planned date is the maintenance manager’s decision.',
 'סך״כ משימות בתקופה':'Total Tasks in Period','סה״כ משימות בתקופה':'Total Tasks in Period','שובצו לתוכנית':'Scheduled','כיסוי תכנון':'Planning Coverage','שעות ששובצו':'Scheduled Hours','ביצוע מול תוכנית':'Execution vs Plan','עומס עבודה לפי הסינון':'Workload by Current Filter','השעות מחושבות מהמשימות הפתוחות בתקופה ובסינון שנבחר. משימה שבוטלה, הושלמה או הועברה לתקופה אחרת אינה נכללת בעומס הנדרש של התקופה.':'Hours are calculated from open tasks in the selected period and filters. Cancelled, completed, or rescheduled tasks are excluded from the required workload.','שעות עבודה נדרשות':'Required Labor Hours','שעות מפעיל':'Operator Hours','שעות טכנאי אחזקה':'Maintenance Technician Hours','שעות שכבר שובצו':'Already Scheduled Hours','שעות שנותרו לתכנון':'Hours Remaining to Plan','קיבולת צוות':'Team Capacity','מספר עובדים זמינים':'Available Employees','שעות עבודה לעובד ביום':'Work Hours per Employee / Day',
 'תאריך מתוכנן':'Planned Date','עדיפות':'Priority','גבוהה':'High','בינונית':'Medium','נמוכה':'Low','שיבוץ למבצע':'Assign To','בחירה':'Selection','בחר הכל המוצג':'Select All Shown','שבץ לתוכנית':'Add to Plan','החזר לממתינה':'Return to Waiting','לא נבחרו משימות.':'No tasks selected.','הקודם':'Previous','הבא':'Next',
