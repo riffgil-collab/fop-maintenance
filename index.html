@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-task-filters-fixed-duration-v5"/>
+<meta name="fop-build" content="20260819-maintenance-focus-v6"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -442,6 +442,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <button class="pm-tab" data-pm="report" onclick="showTab('report')">דיווח טיפול</button>
 <button class="pm-tab" data-pm="history" onclick="showTab('history')">היסטוריה</button>
 <button class="pm-tab" data-pm="reports" onclick="showTab('reports')">דוחות</button>
+<button class="pm-tab" data-pm="operatorChecks" onclick="showTab('operatorChecks')">בדיקות מפעיל</button>
 <button class="pm-tab" data-pm="editTasks" onclick="showTab('editTasks')">עריכת משימות</button>
 <button class="pm-tab" data-pm="addTask" onclick="showTab('addTask')">הוספת משימה חדשה</button>
 <button class="pm-tab" data-pm="users" id="pmUsersTabButton" onclick="showTab('users')" style="display:none">ניהול משתמשים</button>
@@ -466,9 +467,8 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 
 <div class="toolbar pm-v3-filterbar">
   <div class="field"><label>תאריך עוגן</label><input id="pmDashboardAnchor" type="date" onchange="syncPlanningAnchorFromDashboard()"/></div>
-  <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();fillDashboardPerformers();renderDashboard()"></select></div>
+  <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();renderDashboard()"></select></div>
   <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">כל המכונות</option></select></div>
-  <div class="field"><label>מבצע</label><select id="pmDashboardPerformer" onchange="renderDashboard()"><option value="">כל המבצעים</option></select></div>
 </div>
 
 <div class="pm-v3-status-grid">
@@ -525,7 +525,6 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     <div class="field"><label>תאריך עוגן</label><input id="pmPlannerStart" type="date" onchange="syncDashboardAnchorFromPlanning()"/></div>
     <div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="fillPlanningMachines();pmPlanPage=0;renderPlanner()"></select></div>
     <div class="field"><label>מכונה</label><select id="pmPlannerMachine" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המכונות</option></select></div>
-    <div class="field"><label>מבצע</label><select id="pmPlannerPerformer" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המבצעים</option><option value="מפעיל">מפעיל</option><option value="טכנאי אחזקה">טכנאי אחזקה</option></select></div>
     <div class="field"><label>סטטוס</label><select id="pmPlannerStatus" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל הסטטוסים</option><option value="waiting">ממתינה לתכנון</option><option value="planned">מתוכננת</option><option value="postponed">נדחתה</option><option value="overdue">באיחור</option><option value="cancelled">בוטלה</option><option value="completed">בוצעה</option></select></div>
   </div>
 
@@ -597,12 +596,25 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="open-list" id="pmOpenTasks"></div>
 </section>
 
+<section class="pm-panel" id="pmOperatorChecks">
+  <div class="section-title"><h3>בדיקות מפעיל</h3><small>צ׳ק ליסטים להדפסה — אינם חלק מתכנון האחזקה</small></div>
+  <div class="toolbar">
+    <div class="field"><label>מחלקה</label><select id="pmOperatorDepartment" onchange="fillOperatorMachines();renderOperatorChecks()"><option value="">כל המחלקות</option></select></div>
+    <div class="field"><label>מכונה</label><select id="pmOperatorMachine" onchange="renderOperatorChecks()"><option value="">כל המכונות</option></select></div>
+    <div class="field"><label>תדירות</label><select id="pmOperatorFrequency" onchange="renderOperatorChecks()"><option value="">כל התדירויות</option></select></div>
+  </div>
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
+    <button type="button" class="primary-btn" onclick="printOperatorChecklist()">הדפס Checklist למפעיל</button>
+  </div>
+  <div id="pmOperatorChecksList"></div>
+</section>
+
 <section class="pm-panel" id="pmReports">
   <div class="pm-report-hero">
     <div>
       <div class="pm-v3-eyebrow">REPORTS</div>
-      <h2>תוכנית עבודה</h2>
-      <p>הפק תוכנית עבודה מסוננת לשבוע או לחודש, להדפסה, PDF או Excel.</p>
+      <h2>דוחות אחזקה</h2>
+      <p>הפק דוחות אחזקה. לצ׳ק ליסטים של מפעילים השתמש בכרטיסיית בדיקות מפעיל.</p>
     </div>
     <div class="pm-report-summary-box">
       <strong id="pmReportsCount">0</strong>
@@ -1276,7 +1288,7 @@ function fillPlanningMachines(){
   const sel=document.getElementById('pmPlannerMachine');if(!sel)return;
   const dep=document.getElementById('pmPlannerDepartment')?.value||'';
   const old=sel.value;
-  const vals=[...new Set(tasks.filter(t=>t.active!==false&&(!dep||t.department===dep)).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  const vals=[...new Set(tasks.filter(t=>t.active!==false&&isMaintenanceTask(t)&&(!dep||t.department===dep)).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
   sel.innerHTML='<option value="">כל המכונות</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
   if(vals.includes(old))sel.value=old;
 }
@@ -1296,11 +1308,10 @@ function filteredPlanningItems(){
   const {start,end}=planningBounds();
   const dep=document.getElementById('pmPlannerDepartment')?.value||'';
   const machine=document.getElementById('pmPlannerMachine')?.value||'';
-  const perf=document.getElementById('pmPlannerPerformer')?.value||'';
   return occurrenceItems(start,end).filter(x=>
     (!dep||x.t.department===dep)&&
     (!machine||x.t.machine===machine)&&
-    (!perf||x.t.performer===perf)
+    isMaintenanceTask(x.t)
   ).sort((a,b)=>(a.plan?.plannedDate||a.due).localeCompare(b.plan?.plannedDate||b.due)||a.due.localeCompare(b.due)||String(a.t.machine).localeCompare(String(b.t.machine),'he'));
 }
 function planKey(item){return `${String(item.t.id)}@@${item.due}`}
@@ -1385,7 +1396,6 @@ function renderTodayWorkPlan(){
 function renderPlanner(){
   const startInput=document.getElementById('pmPlannerStart');if(!startInput)return;
   if(!startInput.value)startInput.value=today();
-  fillPlanningPerformers();
   const {start,end,label}=planningBounds();
   const labelEl=document.getElementById('pmPlanRangeLabel');if(labelEl)labelEl.textContent=label;
   const items=filteredPlanningItems();
@@ -1437,6 +1447,64 @@ function renderPlanner(){
   updatePlanSelectionInfo();
 }
 
+
+function isMaintenancePerformer(p){
+  const v=String(p||'').trim().toLowerCase();
+  return v==='טכנאי אחזקה'||v==='technician'||v==='maintenance technician'||v.includes('אחזקה');
+}
+function isMaintenanceTask(t){ return !!t && t.active!==false && isMaintenancePerformer(t.performer); }
+function isOperatorTask(t){
+  const v=String(t?.performer||'').trim().toLowerCase();
+  return !!t && t.active!==false && (v==='מפעיל'||v==='operator');
+}
+function fillOperatorFilters(){
+  const dep=document.getElementById('pmOperatorDepartment');
+  const freq=document.getElementById('pmOperatorFrequency');
+  if(dep){
+    const old=dep.value;
+    const vals=[...new Set(tasks.filter(isOperatorTask).map(t=>t.department).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+    dep.innerHTML='<option value="">כל המחלקות</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    if(vals.includes(old))dep.value=old;
+  }
+  if(freq){
+    const old=freq.value;
+    const vals=[...new Set(tasks.filter(isOperatorTask).map(t=>t.frequency).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+    freq.innerHTML='<option value="">כל התדירויות</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+    if(vals.includes(old))freq.value=old;
+  }
+  fillOperatorMachines();
+}
+function fillOperatorMachines(){
+  const sel=document.getElementById('pmOperatorMachine');if(!sel)return;
+  const dep=document.getElementById('pmOperatorDepartment')?.value||'';
+  const old=sel.value;
+  const vals=[...new Set(tasks.filter(t=>isOperatorTask(t)&&(!dep||t.department===dep)).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  sel.innerHTML='<option value="">כל המכונות</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  if(vals.includes(old))sel.value=old;
+}
+function operatorChecklistItems(){
+  const dep=document.getElementById('pmOperatorDepartment')?.value||'';
+  const machine=document.getElementById('pmOperatorMachine')?.value||'';
+  const frequency=document.getElementById('pmOperatorFrequency')?.value||'';
+  return tasks.filter(t=>isOperatorTask(t)&&(!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!frequency||t.frequency===frequency))
+    .sort((a,b)=>String(a.department).localeCompare(String(b.department),'he')||String(a.machine).localeCompare(String(b.machine),'he')||String(a.frequency).localeCompare(String(b.frequency),'he')||String(a.task).localeCompare(String(b.task),'he'));
+}
+function renderOperatorChecks(){
+  const box=document.getElementById('pmOperatorChecksList');if(!box)return;
+  const items=operatorChecklistItems();
+  box.innerHTML=items.length?items.map(t=>`<div class="task-card"><div><div class="task-machine">${esc(t.machine)}</div><div class="task-desc">${esc(t.task)}</div><div class="task-meta">${esc(t.department)} · ${esc(t.frequency)} · ${Number(t.duration||0)} דק׳</div></div><span class="status">☐</span></div>`).join(''):'<div class="empty">אין בדיקות מפעיל לפי הסינון שנבחר.</div>';
+}
+function printOperatorChecklist(){
+  const items=operatorChecklistItems();
+  if(!items.length){alert('אין משימות להדפסה לפי הסינון שנבחר.');return;}
+  const dep=document.getElementById('pmOperatorDepartment')?.value||'כל המחלקות';
+  const machine=document.getElementById('pmOperatorMachine')?.value||'כל המכונות';
+  const frequency=document.getElementById('pmOperatorFrequency')?.value||'כל התדירויות';
+  const rows=items.map((t,i)=>`<tr><td>${i+1}</td><td>${esc(t.department)}</td><td>${esc(t.machine)}</td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${Number(t.duration||0)} דק׳</td><td style="width:55px">☐</td></tr>`).join('');
+  const w=window.open('','_blank');
+  w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>Checklist מפעיל</title><style>body{font-family:Arial,sans-serif;padding:24px}h1{font-size:22px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:7px;text-align:right;font-size:12px}.meta{margin:10px 0 18px}.sign{margin-top:24px;display:flex;justify-content:space-between}</style></head><body><h1>Checklist בדיקות מפעיל</h1><div class="meta">תאריך: __________ · מחלקה: ${esc(dep)} · מכונה: ${esc(machine)} · תדירות: ${esc(frequency)}</div><table><thead><tr><th>#</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>תדירות</th><th>משך</th><th>בוצע</th></tr></thead><tbody>${rows}</tbody></table><div class="sign"><span>שם מפעיל: __________________</span><span>חתימה: __________________</span></div><script>window.onload=()=>window.print();<\/script></body></html>`);
+  w.document.close();
+}
 function normalize(t){
   return {
     ...t,
@@ -1487,6 +1555,7 @@ function showTab(name){
   if(name==='planner')renderPlanner();
   if(name==='report')renderReport();
   if(name==='history')renderHistory();
+  if(name==='operatorChecks'){fillOperatorFilters();renderOperatorChecks();}
   if(name==='editTasks'){refreshEditTaskFilters('department');renderEditor()}
   if(name==='users')loadPMUsers();
 }
@@ -1495,19 +1564,18 @@ function renderDashboard(){
 
 const selectedDepartment=document.getElementById('pmDashboardDepartment')?.value||'';
 const selectedMachine=document.getElementById('pmDashboardMachine')?.value||'';
-const selectedPerformer=document.getElementById('pmDashboardPerformer')?.value||'';
-const dashboardFilter=t=>(!selectedDepartment||t.department===selectedDepartment)&&(!selectedMachine||t.machine===selectedMachine)&&(!selectedPerformer||t.performer===selectedPerformer);
+const dashboardFilter=t=>(!selectedDepartment||t.department===selectedDepartment)&&(!selectedMachine||t.machine===selectedMachine)&&isMaintenanceTask(t);
 
   const dep=pmDashboardDepartment.value;
   const dashboardSource=cloudDashboardLoaded?cloudDashboardTasks:tasks;
   const active=dashboardSource.filter(t=>t.active!==false&&(!dep||t.department===dep)).filter(dashboardFilter);
   const rows=active.map(t=>({t,s:stateOf(t)}));
   const over=rows.filter(x=>x.s.state==='overdue'), due=rows.filter(x=>x.s.state==='today'), up=rows.filter(x=>x.s.state==='upcoming');
-  const doneToday=history.filter(h=>h.date===today()&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&(!selectedPerformer||h.performer===selectedPerformer));
+  const doneToday=history.filter(h=>h.date===today()&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&isMaintenancePerformer(h.performer));
   pmOverdueCount.textContent=over.length; pmDueTodayCount.textContent=due.length; pmCompletedTodayCount.textContent=doneToday.length; pmUpcomingCount.textContent=up.length;
 
   const [mStart,mEnd]=monthBounds();
-  const monthDone=history.filter(h=>h.date>=mStart&&h.date<=mEnd&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&(!selectedPerformer||h.performer===selectedPerformer));
+  const monthDone=history.filter(h=>h.date>=mStart&&h.date<=mEnd&&(!dep||h.department===dep)&&(!selectedMachine||h.machine===selectedMachine)&&isMaintenancePerformer(h.performer));
   const monthTaskIds=new Set(monthDone.map(h=>h.taskId));
   const postponedInMonth=active.flatMap(t=>parsePostponeAudits(t).filter(e=>e.oldDue>=mStart&&e.oldDue<=mEnd).map(e=>({...e,taskRef:t})));
   const postponedTaskIds=new Set(postponedInMonth.map(e=>e.taskId));
@@ -2167,7 +2235,7 @@ function refillAll(){
   fillPlanningMachines();
   fillSelect('pmReportDepartment',true);
   fillSelect('pmHistoryDepartment',true);
-  fillSelect('pmSettingsDepartment',true); refreshEditTaskFilters('department');
+  fillSelect('pmSettingsDepartment',true); fillOperatorFilters(); refreshEditTaskFilters('department');
   fillDashboardMachines();
   fillDashboardPerformers();
   fillReportMachines();
