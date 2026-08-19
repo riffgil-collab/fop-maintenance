@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-maintenance-schedule-fixed-v12"/>
+<meta name="fop-build" content="20260819-existing-schedule-only-v13"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -1126,9 +1126,9 @@ function nextDueFrom(s,f,n=1){n=Math.max(1,Number(n||1));switch(String(f||'')){c
 function maintenancePlanningAnchor(t){
   if(!isMaintenanceTask(t))return null;
   if(t.nextDue)return t.nextDue;
-  if(t.lastDone)return nextDueFrom(t.lastDone,t.frequency);
-  const created=String(t.created_at||'').slice(0,10);
-  return created||today();
+  const m=String(t.notes||'').match(/\[PM_INIT\|(\d{4}-\d{2}-\d{2})\|/);
+  if(m&&m[1])return nextDueFrom(m[1],t.frequency);
+  return null;
 }
 function diff(a,b){return Math.round((dObj(a)-dObj(b))/86400000)}
 function fDate(s){return s?dObj(s).toLocaleDateString('he-IL'):'—'}
