@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-maintenance-planning-frequency-v3"/>
+<meta name="fop-build" content="20260819-task-tabs-separated-v4"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -442,7 +442,8 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <button class="pm-tab" data-pm="report" onclick="showTab('report')">דיווח טיפול</button>
 <button class="pm-tab" data-pm="history" onclick="showTab('history')">היסטוריה</button>
 <button class="pm-tab" data-pm="reports" onclick="showTab('reports')">דוחות</button>
-<button class="pm-tab" data-pm="settings" onclick="showTab('settings')">הגדרות</button>
+<button class="pm-tab" data-pm="editTasks" onclick="showTab('editTasks')">עריכת משימות</button>
+<button class="pm-tab" data-pm="addTask" onclick="showTab('addTask')">הוספת משימה חדשה</button>
 <button class="pm-tab" data-pm="users" id="pmUsersTabButton" onclick="showTab('users')" style="display:none">ניהול משתמשים</button>
 </div>
 <section class="pm-panel active" id="pmDashboard">
@@ -688,17 +689,27 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div style="margin-bottom:12px"><button class="export-btn" onclick="exportHistoryCSV()">ייצוא לאקסל</button></div>
 <div id="pmHistoryList"></div>
 </section>
-<section class="pm-panel" id="pmSettings">
-<div class="panel-box" style="margin-bottom:14px">
-<h3>תוכנית אחזקה מונעת</h3>
-<div id="pmCloudModeLabel" style="margin-bottom:8px;color:#11865b;font-weight:800">☁️ עבודה בענן — Supabase</div>
-<div id="pmInitStatus">🔴 סטטוס: לא אותחל</div>
-<div id="pmInitDate" style="margin:6px 0 12px;color:#6d7b91"></div>
-<button class="btn" id="pmInitBtn" onclick="initializePMPlan()" style="display:none">אתחול תוכנית</button>
-<button class="secondary-btn" id="pmImportBtn" onclick="importPMPlanToSupabase()" style="margin-inline-start:8px">⬆️ ייבוא תוכנית אחזקה לענן</button>
+<section class="pm-panel" id="pmEditTasks">
+<div class="section-title"><h3>עריכת משימות</h3><small>איתור ועריכת משימה קיימת</small></div>
+<div class="panel-box">
+  <div class="settings-grid" style="display:flex;flex-direction:column;gap:12px">
+    <div class="field"><label>1. מחלקה</label><select id="pmSettingsDepartment" onchange="renderSettingsTaskList()"></select></div>
+    <div class="field"><label>2. מכונה</label><select id="pmSettingsMachine" onchange="renderSettingsTaskList()"><option value="">כל המכונות</option></select></div>
+    <div class="field"><label>3. תדירות טיפול</label><select id="pmSettingsFrequency" onchange="renderSettingsTaskList()"><option value="">כל התדירויות</option></select></div>
+    <div class="field"><label>4. משימת טיפול</label><select id="pmSettingsTask" onchange="renderEditor()"></select></div>
+  </div>
 </div>
+<div class="settings-actions">
+<button class="secondary-btn" onclick="duplicateCurrentTask()">שכפול משימה</button>
+<button class="danger-btn" onclick="toggleCurrentTask()">הפעלה / ביטול משימה</button>
+</div>
+<div class="editor" id="pmSettingsEditor"></div>
+<div style="margin-top:12px"><button class="back" id="pmResetDataBtn" onclick="resetData()">טעינה מחדש מהענן</button></div>
+</section>
+
+<section class="pm-panel" id="pmAddTask">
+<div class="section-title"><h3>הוספת משימה חדשה</h3><small>יצירת משימת אחזקה חדשה</small></div>
 <div class="add-box">
-<h3>הוספת משימת טיפול</h3>
 <div class="edit-grid">
 <div class="field"><label>מחלקה</label><input id="newDepartment" placeholder="שם המחלקה" type="text"/></div>
 <div class="field"><label>מכונה</label><input id="newMachine" placeholder="שם המכונה" type="text"/></div>
@@ -709,18 +720,8 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="field"><label>מועד טיפול ראשון</label><input id="newDue" type="date"/></div>
 <div class="field full"><label>הערות</label><textarea class="textarea" id="newNotes"></textarea></div>
 </div>
-<div style="margin-top:10px"><button class="btn" onclick="addTask()">+ הוספת משימה</button></div>
+<div style="margin-top:14px"><button class="btn" onclick="addTask()">+ הוספת משימה</button></div>
 </div>
-<div class="settings-grid">
-<div class="field"><label>מחלקה</label><select id="pmSettingsDepartment" onchange="renderSettingsTaskList()"></select></div>
-<div class="field"><label>משימת טיפול</label><select id="pmSettingsTask" onchange="renderEditor()"></select></div>
-</div>
-<div class="settings-actions">
-<button class="secondary-btn" onclick="duplicateCurrentTask()">שכפול משימה</button>
-<button class="danger-btn" onclick="toggleCurrentTask()">הפעלה / ביטול משימה</button>
-</div>
-<div class="editor" id="pmSettingsEditor"></div>
-<div style="margin-top:12px"><button class="back" id="pmResetDataBtn" onclick="resetData()">טעינה מחדש מהענן</button></div>
 </section>
 <section class="pm-panel" id="pmUsers">
 <div class="section-title"><h3>משתמשי אחזקה</h3><small>Admin בלבד</small></div>
@@ -1474,18 +1475,18 @@ function weekStartFrom(s=today()){
   const d=dObj(s); const day=d.getDay(); d.setDate(d.getDate()-day); return dateStr(d)
 }
 function showTab(name){
-  if(name==='settings'&&!pmCan('settings'))return statusLine('אין הרשאה למסך ההגדרות.','error');
+  if((name==='editTasks'||name==='addTask')&&!pmCan('settings'))return statusLine('אין הרשאה לניהול משימות.','error');
   if(name==='users'&&!pmCan('users'))return statusLine('ניהול משתמשים זמין ל-Admin בלבד.','error');
   if(name==='report'&&!pmCan('report'))return statusLine('דיווח טיפול אינו זמין בהרשאה שלך.','error');
   document.querySelectorAll('.pm-tab').forEach(b=>b.classList.toggle('active',b.dataset.pm===name));
   document.querySelectorAll('.pm-panel').forEach(p=>p.classList.remove('active'));
-  const id={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',history:'pmHistory',settings:'pmSettings',users:'pmUsers'}[name];
+  const id={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',history:'pmHistory',editTasks:'pmEditTasks',addTask:'pmAddTask',users:'pmUsers'}[name];
   document.getElementById(id)?.classList.add('active');
   if(name==='dashboard'){syncDashboardViewFromPlanner();renderDashboard();}
   if(name==='planner')renderPlanner();
   if(name==='report')renderReport();
   if(name==='history')renderHistory();
-  if(name==='settings'){renderSettingsTaskList();renderEditor()}
+  if(name==='editTasks'){renderSettingsTaskList();renderEditor()}
   if(name==='users')loadPMUsers();
 }
 function renderDashboard(){
@@ -3301,7 +3302,7 @@ const D={
 'התנתקות':'Logout',
 'אחזקה מונעת':'Preventive Maintenance',
 'תוכנית עבודה':'Work Plan',
-'דשבורד':'Dashboard','תכנון עבודה':'Work Planning','דיווח טיפול':'Maintenance Execution','היסטוריה':'History','דוחות':'Reports','הגדרות':'Settings','ניהול משתמשים':'User Management','משתמשי אחזקה':'Maintenance Users',
+'דשבורד':'Dashboard','תכנון עבודה':'Work Planning','דיווח טיפול':'Maintenance Execution','היסטוריה':'History','דוחות':'Reports','עריכת משימות':'Edit Tasks','הוספת משימה חדשה':'Add New Task','ניהול משתמשים':'User Management','משתמשי אחזקה':'Maintenance Users',
 'תמונת מצב ניהולית':'Management Overview','שליטה בתוכנית האחזקה':'Maintenance Plan Control','הנתונים מתעדכנים לפי התקופה והפילטרים שנבחרו.':'Data is updated according to the selected period and filters.','מצב המחלקה':'Department Status',
 'יום':'Day','שבוע':'Week','חודש':'Month','חצי שנה':'6 Months','שנה':'Year','תאריך עוגן':'Anchor Date','מחלקה':'Department','מכונה':'Machine','מבצע':'Performer','כל המחלקות':'All Departments','כל המכונות':'All Machines','כל המבצעים':'All Performers','מפעיל':'Operator','טכנאי אחזקה':'Maintenance Technician','טכנאי':'Technician',
 'ממתינות לתכנון':'Awaiting Planning','טרם התקבלה החלטת תכנון':'Planning decision pending','מתוכננות':'Planned','נמצאות בתוכנית העבודה':'Included in work plan','בוצעו':'Completed','הושלמו בתקופה':'Completed in period','נדחו':'Postponed','נדחו עם סיבה ותאריך חדש':'Postponed with reason and new date','בוטלו':'Cancelled','ויתור ניהולי מתועד':'Documented management cancellation','באיחור':'Overdue','עבר מועד היעד ועדיין פתוחות':'Past due and still open',
@@ -3310,7 +3311,7 @@ const D={
 'סך״כ משימות בתקופה':'Total Tasks in Period','סה״כ משימות בתקופה':'Total Tasks in Period','שובצו לתוכנית':'Scheduled','כיסוי תכנון':'Planning Coverage','שעות ששובצו':'Scheduled Hours','ביצוע מול תוכנית':'Execution vs Plan','עומס עבודה לפי הסינון':'Workload by Current Filter','השעות מחושבות מהמשימות הפתוחות בתקופה ובסינון שנבחר. משימה שבוטלה, הושלמה או הועברה לתקופה אחרת אינה נכללת בעומס הנדרש של התקופה.':'Hours are calculated from open tasks in the selected period and filters. Cancelled, completed, or rescheduled tasks are excluded from the required workload.','שעות עבודה נדרשות':'Required Labor Hours','שעות מפעיל':'Operator Hours','שעות טכנאי אחזקה':'Maintenance Technician Hours','שעות שכבר שובצו':'Already Scheduled Hours','שעות שנותרו לתכנון':'Hours Remaining to Plan','קיבולת צוות':'Team Capacity','מספר עובדים זמינים':'Available Employees','שעות עבודה לעובד ביום':'Work Hours per Employee / Day',
 'תאריך מתוכנן':'Planned Date','עדיפות':'Priority','גבוהה':'High','בינונית':'Medium','נמוכה':'Low','שיבוץ למבצע':'Assign To','בחירה':'Selection','בחר הכל המוצג':'Select All Shown','שבץ לתוכנית':'Add to Plan','החזר לממתינה':'Return to Waiting','לא נבחרו משימות.':'No tasks selected.','הקודם':'Previous','הבא':'Next',
 'תאריך ביצוע':'Execution Date','הצג גם טיפולים פתוחים שלא שובצו לתוכנית העבודה':'Also show open tasks not scheduled in the work plan','טיפולים פתוחים':'Open Maintenance Tasks','לפי המחלקה והמכונה שנבחרו':'Based on selected department and machine','הפק תוכנית עבודה מסוננת לשבוע או לחודש, להדפסה, PDF או Excel.':'Generate a filtered weekly or monthly work plan for print, PDF, or Excel.','משימות בדוח':'Tasks in Report','תקופה':'Period','🖨️ הדפסה':'🖨️ Print','תאריך':'Date','משימה':'Task','משך':'Duration','הערות / חתימה':'Notes / Signature','סה״כ משימות:':'Total Tasks:','סה״כ שעות מתוכננות:':'Total Planned Hours:','מתאריך':'From Date','עד תאריך':'To Date','חיפוש':'Search','ייצוא לאקסל':'Export to Excel',
-'תוכנית אחזקה מונעת':'Preventive Maintenance Plan','☁️ עבודה בענן — Supabase':'☁️ Cloud Operation — Supabase','🔴 סטטוס: לא אותחל':'🔴 Status: Not Initialized','אתחול תוכנית':'Initialize Plan','⬆️ ייבוא תוכנית אחזקה לענן':'⬆️ Import Maintenance Plan to Cloud','הוספת משימת טיפול':'Add Maintenance Task','מועד טיפול ראשון':'First Maintenance Date','+ הוספת משימה':'+ Add Task','שכפול משימה':'Duplicate Task','הפעלה / ביטול משימה':'Activate / Deactivate Task','טעינה מחדש מהענן':'Reload from Cloud',
+'תוכנית אחזקה מונעת':'Preventive Maintenance Plan','☁️ עבודה בענן — Supabase':'☁️ Cloud Operation — Supabase','🔴 סטטוס: לא אותחל':'🔴 Status: Not Initialized','אתחול תוכנית':'Initialize Plan','⬆️ ייבוא תוכנית אחזקה לענן':'⬆️ Import Maintenance Plan to Cloud','הוספת משימת טיפול':'Add Maintenance Task','איתור ועריכת משימה קיימת':'Find and edit an existing task','יצירת משימת אחזקה חדשה':'Create a new maintenance task','כל התדירויות':'All Frequencies','מועד טיפול ראשון':'First Maintenance Date','+ הוספת משימה':'+ Add Task','שכפול משימה':'Duplicate Task','הפעלה / ביטול משימה':'Activate / Deactivate Task','טעינה מחדש מהענן':'Reload from Cloud',
 'Admin בלבד':'Admin Only','החשבון נשמר ב-FOP המשותף, אך במסך זה מנוהלת':'The account is stored in the shared FOP, but this screen manages','רק הגישה לאפליקציית האחזקה':'maintenance application access only','. הסרה מאחזקה אינה מוחקת את המשתמש ואינה משפיעה על אפליקציית התפעול.':'. Removing maintenance access does not delete the user or affect the Operations application.','↻ רענון הרשימה':'↻ Refresh List','המשתמש יקבל חשבון FOP ויוכל להתחבר עם אותו אימייל וסיסמה לכל המערכת.':'The user will receive an FOP account and can use the same email and password across the system.','שם מלא':'Full Name','אימייל':'Email','סיסמה זמנית':'Temporary Password','תפקיד':'Role','Maintenance Manager — מנהל אחזקה':'Maintenance Manager','Technician — טכנאי אחזקה':'Technician','Viewer — צפייה בלבד':'Viewer — Read Only','Admin — מנהל מערכת':'Admin — System Administrator','יצירת משתמש':'Create User','פעיל באחזקה':'Active in Maintenance','הסרה מאחזקה':'Remove from Maintenance','איפוס סיסמה':'Reset Password',
 'מועד חדש':'New Date','סיבת הדחייה':'Postponement Reason','ביטול':'Cancel','שמירת דחייה':'Save Postponement','אישור':'Confirm','בחר סיבה':'Select Reason','אילוץ ייצור':'Production Constraint','חוסר זמן / עומס':'Insufficient Time / Workload','חוסר חלקים':'Parts Unavailable','המכונה אינה זמינה':'Machine Unavailable','המתנה לספק / שירות':'Waiting for Supplier / Service','אחר':'Other','הערה':'Note','סיבת ביטול':'Cancellation Reason','הטיפול אינו נדרש':'Maintenance No Longer Required','המכונה הושבתה / הוצאה משימוש':'Machine Shut Down / Decommissioned','המשימה הוחלפה בטיפול אחר':'Task Replaced by Another Maintenance Activity','כפילות בתוכנית':'Duplicate in Plan','החלטת מנהל אחזקה':'Maintenance Manager Decision',
 'סטטוס':'Status','כל הסטטוסים':'All Statuses','ממתינה לתכנון':'Awaiting Planning','מתוכננת':'Planned','נדחתה':'Postponed','בוטלה':'Cancelled','בוצעה':'Completed','בטל טיפול':'Cancel Maintenance','משך טיפול (דקות)':'Duration (minutes)','הערות':'Notes','דחיית טיפול':'Postpone Maintenance','תדירות':'Frequency','מבצעים':'Performers','מכונות':'Machines','משימת טיפול':'Maintenance Task','לא פעיל':'Inactive','מבצע טיפול':'Performed By','מועד טיפול הבא':'Next Maintenance Date','משימה פעילה בתוכנית':'Task Active in Plan','שמירת הגדרות המשימה':'Save Task Settings','✓ בוצע':'✓ Completed','📅 דחיית טיפול':'📅 Postpone Maintenance','דחה / שנה תאריך':'Postpone / Change Date','דחה':'Postpone',
