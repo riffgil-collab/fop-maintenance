@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-performer-exact-fixed-v9"/>
+<meta name="fop-build" content="20260819-all-tasks-pagination-v10"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -996,18 +996,41 @@ function normalizeHistoryRow(h){
 
 async function loadCloudData(){
   try{
-    const taskRes=await supabaseClient
-      .from('pm_tasks')
-      .select('*')
-      .order('department',{ascending:true})
-      .order('machine',{ascending:true});
-    if(taskRes.error) throw taskRes.error;
-    tasks=(taskRes.data||[]).map(normalize);
+    // Supabase/PostgREST commonly caps a single response at 1000 rows.
+    // Load pm_tasks page-by-page so the complete master database is available.
+    const allTaskRows=[];
+    const pageSize=1000;
+    for(let from=0;;from+=pageSize){
+      const to=from+pageSize-1;
+      const taskRes=await supabaseClient
+        .from('pm_tasks')
+        .select('*')
+        .order('department',{ascending:true})
+        .order('machine',{ascending:true})
+        .order('id',{ascending:true})
+        .range(from,to);
+      if(taskRes.error) throw taskRes.error;
+      const rows=taskRes.data||[];
+      allTaskRows.push(...rows);
+      if(rows.length<pageSize) break;
+    }
+    tasks=allTaskRows.map(normalize);
 
     let historyRows=[];
-    const historyRes=await supabaseClient.from('pm_history').select('*');
-    if(!historyRes.error) historyRows=historyRes.data||[];
-    else console.warn('pm_history load:',historyRes.error.message);
+    for(let from=0;;from+=1000){
+      const historyRes=await supabaseClient
+        .from('pm_history')
+        .select('*')
+        .order('id',{ascending:true})
+        .range(from,from+999);
+      if(historyRes.error){
+        console.warn('pm_history load:',historyRes.error.message);
+        break;
+      }
+      const rows=historyRes.data||[];
+      historyRows.push(...rows);
+      if(rows.length<1000) break;
+    }
 
     history=historyRows.map(normalizeHistoryRow)
       .filter(historyBelongsToCurrentProgram)
@@ -1024,7 +1047,7 @@ async function loadCloudData(){
     refreshAll();
     fillDashboardMachines();
     fillReportPerformers();
-    statusLine(`הנתונים נטענו מהענן — ${tasks.length} משימות, ${history.length} דיווחים.`,'success');
+    statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב: ${maintenanceTasks().length} אחזקה, ${operatorTasks().length} מפעיל · ${history.length} דיווחים.`,'success');
     return true;
   }catch(err){
     pmCloudReady=false;
