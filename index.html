@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-strict-technician-only-v7"/>
+<meta name="fop-build" content="20260819-operator-excluded-fixed-v8"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -1023,7 +1023,6 @@ async function loadCloudData(){
     refillAll();
     refreshAll();
     fillDashboardMachines();
-    fillDashboardPerformers();
     fillReportPerformers();
     statusLine(`הנתונים נטענו מהענן — ${tasks.length} משימות, ${history.length} דיווחים.`,'success');
     return true;
@@ -1440,16 +1439,15 @@ function renderPlanner(){
 }
 
 
-function isMaintenancePerformer(p){
-  const v=String(p||'').trim().toLowerCase();
-  return v==='טכנאי אחזקה'||v==='technician'||v==='maintenance technician'||v.includes('אחזקה');
+function performerText(v){return String(v||'').trim().toLowerCase();}
+function isOperatorPerformer(v){
+  const p=performerText(v);
+  return p==='מפעיל'||p==='operator'||p.includes('מפעיל')||p.includes('operator');
 }
-function isMaintenanceTask(t){ return !!t && t.active!==false && isMaintenancePerformer(t.performer); }
-function maintenanceTasks(){ return tasks.filter(t=>isMaintenanceTask(t)); }
-function isOperatorTask(t){
-  const v=String(t?.performer||'').trim().toLowerCase();
-  return !!t && t.active!==false && (v==='מפעיל'||v==='operator');
-}
+function isOperatorTask(t){return !!t&&t.active!==false&&isOperatorPerformer(t.performer);}
+function isMaintenancePerformer(p){return !isOperatorPerformer(p);}
+function isMaintenanceTask(t){return !!t&&t.active!==false&&!isOperatorTask(t);}
+function maintenanceTasks(){return tasks.filter(isMaintenanceTask);}
 function fillOperatorFilters(){
   const dep=document.getElementById('pmOperatorDepartment');
   const freq=document.getElementById('pmOperatorFrequency');
@@ -2224,7 +2222,6 @@ async function sendPMPasswordReset(email){
 function refillAll(){
   fillSelect('pmDashboardDepartment',true);
   fillSelect('pmPlannerDepartment',true);
-  fillPlanningPerformers();
   fillPlanningMachines();
   fillSelect('pmReportDepartment',true);
   fillSelect('pmHistoryDepartment',true);
@@ -2544,7 +2541,7 @@ reloadCloudData=async function(){const ok=await loadCloudData();try{updatePMInit
 /* ---------- Requirement generator ---------- */
 function wpRequirementItems(start,end){
   const items=[];
-  for(const t of tasks.filter(x=>x.active!==false)){
+  for(const t of maintenanceTasks()){
     let due=t.nextDue||today();
     if(!due)continue;
 
@@ -2578,7 +2575,6 @@ filteredPlanningItems=function(){
   const {start,end}=planningBounds();
   const dep=document.getElementById('pmPlannerDepartment')?.value||'';
   const machine=document.getElementById('pmPlannerMachine')?.value||'';
-  const perf=document.getElementById('pmPlannerPerformer')?.value||'';
   return wpRequirementItems(start,end).filter(x=>
     (!dep||x.t.department===dep)&&
     (!machine||x.t.machine===machine)&&
@@ -2664,7 +2660,6 @@ unplanSelected=async function(){
 renderPlanner=function(){
   const startInput=document.getElementById('pmPlannerStart');if(!startInput)return;
   if(!startInput.value)startInput.value=today();
-  fillPlanningPerformers();
   const {start,end,label}=planningBounds();
   const labelEl=document.getElementById('pmPlanRangeLabel');if(labelEl)labelEl.textContent=label;
 
@@ -2734,7 +2729,6 @@ renderDashboard=function(){
 
   const dep=document.getElementById('pmDashboardDepartment')?.value||'';
   const machine=document.getElementById('pmDashboardMachine')?.value||'';
-  const performer=document.getElementById('pmDashboardPerformer')?.value||'';
   const match=p=>{
     const t=wpTask(p);if(!t)return false;
     return (!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!performer||p.assignedTo===performer||t.performer===performer);
@@ -2953,7 +2947,7 @@ function v3RequirementItems(start,end){
   // Keep rows explicitly scheduled into the period visible even when original due is outside it.
   pmWorkPlan.forEach(p=>{
     if(!p.plannedDate||p.plannedDate<start||p.plannedDate>end)return;
-    const t=wpTask(p);if(!t||t.active===false)return;
+    const t=wpTask(p);if(!t||!isMaintenanceTask(t))return;
     const due=wpDueFromNotes(p.notes)||t.nextDue||p.plannedDate;
     if(!items.some(x=>String(x.t.id)===String(t.id)&&x.due===due))items.push({t,due,plan:v3OccurrenceRow(t.id,due)||p,backlog:due<start});
   });
@@ -2963,7 +2957,7 @@ function v3FilterTask(t,dep,machine,performer,plan){
   return (!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!performer||(plan?.assignedTo||t.performer)===performer||t.performer===performer);
 }
 function v3CurrentBacklog(dep='',machine='',performer='',refDate=today()){
-  return tasks.filter(t=>t.active!==false&&v3FilterTask(t,dep,machine,performer,null)).map(t=>{
+  return maintenanceTasks().filter(t=>v3FilterTask(t,dep,machine,performer,null)).map(t=>{
     const due=t.nextDue||refDate,p=v3OccurrenceRow(t.id,due),item={t,due,plan:p,backlog:due<refDate};
     return {...item,state:v3OccurrenceState(item,refDate)};
   }).filter(x=>x.due<=refDate&&(x.state==='waiting'||x.state==='overdue'));
@@ -3056,7 +3050,6 @@ function openPlanningWorkspace(period='week'){
   const dep=document.getElementById('pmPlannerDepartment');if(dep)dep.value='';
   fillPlanningMachines();
   const machine=document.getElementById('pmPlannerMachine');if(machine)machine.value='';
-  const performer=document.getElementById('pmPlannerPerformer');if(performer)performer.value='';
   const status=document.getElementById('pmPlannerStatus');if(status)status.value='';
   pmPlanPage=0;
   showTab('planner');
@@ -3079,7 +3072,7 @@ renderDashboard=function(){
   const dashAnchor=document.getElementById('pmDashboardAnchor');
   if(dashAnchor&&!dashAnchor.value)dashAnchor.value=document.getElementById('pmPlannerStart')?.value||pmBestPlanningAnchor(today());
   const {start,end,label}=v3PeriodBounds(pmV3DashboardPeriod,dashAnchor?.value||today());
-  const items=v3RequirementItems(start,end).filter(x=>v3FilterTask(x.t,dep,machine,performer,x.plan));
+  const items=v3RequirementItems(start,end).filter(x=>isMaintenanceTask(x.t)&&v3FilterTask(x.t,dep,machine,'',x.plan));
   const groups={waiting:[],planned:[],completed:[],postponed:[],cancelled:[],overdue:[]};
   items.forEach(x=>{const st=v3OccurrenceState(x);(groups[st]||(groups[st]=[])).push(x)});
 
@@ -3100,7 +3093,7 @@ renderDashboard=function(){
   const dashDone=groups.completed.filter(x=>!x.plan?.completedDate||v3InRange(x.plan.completedDate,start,end));
   v3Set('pmV3DoneHours',v3Hours1(v3HoursFromItems(dashDone)));
 
-  const backlog=v3CurrentBacklog(dep,machine,performer);v3Set('pmV3BacklogTotal',backlog.length);
+  const backlog=v3CurrentBacklog(dep,machine,'');v3Set('pmV3BacklogTotal',backlog.length);
   const health=document.getElementById('pmV3Health');
   if(health){
     const overdue=backlog.filter(x=>x.state==='overdue').length;
@@ -3132,7 +3125,7 @@ filteredPlanningItems=function(){
   const status=document.getElementById('pmPlannerStatus')?.value||'';
   return v3RequirementItems(start,end).filter(x=>{
     const st=v3OccurrenceState(x);
-    return (!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&(!perf||(x.plan?.assignedTo||x.t.performer)===perf||x.t.performer===perf)&&(!status||st===status);
+    return (!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&isMaintenanceTask(x.t)&&(!status||st===status);
   }).sort((a,b)=>{
     const rank={overdue:0,waiting:1,postponed:2,planned:3,completed:4,cancelled:5};
     const ra=rank[v3OccurrenceState(a)]??9,rb=rank[v3OccurrenceState(b)]??9;
@@ -3141,7 +3134,7 @@ filteredPlanningItems=function(){
 };
 
 renderPlanner=function(){
-  const startInput=document.getElementById('pmPlannerStart');if(!startInput)return;if(!startInput.value)startInput.value=today();fillPlanningPerformers();
+  const startInput=document.getElementById('pmPlannerStart');if(!startInput)return;if(!startInput.value)startInput.value=today();
   const {start,end,label}=planningBounds();const labelEl=document.getElementById('pmPlanRangeLabel');if(labelEl)labelEl.textContent=label;
   if(!pmWorkPlanLoaded){document.getElementById('pmPlannerDetail').innerHTML='<div class="empty">תוכנית העבודה עדיין נטענת מהענן…</div>';return}
 
@@ -3366,7 +3359,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   window.fillReportMachinesV4=function(){
     const sel=byId('pmReportsMachine');if(!sel)return;
     const old=sel.value,dep=byId('pmReportsDepartment')?.value||'';
-    const machines=[...new Set(tasks.filter(t=>t.active!==false&&(!dep||t.department===dep)).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+    const machines=[...new Set(maintenanceTasks().filter(t=>(!dep||t.department===dep)).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
     sel.innerHTML='<option value="">כל המכונות</option>'+machines.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
     if(machines.includes(old))sel.value=old;
   };
