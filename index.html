@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-all-tasks-pagination-v10"/>
+<meta name="fop-build" content="20260819-final-separation-v11"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -1264,7 +1264,7 @@ function planningWorkDays(start,end){
 function occurrenceItems(start,end){
   const items=[];
   for(const t of maintenanceTasks()){
-    let due=t.nextDue||today();
+    let due=t.nextDue||null;
     if(!due)continue;
     // Keep one overdue backlog occurrence visible in current/future periods.
     if(due<start){
@@ -1522,7 +1522,7 @@ function normalize(t){
   return {
     ...t,
     lastDone:t.lastDone??t.last_done??null,
-    nextDue:t.nextDue??t.next_due??today(),
+    nextDue:t.nextDue??t.next_due??null,
     active:t.active!==false
   }
 }
@@ -1532,6 +1532,15 @@ function loadData(){
 }
 function saveData(){
   /* Cloud-first: operational PM data is stored in Supabase, not localStorage. */
+}
+function maintenanceDepartments(){
+  return [...new Set(maintenanceTasks().map(t=>t.department).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+}
+function fillMaintenanceSelect(id,all=false){
+  const el=document.getElementById(id);if(!el)return;
+  const old=el.value;
+  el.innerHTML=(all?'<option value="">כל המחלקות</option>':'')+maintenanceDepartments().map(d=>`<option value="${esc(d)}">${esc(d)}</option>`).join('');
+  if([...el.options].some(o=>o.value===old))el.value=old;
 }
 function departments(){return [...new Set(tasks.map(t=>t.department).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'))}
 function fillSelect(id,all=false){
@@ -1562,12 +1571,13 @@ function showTab(name){
   if(name==='report'&&!pmCan('report'))return statusLine('דיווח טיפול אינו זמין בהרשאה שלך.','error');
   document.querySelectorAll('.pm-tab').forEach(b=>b.classList.toggle('active',b.dataset.pm===name));
   document.querySelectorAll('.pm-panel').forEach(p=>p.classList.remove('active'));
-  const id={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',history:'pmHistory',editTasks:'pmEditTasks',addTask:'pmAddTask',users:'pmUsers'}[name];
+  const id={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',history:'pmHistory',reports:'pmReports',operatorChecks:'pmOperatorChecks',editTasks:'pmEditTasks',addTask:'pmAddTask',users:'pmUsers'}[name];
   document.getElementById(id)?.classList.add('active');
   if(name==='dashboard'){syncDashboardViewFromPlanner();renderDashboard();}
   if(name==='planner')renderPlanner();
   if(name==='report')renderReport();
   if(name==='history')renderHistory();
+  if(name==='reports')renderReports();
   if(name==='operatorChecks'){fillOperatorFilters();renderOperatorChecks();}
   if(name==='editTasks'){refreshEditTaskFilters('department');renderEditor()}
   if(name==='users')loadPMUsers();
@@ -1782,7 +1792,7 @@ async function completeTask(id){
 /* ----- History ----- */
 function fillHistoryMachines(){
   const dep=pmHistoryDepartment.value, sel=pmHistoryMachine, old=sel.value;
-  const machines=[...new Set(tasks.filter(t=>!dep||t.department===dep).map(t=>t.machine))].sort((a,b)=>a.localeCompare(b,'he'));
+  const machines=[...new Set(maintenanceTasks().filter(t=>!dep||t.department===dep).map(t=>t.machine))].sort((a,b)=>a.localeCompare(b,'he'));
   sel.innerHTML='<option value="">מכונות</option>'+machines.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
   if([...sel.options].some(o=>o.value===old))sel.value=old
 }
@@ -2242,11 +2252,11 @@ async function sendPMPasswordReset(email){
    ============================================================ */
 /* ----- Init / refresh ----- */
 function refillAll(){
-  fillSelect('pmDashboardDepartment',true);
-  fillSelect('pmPlannerDepartment',true);
+  fillMaintenanceSelect('pmDashboardDepartment',true);
+  fillMaintenanceSelect('pmPlannerDepartment',true);
   fillPlanningMachines();
-  fillSelect('pmReportDepartment',true);
-  fillSelect('pmHistoryDepartment',true);
+  fillMaintenanceSelect('pmReportDepartment',true);
+  fillMaintenanceSelect('pmHistoryDepartment',true);
   fillSelect('pmSettingsDepartment',true); fillOperatorFilters(); refreshEditTaskFilters('department');
   fillDashboardMachines();
   fillDashboardPerformers();
@@ -2255,7 +2265,7 @@ function refillAll(){
   fillHistoryMachines();
 }
 function refreshAll(){
-  renderDashboard(); renderPlanner(); renderReport(); renderHistory(); renderSettingsTaskList()
+  renderDashboard(); renderPlanner(); renderReport(); renderHistory(); renderSettingsTaskList(); fillOperatorFilters(); renderOperatorChecks();
 }
 function init(){
   refillAll();
@@ -2273,7 +2283,7 @@ function fillDashboardMachines(){
  const sel=document.getElementById('pmDashboardMachine');
  if(!sel)return;
  const current=sel.value;
- const source=cloudDashboardLoaded?cloudDashboardTasks:tasks;
+ const source=maintenanceTasks();
  const machines=[...new Set(source.filter(t=>!dep||t.department===dep).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
  sel.innerHTML='<option value="">מכונות</option>'+machines.map(m=>`<option value="${m}">${m}</option>`).join('');
  if(machines.includes(current)) sel.value=current;
@@ -2302,7 +2312,7 @@ function fillReportPerformers(){
   const sel=document.getElementById('pmReportPerformer');
   if(!sel)return;
   const old=sel.value;
-  const vals=[...new Set(tasks.filter(t=>t.active!==false&&(!dep||t.department===dep)&&(!machine||t.machine===machine)).map(t=>t.performer).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  const vals=[...new Set(maintenanceTasks().filter(t=>t.active!==false&&(!dep||t.department===dep)&&(!machine||t.machine===machine)).map(t=>t.performer).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
   sel.innerHTML='<option value="">מבצעים</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
   if(vals.includes(old))sel.value=old;
 }
@@ -2352,7 +2362,7 @@ function updatePMInitUI(){
 async function initializePMPlan(){
   if(!requirePM('initialize','אתחול תוכנית זמין ל-Admin בלבד.'))return;
   if(!pmCurrentUser){await pmMessage('יש להתחבר למערכת.');return}
-  const activeTasks=tasks.filter(t=>t.active!==false);
+  const activeTasks=maintenanceTasks();
   if(!activeTasks.length){await pmMessage('אין טיפולי אחזקה פעילים לאתחול.');return}
   if(!await pmConfirm('לאתחל את תוכנית האחזקה?\n\nהפעולה תיצור נקודת התחלה חדשה: תוכנית העבודה והיסטוריית התוכנית הקודמת יימחקו, כולל ביצועים ודחיות, ומועדי הטיפול הבאים יחושבו מחדש. מאגר המכונות והטיפולים יישמר.'))return;
 
@@ -2954,7 +2964,7 @@ function v3PeriodBounds(period=pmV3DashboardPeriod,anchor=null){
 function v3RequirementItems(start,end){
   const items=[];
   for(const t of maintenanceTasks()){
-    let due=t.nextDue||today(); if(!due)continue;
+    let due=t.nextDue||null; if(!due)continue;
     if(due<start){
       const oldPlan=v3OccurrenceRow(t.id,due);
       const oldItem={t,due,plan:oldPlan,backlog:true};
@@ -2979,8 +2989,8 @@ function v3FilterTask(t,dep,machine,performer,plan){
   return (!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!performer||(plan?.assignedTo||t.performer)===performer||t.performer===performer);
 }
 function v3CurrentBacklog(dep='',machine='',performer='',refDate=today()){
-  return maintenanceTasks().filter(t=>v3FilterTask(t,dep,machine,performer,null)).map(t=>{
-    const due=t.nextDue||refDate,p=v3OccurrenceRow(t.id,due),item={t,due,plan:p,backlog:due<refDate};
+  return maintenanceTasks().filter(t=>t.nextDue&&v3FilterTask(t,dep,machine,performer,null)).map(t=>{
+    const due=t.nextDue,p=v3OccurrenceRow(t.id,due),item={t,due,plan:p,backlog:due<refDate};
     return {...item,state:v3OccurrenceState(item,refDate)};
   }).filter(x=>x.due<=refDate&&(x.state==='waiting'||x.state==='overdue'));
 }
