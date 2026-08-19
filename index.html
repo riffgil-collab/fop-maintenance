@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-existing-schedule-only-v13"/>
+<meta name="fop-build" content="20260819-unique-next-due-v14"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -2972,28 +2972,30 @@ function v3PeriodBounds(period=pmV3DashboardPeriod,anchor=null){
   return {start,end,label};
 }
 function v3RequirementItems(start,end){
-  const items=[];
+  // One current PM requirement per maintenance task.
+  // IMPORTANT: do not manufacture future recurrences inside the selected period.
+  // The database next_due is the source of truth; after execution it advances and
+  // the task will naturally enter the next relevant period. This keeps Day/Week/
+  // Month/Half-year/Year counts consistent for every department.
+  const byTask=new Map();
   for(const t of maintenanceTasks()){
-    let due=maintenancePlanningAnchor(t); if(!due)continue;
-    if(due<start){
-      const oldPlan=v3OccurrenceRow(t.id,due);
-      const oldItem={t,due,plan:oldPlan,backlog:true};
-      const oldState=v3OccurrenceState(oldItem);
-      // Carry only unresolved backlog forward. Completed/cancelled old occurrences stay historical.
-      if(!['completed','cancelled'].includes(oldState))items.push(oldItem);
-      let guard=0;while(due<start&&guard++<5000)due=nextDueFrom(due,t.frequency);
-    }
-    let guard=0;
-    while(due<=end&&guard++<5000){if(due>=start)items.push({t,due,plan:v3OccurrenceRow(t.id,due),backlog:false});due=nextDueFrom(due,t.frequency)}
+    const due=maintenancePlanningAnchor(t);
+    if(!due||due<start||due>end)continue;
+    byTask.set(String(t.id),{t,due,plan:v3OccurrenceRow(t.id,due),backlog:false});
   }
-  // Keep rows explicitly scheduled into the period visible even when original due is outside it.
+
+  // Preserve an explicitly planned occurrence in the selected execution period,
+  // but still keep only one row per task. This avoids duplicate task counts.
   pmWorkPlan.forEach(p=>{
     if(!p.plannedDate||p.plannedDate<start||p.plannedDate>end)return;
     const t=wpTask(p);if(!t||!isMaintenanceTask(t))return;
-    const due=wpDueFromNotes(p.notes)||t.nextDue||p.plannedDate;
-    if(!items.some(x=>String(x.t.id)===String(t.id)&&x.due===due))items.push({t,due,plan:v3OccurrenceRow(t.id,due)||p,backlog:due<start});
+    const due=wpDueFromNotes(p.notes)||maintenancePlanningAnchor(t)||p.plannedDate;
+    const key=String(t.id);
+    const existing=byTask.get(key);
+    if(!existing)byTask.set(key,{t,due,plan:v3OccurrenceRow(t.id,due)||p,backlog:false});
+    else if(!existing.plan)existing.plan=v3OccurrenceRow(t.id,existing.due)||p;
   });
-  return items;
+  return [...byTask.values()];
 }
 function v3FilterTask(t,dep,machine,performer,plan){
   return (!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!performer||(plan?.assignedTo||t.performer)===performer||t.performer===performer);
