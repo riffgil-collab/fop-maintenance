@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260820-multi-occurrence-backlog-v19"/>
+<meta name="fop-build" content="20260820-balanced-all-tasks-v20"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -2387,7 +2387,9 @@ function updatePMInitUI(){
 async function initializePMPlan(){
   if(!requirePM('initialize','אתחול תוכנית זמין ל-Admin בלבד.'))return;
   if(!pmCurrentUser){await pmMessage('יש להתחבר למערכת.');return}
-  const activeTasks=maintenanceTasks();
+  // Reset ONLY maintenance-technician tasks. Operator tasks are intentionally untouched.
+  // Use the app's maintenanceTasks() classifier so the same performer rules used by the UI are respected.
+  const activeTasks=maintenanceTasks().filter(t=>t&&t.active!==false);
   if(!activeTasks.length){await pmMessage('אין טיפולי אחזקה פעילים לאתחול.');return}
   if(!await pmConfirm('לאתחל את תוכנית האחזקה?\n\nהפעולה תיצור נקודת התחלה חדשה: תוכנית העבודה והיסטוריית התוכנית הקודמת יימחקו, כולל ביצועים ודחיות, ומועדי הטיפול הבאים יחושבו מחדש. מאגר המכונות והטיפולים יישמר.'))return;
 
@@ -2485,8 +2487,9 @@ async function initializePMPlan(){
     if(!Array.isArray(tasks)||!tasks.some(t=>t.active!==false))throw new Error('לא נטענו טיפולי אחזקה פעילים מהענן');
     if(!pmWorkPlanLoaded)throw new Error('תוכנית העבודה לא נטענה מהענן');
 
-    // Post-write cloud audit: verify EVERY active maintenance task, in EVERY department.
-    const cloudActive=maintenanceTasks();
+    // Post-write cloud audit: verify EVERY active MAINTENANCE-TECHNICIAN task, in EVERY department.
+    // Operator tasks are intentionally excluded and must remain untouched by initialization.
+    const cloudActive=maintenanceTasks().filter(t=>t&&t.active!==false);
     const bad=[];
     for(const t of cloudActive){
       const cycleEnd=nextDueFrom(base,t.frequency);
@@ -2494,13 +2497,34 @@ async function initializePMPlan(){
       if(!t.nextDue||t.nextDue<base||t.nextDue>=cycleEnd||!hasThisInit)
         bad.push(`${t.department} / ${t.machine} / ${t.task}`);
     }
-    if(cloudActive.length!==activeTasks.length||bad.length){
-      throw new Error(`אימות האתחול בענן נכשל: ${bad.length} משימות לא תקינות מתוך ${cloudActive.length}.`);
+    // Distribution audit: for every department+frequency group with more than one task
+    // and a cycle longer than one day, the cloud must contain more than one due date.
+    // This catches the exact failure where all weekly/monthly tasks were pushed to one boundary date.
+    const distributionBad=[];
+    const verifyGroups=new Map();
+    for(const t of cloudActive){
+      const key=`${String(t.department||'')}\u0001${String(t.frequency||'')}`;
+      if(!verifyGroups.has(key))verifyGroups.set(key,[]);
+      verifyGroups.get(key).push(t);
+    }
+    for(const group of verifyGroups.values()){
+      const cycleDays=initCycleDays(base,group[0]?.frequency);
+      if(group.length>1&&cycleDays>1){
+        const dates=new Set(group.map(t=>t.nextDue).filter(Boolean));
+        const expectedDistinct=Math.min(group.length,cycleDays);
+        if(dates.size!==expectedDistinct){
+          distributionBad.push(`${group[0].department} / ${group[0].frequency}: ${dates.size} מועדים במקום ${expectedDistinct}`);
+        }
+      }
+    }
+    if(cloudActive.length!==activeTasks.length||bad.length||distributionBad.length){
+      const details=distributionBad.slice(0,8).join('; ');
+      throw new Error(`אימות האתחול בענן נכשל: ${bad.length} משימות לא תקינות, ${distributionBad.length} קבוצות לא מפוזרות מתוך ${cloudActive.length} משימות פעילות.${details?' '+details:''}`);
     }
 
     updatePlanningEntryButtons();
     renderDashboard();
-    statusLine(`התוכנית אופסה ואומתה בהצלחה. ${tasks.filter(t=>t.active!==false).length} טיפולי אחזקה פעילים פוזרו מתאריך העוגן ${fDate(base)} בתוך מחזור התדירות שלהם, בנפרד לכל מחלקה ותדירות. כעת יש לבנות תוכנית עבודה חדשה.`,'success');
+    statusLine(`התוכנית אופסה ואומתה בהצלחה. ${maintenanceTasks().filter(t=>t.active!==false).length} טיפולי אחזקה פעילים פוזרו מתאריך העוגן ${fDate(base)} בתוך מחזור התדירות שלהם, בנפרד לכל מחלקה ותדירות. כעת יש לבנות תוכנית עבודה חדשה.`,'success');
     pmToast('הנתונים נטענו מהענן. עוברים לבניית תוכנית עבודה חדשה.','success');
     openPlanningWorkspace('week');
   }catch(err){
