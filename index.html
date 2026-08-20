@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260819-open-backlog-v16"/>
+<meta name="fop-build" content="20260820-admin-initialization-v17"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -445,6 +445,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <button class="pm-tab" data-pm="operatorChecks" onclick="showTab('operatorChecks')">בדיקות מפעיל</button>
 <button class="pm-tab" data-pm="editTasks" onclick="showTab('editTasks')">עריכת משימות</button>
 <button class="pm-tab" data-pm="addTask" onclick="showTab('addTask')">הוספת משימה חדשה</button>
+<button class="pm-tab" data-pm="initialization" id="pmInitializationTabButton" onclick="showTab('initialization')" style="display:none">אתחול מערכת</button>
 <button class="pm-tab" data-pm="users" id="pmUsersTabButton" onclick="showTab('users')" style="display:none">ניהול משתמשים</button>
 </div>
 <section class="pm-panel active" id="pmDashboard">
@@ -735,6 +736,16 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div style="margin-top:14px"><button class="btn" onclick="addTask()">+ הוספת משימה</button></div>
 </div>
 </section>
+<section class="pm-panel" id="pmInitialization">
+<div class="section-title"><h3>אתחול מערכת</h3><small>Admin בלבד</small></div>
+<div class="panel-box">
+  <div id="pmInitStatus" style="font-weight:800;margin-bottom:8px">🔴 Status: Not Initialized</div>
+  <div id="pmInitDate" class="sub" style="margin-bottom:14px"></div>
+  <p style="margin:0 0 14px">האתחול יוצר נקודת התחלה חדשה לתוכנית האחזקה. תוכנית העבודה והיסטוריית התוכנית הקודמת יאופסו, אך מאגר המכונות ומשימות הטיפול יישמר.</p>
+  <button class="danger-btn" id="pmInitBtn" type="button" onclick="initializePMPlan()" style="display:none">אתחול תוכנית</button>
+</div>
+</section>
+
 <section class="pm-panel" id="pmUsers">
 <div class="section-title"><h3>משתמשי אחזקה</h3><small>Admin בלבד</small></div>
 <div class="note">החשבון נשמר ב-FOP המשותף, אך במסך זה מנוהלת <b>רק הגישה לאפליקציית האחזקה</b>. הסרה מאחזקה אינה מוחקת את המשתמש ואינה משפיעה על אפליקציית התפעול.</div>
@@ -837,9 +848,11 @@ function applyPMPermissions(){
 
   const settingsTab=document.querySelector('[data-pm="settings"]');
   const usersTab=document.getElementById('pmUsersTabButton');
+  const initializationTab=document.getElementById('pmInitializationTabButton');
   const reportTab=document.querySelector('[data-pm="report"]');
   if(settingsTab)settingsTab.style.display=cfg.settings?'':'none';
   if(usersTab)usersTab.style.display=cfg.users?'':'none';
+  if(initializationTab)initializationTab.style.display=cfg.initialize?'':'none';
   if(reportTab)reportTab.style.display=cfg.report?'':'none';
 
   const initBtn=document.getElementById('pmInitBtn');
@@ -1578,10 +1591,11 @@ function weekStartFrom(s=today()){
 function showTab(name){
   if((name==='editTasks'||name==='addTask')&&!pmCan('settings'))return statusLine('אין הרשאה לניהול משימות.','error');
   if(name==='users'&&!pmCan('users'))return statusLine('ניהול משתמשים זמין ל-Admin בלבד.','error');
+  if(name==='initialization'&&!pmCan('initialize'))return statusLine('אתחול מערכת זמין ל-Admin בלבד.','error');
   if(name==='report'&&!pmCan('report'))return statusLine('דיווח טיפול אינו זמין בהרשאה שלך.','error');
   document.querySelectorAll('.pm-tab').forEach(b=>b.classList.toggle('active',b.dataset.pm===name));
   document.querySelectorAll('.pm-panel').forEach(p=>p.classList.remove('active'));
-  const id={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',history:'pmHistory',reports:'pmReports',operatorChecks:'pmOperatorChecks',editTasks:'pmEditTasks',addTask:'pmAddTask',users:'pmUsers'}[name];
+  const id={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',history:'pmHistory',reports:'pmReports',operatorChecks:'pmOperatorChecks',editTasks:'pmEditTasks',addTask:'pmAddTask',initialization:'pmInitialization',users:'pmUsers'}[name];
   document.getElementById(id)?.classList.add('active');
   if(name==='dashboard'){syncDashboardViewFromPlanner();renderDashboard();}
   if(name==='planner')renderPlanner();
@@ -1590,6 +1604,7 @@ function showTab(name){
   if(name==='reports')renderReports();
   if(name==='operatorChecks'){fillOperatorFilters();renderOperatorChecks();}
   if(name==='editTasks'){refreshEditTaskFilters('department');renderEditor()}
+  if(name==='initialization')updatePMInitUI();
   if(name==='users')loadPMUsers();
 }
 function renderDashboard(){
@@ -2366,7 +2381,7 @@ function updatePMInitUI(){
  }else{
    s.innerHTML="🔴 Status: Not Initialized";
    d.textContent="";
-   if(b)b.style.display="";
+   if(b)b.style.display=pmCan('initialize')?'':'none';
  }
 }
 async function initializePMPlan(){
