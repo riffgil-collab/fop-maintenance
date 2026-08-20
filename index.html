@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260820-admin-initialization-v17"/>
+<meta name="fop-build" content="20260820-multi-occurrence-backlog-v19"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -2396,10 +2396,55 @@ async function initializePMPlan(){
   const initStamp=now.toISOString();
   const initActor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
   const fmt=n=>String(n).padStart(2,'0');
-  const updates=activeTasks.map(t=>{
-    const base=`${now.getFullYear()}-${fmt(now.getMonth()+1)}-${fmt(now.getDate())}`;
-    return {id:t.id,next_due:nextDueFrom(base,t.frequency)};
-  });
+  const base=`${now.getFullYear()}-${fmt(now.getMonth()+1)}-${fmt(now.getDate())}`;
+
+  // Initialization rule (v18): spread the FIRST requirement evenly FROM the anchor
+  // across one complete frequency cycle. Distribution is done separately for every
+  // department + frequency, so one large department cannot distort another one.
+  // Examples: daily -> anchor day; weekly -> anchor..anchor+6; biweekly -> +0..13;
+  // monthly/quarterly/half-yearly/yearly/5-year -> every calendar day before the
+  // next cycle boundary. Stable sorting makes repeated initialization deterministic.
+  function initCycleDays(anchor,frequency){
+    const boundary=nextDueFrom(anchor,frequency);
+    return Math.max(1,diff(boundary,anchor));
+  }
+  function initStableTaskCompare(a,b){
+    return [a.machine,a.task,a.performer,a.id].map(x=>String(x||'')).join(' | ')
+      .localeCompare([b.machine,b.task,b.performer,b.id].map(x=>String(x||'')).join(' | '),'he');
+  }
+  function buildBalancedInitUpdates(list,anchor){
+    const groups=new Map();
+    for(const t of list){
+      const key=`${String(t.department||'')}${String(t.frequency||'')}`;
+      if(!groups.has(key))groups.set(key,[]);
+      groups.get(key).push(t);
+    }
+    const out=[];
+    for(const group of groups.values()){
+      group.sort(initStableTaskCompare);
+      const cycleDays=initCycleDays(anchor,group[0]?.frequency);
+      const n=group.length;
+      group.forEach((t,i)=>{
+        // Midpoint allocation avoids piling single/low-volume long-cycle tasks on the
+        // anchor while still keeping every due date strictly inside the first cycle.
+        const offset=cycleDays===1?0:Math.min(cycleDays-1,Math.floor(((i+0.5)*cycleDays)/n));
+        out.push({id:t.id,next_due:addDays(anchor,offset),offset,cycleDays});
+      });
+    }
+    return out;
+  }
+  const updates=buildBalancedInitUpdates(activeTasks,base);
+
+  // Hard pre-write validation: every active task exactly once and inside its first cycle.
+  const updateIds=new Set(updates.map(u=>String(u.id)));
+  if(updates.length!==activeTasks.length||updateIds.size!==activeTasks.length)
+    throw new Error('בדיקת אתחול נכשלה: לא כל המשימות הפעילות קיבלו מועד יחיד.');
+  for(const u of updates){
+    const t=activeTasks.find(x=>String(x.id)===String(u.id));
+    const cycleEnd=nextDueFrom(base,t.frequency);
+    if(!u.next_due||u.next_due<base||u.next_due>=cycleEnd)
+      throw new Error(`בדיקת אתחול נכשלה עבור ${t.department} / ${t.machine}: מועד ${u.next_due} מחוץ למחזור ${base}–${cycleEnd}.`);
+  }
 
   try{
     // Full program reset: clear the previous operational plan AND its visible history.
@@ -2440,9 +2485,22 @@ async function initializePMPlan(){
     if(!Array.isArray(tasks)||!tasks.some(t=>t.active!==false))throw new Error('לא נטענו טיפולי אחזקה פעילים מהענן');
     if(!pmWorkPlanLoaded)throw new Error('תוכנית העבודה לא נטענה מהענן');
 
+    // Post-write cloud audit: verify EVERY active maintenance task, in EVERY department.
+    const cloudActive=maintenanceTasks();
+    const bad=[];
+    for(const t of cloudActive){
+      const cycleEnd=nextDueFrom(base,t.frequency);
+      const hasThisInit=String(t.notes||'').includes(`[PM_INIT|${base}|`);
+      if(!t.nextDue||t.nextDue<base||t.nextDue>=cycleEnd||!hasThisInit)
+        bad.push(`${t.department} / ${t.machine} / ${t.task}`);
+    }
+    if(cloudActive.length!==activeTasks.length||bad.length){
+      throw new Error(`אימות האתחול בענן נכשל: ${bad.length} משימות לא תקינות מתוך ${cloudActive.length}.`);
+    }
+
     updatePlanningEntryButtons();
     renderDashboard();
-    statusLine(`התוכנית אופסה בהצלחה. היסטוריית התוכנית הקודמת הועברה לארכיון ואינה משפיעה על הדשבורד. נטענו ${tasks.filter(t=>t.active!==false).length} טיפולי אחזקה מהענן. כעת יש לבנות תוכנית עבודה חדשה.`,'success');
+    statusLine(`התוכנית אופסה ואומתה בהצלחה. ${tasks.filter(t=>t.active!==false).length} טיפולי אחזקה פעילים פוזרו מתאריך העוגן ${fDate(base)} בתוך מחזור התדירות שלהם, בנפרד לכל מחלקה ותדירות. כעת יש לבנות תוכנית עבודה חדשה.`,'success');
     pmToast('הנתונים נטענו מהענן. עוברים לבניית תוכנית עבודה חדשה.','success');
     openPlanningWorkspace('week');
   }catch(err){
@@ -2550,6 +2608,22 @@ function wpForOccurrence(taskId,due){
   const rows=pmWorkPlan.filter(p=>wpActive(p)&&String(p.taskId)===String(taskId)&&wpDueFromNotes(p.notes)===String(due));
   return rows.sort((a,b)=>String(b.updatedAt||b.createdAt).localeCompare(String(a.updatedAt||a.createdAt)))[0]||null;
 }
+// Latest row for an occurrence INCLUDING Completed/Cancelled rows.
+// This is critical for multi-cycle backlog: each scheduled PM occurrence has its own lifecycle.
+function wpLatestForOccurrence(taskId,due){
+  const rows=pmWorkPlan.filter(p=>String(p.taskId)===String(taskId)&&wpDueFromNotes(p.notes)===String(due));
+  return rows.sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')))[0]||null;
+}
+function wpOccurrenceClosed(taskId,due){
+  const p=wpLatestForOccurrence(taskId,due);if(!p)return false;
+  const s=String(p.status||'').trim().toLowerCase();
+  return ['completed','done','בוצע','cancelled','canceled','בוטל'].includes(s);
+}
+function pmNextOpenDueAfter(t,due){
+  let next=nextDueFrom(due,t.frequency),guard=0;
+  while(wpOccurrenceClosed(t.id,next)&&guard++<5000)next=nextDueFrom(next,t.frequency);
+  return next;
+}
 function wpRowsForTask(taskId){return pmWorkPlan.filter(p=>wpActive(p)&&String(p.taskId)===String(taskId))}
 function wpRowsForDate(date){return pmWorkPlan.filter(p=>wpActive(p)&&p.plannedDate===date)}
 
@@ -2599,30 +2673,32 @@ reloadCloudData=async function(){const ok=await loadCloudData();try{updatePMInit
 function wpRequirementItems(start,end){
   const items=[];
   for(const t of maintenanceTasks()){
-    let due=t.nextDue||today();
+    let due=t.nextDue||maintenancePlanningAnchor(t);
     if(!due)continue;
-
-    /* Show one old backlog requirement so it cannot disappear from planning. */
-    if(due<start){
-      const p=wpForOccurrence(t.id,due);
-      if(!p || (p.plannedDate>=start&&p.plannedDate<=end)) items.push({t,due,plan:p,backlog:true});
-      let guard=0;
-      while(due<start&&guard++<5000)due=nextDueFrom(due,t.frequency);
-    }
     let guard=0;
+    // Generate EVERY occurrence from the current master due date through period end.
+    // Missed cycles before the selected period remain separate backlog requirements.
     while(due<=end&&guard++<5000){
-      if(due>=start)items.push({t,due,plan:wpForOccurrence(t.id,due),backlog:false});
+      const p=wpLatestForOccurrence(t.id,due);
+      const closed=wpOccurrenceClosed(t.id,due);
+      if(due<start){
+        if(!closed)items.push({t,due,plan:p,backlog:true});
+      }else{
+        // Inside the selected period keep closed rows too, so Completed/Cancelled KPIs remain auditable.
+        items.push({t,due,plan:p,backlog:false});
+      }
       due=nextDueFrom(due,t.frequency);
     }
   }
 
-  /* Keep manually scheduled rows visible even when moved outside original due range. */
-  pmWorkPlan.filter(wpActive).forEach(p=>{
-    if(p.plannedDate<start||p.plannedDate>end)return;
-    const t=wpTask(p);if(!t)return;
+  // Keep manually scheduled/postponed rows visible in their execution period even when
+  // their original PM due date is outside the selected period.
+  pmWorkPlan.forEach(p=>{
+    if(!p.plannedDate||p.plannedDate<start||p.plannedDate>end)return;
+    const t=wpTask(p);if(!t||!isMaintenanceTask(t))return;
     const due=wpDueFromNotes(p.notes)||t.nextDue||p.plannedDate;
     if(!items.some(x=>String(x.t.id)===String(t.id)&&x.due===due)){
-      items.push({t,due,plan:p,backlog:due<start});
+      items.push({t,due,plan:wpLatestForOccurrence(t.id,due)||p,backlog:due<start});
     }
   });
   return items;
@@ -2987,54 +3063,42 @@ function v3PeriodBounds(period=pmV3DashboardPeriod,anchor=null){
   return {start,end,label};
 }
 function v3RequirementItems(start,end){
-  // One current PM requirement per maintenance task.
-  // IMPORTANT: do not manufacture future recurrences inside the selected period.
-  // The database next_due is the source of truth; after execution it advances and
-  // the task will naturally enter the next relevant period. This keeps Day/Week/
-  // Month/Half-year/Year counts consistent for every department.
-  const byTask=new Map();
-  for(const t of maintenanceTasks()){
-    const due=maintenancePlanningAnchor(t);
-    if(!due||due<start||due>end)continue;
-    byTask.set(String(t.id),{t,due,plan:v3OccurrenceRow(t.id,due),backlog:false});
-  }
-
-  // Preserve an explicitly planned occurrence in the selected execution period,
-  // but still keep only one row per task. This avoids duplicate task counts.
-  pmWorkPlan.forEach(p=>{
-    if(!p.plannedDate||p.plannedDate<start||p.plannedDate>end)return;
-    const t=wpTask(p);if(!t||!isMaintenanceTask(t))return;
-    const due=wpDueFromNotes(p.notes)||maintenancePlanningAnchor(t)||p.plannedDate;
-    const key=String(t.id);
-    const existing=byTask.get(key);
-    if(!existing)byTask.set(key,{t,due,plan:v3OccurrenceRow(t.id,due)||p,backlog:false});
-    else if(!existing.plan)existing.plan=v3OccurrenceRow(t.id,existing.due)||p;
-  });
-  return [...byTask.values()];
+  // Unified occurrence model: backlog + every new recurrence in the selected period.
+  // A missed weekly/monthly/etc. requirement never suppresses later cycles.
+  return wpRequirementItems(start,end);
 }
 function v3FilterTask(t,dep,machine,performer,plan){
   return (!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!performer||(plan?.assignedTo||t.performer)===performer||t.performer===performer);
 }
 function v3CurrentBacklog(dep='',machine='',performer='',refDate=today()){
-  return maintenanceTasks().filter(t=>v3FilterTask(t,dep,machine,performer,null)).map(t=>{
-    const due=maintenancePlanningAnchor(t);if(!due)return null;
-    const p=v3OccurrenceRow(t.id,due),item={t,due,plan:p,backlog:due<refDate};
-    return {...item,state:v3OccurrenceState(item,refDate)};
-  }).filter(x=>x&&x.due<=refDate&&(x.state==='waiting'||x.state==='overdue'));
-}
-function v3OpenWorkThrough(end,dep='',machine='',performer=''){
-  const byTask=new Map();
+  const out=[];
   for(const t of maintenanceTasks()){
     if(!v3FilterTask(t,dep,machine,performer,null))continue;
-    const due=maintenancePlanningAnchor(t);
-    if(!due||due>end)continue;
-    const plan=v3OccurrenceRow(t.id,due);
-    const item={t,due,plan,backlog:due<today()};
-    const st=v3OccurrenceState(item);
-    if(st==='completed'||st==='cancelled')continue;
-    byTask.set(String(t.id),{...item,state:st});
+    let due=t.nextDue||maintenancePlanningAnchor(t);if(!due)continue;
+    let guard=0;
+    while(due<=refDate&&guard++<5000){
+      const plan=wpLatestForOccurrence(t.id,due),item={t,due,plan,backlog:due<refDate};
+      const state=v3OccurrenceState(item,refDate);
+      if(state==='waiting'||state==='overdue')out.push({...item,state});
+      due=nextDueFrom(due,t.frequency);
+    }
   }
-  return [...byTask.values()];
+  return out;
+}
+function v3OpenWorkThrough(end,dep='',machine='',performer=''){
+  const out=[];
+  for(const t of maintenanceTasks()){
+    if(!v3FilterTask(t,dep,machine,performer,null))continue;
+    let due=t.nextDue||maintenancePlanningAnchor(t);if(!due)continue;
+    let guard=0;
+    while(due<=end&&guard++<5000){
+      const plan=wpLatestForOccurrence(t.id,due),item={t,due,plan,backlog:due<today()};
+      const state=v3OccurrenceState(item);
+      if(state!=='completed'&&state!=='cancelled')out.push({...item,state});
+      due=nextDueFrom(due,t.frequency);
+    }
+  }
+  return out;
 }
 function syncPlanningAnchorFromDashboard(){
   const d=document.getElementById('pmDashboardAnchor');
@@ -3285,8 +3349,18 @@ unplanSelected=async function(){
 };
 
 async function cancelOccurrence(item,reason){
-  const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';const existing=v3OccurrenceRow(item.t.id,item.due);const payload={task_id:item.t.id,planned_date:existing?.plannedDate||item.due,assigned_to:existing?.assignedTo||item.t.performer||null,priority:existing?.priority||'בינונית',status:'Cancelled',completed_date:null,postponed_reason:reason,notes:`PM_DUE:${item.due}`,created_by:actor};
-  const res=existing?await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id):await supabaseClient.from('pm_work_plan').insert(payload);if(res.error)throw res.error;
+  const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
+  const existing=v3OccurrenceRow(item.t.id,item.due);
+  const payload={task_id:item.t.id,planned_date:existing?.plannedDate||item.due,assigned_to:existing?.assignedTo||item.t.performer||null,priority:existing?.priority||'בינונית',status:'Cancelled',completed_date:null,postponed_reason:reason,notes:`PM_DUE:${item.due}`,created_by:actor};
+  const res=existing?await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id):await supabaseClient.from('pm_work_plan').insert(payload);
+  if(res.error)throw res.error;
+  // If the cancelled occurrence was the earliest master due, move the pointer to the next OPEN cycle.
+  // Later missed cycles remain intact and continue to appear as backlog.
+  if(String(item.t.nextDue||'')===String(item.due)){
+    const next=pmNextOpenDueAfter(item.t,item.due);
+    const tr=await supabaseClient.from('pm_tasks').update({next_due:next}).eq('id',item.t.id);
+    if(tr.error)throw tr.error;
+  }
 }
 async function cancelSelectedPlanning(){
   if(!pmCan('manageExceptions'))return statusLine('ביטול טיפול זמין למנהל אחזקה בלבד.','error');
@@ -3322,18 +3396,42 @@ renderReport=function(){
   repOpen.textContent=list.length+' משימות להצגה';repLate.textContent=list.filter(x=>v3OccurrenceState(x,reportDate)==='overdue').length+' באיחור';repToday.textContent=planned.length+' בתוכנית העבודה';
   const doneForDate=pmWorkPlan.filter(p=>v3RowStatus(p)==='completed'&&p.completedDate===reportDate).length,total=planned.length+doneForDate;pmProgressFill.style.width=(total?doneForDate/total*100:0)+'%';pmProgressText.textContent=`${doneForDate} מתוך ${total} בוצעו`;
   if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין משימות לביצוע בתאריך ובסינון שנבחרו.</div>';return}
-  const canManage=pmCan('manageExceptions');pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div><div class="pm-task-actions"><button class="complete" onclick="completeTask('${x.t.id}','${p?.id||''}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
+  const canManage=pmCan('manageExceptions');pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div><div class="pm-task-actions"><button class="complete" onclick="completeTask('${x.t.id}','${p?.id||''}','${x.due}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
 };
 
 // Completion accepts Planned or Postponed rows and closes them as Completed.
 const __v3CompleteBase=completeTask;
-completeTask=async function(id,workPlanId=''){
-  if(!requirePM('report','אין הרשאה לדווח טיפול.'))return;const t=tasks.find(x=>String(x.id)===String(id)),date=pmReportDate.value||today();if(!t)return;let p=workPlanId?pmWorkPlan.find(x=>String(x.id)===String(workPlanId)):null;
-  if(!p){const due=t.nextDue||date;p=v3OccurrenceRow(t.id,due)}
+completeTask=async function(id,workPlanId='',occurrenceDue=''){
+  if(!requirePM('report','אין הרשאה לדווח טיפול.'))return;
+  const t=tasks.find(x=>String(x.id)===String(id)),date=pmReportDate.value||today();if(!t)return;
+  let p=workPlanId?pmWorkPlan.find(x=>String(x.id)===String(workPlanId)):null;
+  const due=occurrenceDue||wpDueFromNotes(p?.notes)||t.nextDue||date;
+  if(!p)p=wpLatestForOccurrence(t.id,due);
   if(history.some(h=>String(h.taskId)===String(id)&&h.date===date)){statusLine('כבר קיים דיווח למשימה זו בתאריך שנבחר.','error');return}
-  const oldLast=t.lastDone||null,oldNext=t.nextDue||null,nextDue=nextDueFrom(date,t.frequency);statusLine('שומר טיפול בענן…');const updateRes=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextDue}).eq('id',t.id);if(updateRes.error){statusLine('שמירת הטיפול נכשלה: '+updateRes.error.message,'error');return}
-  try{await insertHistoryAdaptive(t,date);if(p){const r=await supabaseClient.from('pm_work_plan').update({status:'Completed',completed_date:date}).eq('id',p.id);if(r.error)throw r.error}}catch(err){await supabaseClient.from('pm_tasks').update({last_done:oldLast,next_due:oldNext}).eq('id',t.id);if(p)await supabaseClient.from('pm_work_plan').update({status:v3RowStatus(p)==='postponed'?'Postponed':'Planned',completed_date:null}).eq('id',p.id);statusLine('הטיפול לא נשמר באופן מלא: '+(err?.message||'שגיאה'),'error');return}
-  await reloadCloudData();statusLine('הטיפול בוצע ונרשם מול תוכנית העבודה.','success');
+
+  const oldLast=t.lastDone||null,oldNext=t.nextDue||null;
+  // Closing a later occurrence must NEVER erase an older backlog occurrence.
+  // Advance the master pointer only when the occurrence being closed is the current earliest due.
+  const nextMaster=(String(oldNext||'')===String(due))?pmNextOpenDueAfter(t,due):oldNext;
+  statusLine('שומר טיפול בענן…');
+  const updateRes=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextMaster}).eq('id',t.id);
+  if(updateRes.error){statusLine('שמירת הטיפול נכשלה: '+updateRes.error.message,'error');return}
+  try{
+    await insertHistoryAdaptive(t,date);
+    if(p){
+      const r=await supabaseClient.from('pm_work_plan').update({status:'Completed',completed_date:date}).eq('id',p.id);if(r.error)throw r.error;
+    }else{
+      // An unplanned completion still closes ONE explicit PM occurrence.
+      const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
+      const r=await supabaseClient.from('pm_work_plan').insert({task_id:t.id,planned_date:date,assigned_to:t.performer||null,priority:'בינונית',status:'Completed',completed_date:date,postponed_reason:null,notes:`PM_DUE:${due}`,created_by:actor});
+      if(r.error)throw r.error;
+    }
+  }catch(err){
+    await supabaseClient.from('pm_tasks').update({last_done:oldLast,next_due:oldNext}).eq('id',t.id);
+    if(p)await supabaseClient.from('pm_work_plan').update({status:v3RowStatus(p)==='postponed'?'Postponed':'Planned',completed_date:null}).eq('id',p.id);
+    statusLine('הטיפול לא נשמר באופן מלא: '+(err?.message||'שגיאה'),'error');return;
+  }
+  await reloadCloudData();statusLine('הטיפול בוצע ונרשם מול מופע התחזוקה המתאים.','success');
 };
 
 renderTodayWorkPlan=function(){
