@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260820-balanced-all-tasks-v20"/>
+<meta name="fop-build" content="20260820-maintenance-anchor-fix-v23"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -3236,7 +3236,10 @@ function updatePlanningEntryButtons(){
 // This is especially important immediately after Initialize: on the last day of a
 // calendar week the new first due date may already belong to the next week.
 function pmBestPlanningAnchor(preferred=today()){
-  const dueDates=tasks.filter(t=>t.active!==false&&t.nextDue).map(t=>String(t.nextDue)).sort();
+  const dueDates=maintenanceTasks()
+  .filter(t=>t.active!==false&&t.nextDue)
+  .map(t=>String(t.nextDue))
+  .sort();
   if(!dueDates.length)return preferred;
   const weekStart=weekStartFrom(preferred),weekEnd=addDays(weekStart,6);
   if(dueDates.some(d=>d>=weekStart&&d<=weekEnd))return preferred;
