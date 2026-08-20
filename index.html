@@ -2436,6 +2436,9 @@ async function initializePMPlan(){
     return out;
   }
   const updates=buildBalancedInitUpdates(activeTasks,base);
+  const expectedDueById=new Map(updates.map(u=>[String(u.id),u.next_due]));
+  // Snapshot operator tasks. Initialization must never modify them.
+  const operatorBefore=new Map(operatorTasks().map(t=>[String(t.id),JSON.stringify({nextDue:t.nextDue||null,lastDone:t.lastDone||null,notes:t.notes||null})]));
 
   // Hard pre-write validation: every active task exactly once and inside its first cycle.
   const updateIds=new Set(updates.map(u=>String(u.id)));
@@ -2462,15 +2465,41 @@ async function initializePMPlan(){
       const histRes=await supabaseClient.from('pm_history').delete().in('task_id',batch);
       if(histRes.error)console.warn('pm_history reset cleanup skipped; old rows will stay archived:',histRes.error.message);
     }
-    for(const u of updates){
-      const t=activeTasks.find(x=>String(x.id)===String(u.id));
-      // Remove old program audit markers, preserve normal notes, and stamp a new program boundary.
-      // Any old pm_history rows that survive RLS DELETE are excluded by this marker.
+    // v22: write ALL maintenance-technician tasks in bulk batches instead of 1 HTTP request per task.
+    // The old per-row loop could stop halfway on a transient request failure, leaving some departments
+    // on the new distribution and others on the old dates. Bulk upsert makes each batch consistent and
+    // dramatically reduces the number of network requests.
+    const updateById=new Map(updates.map(u=>[String(u.id),u]));
+    const initMarker=`[PM_INIT|${base}|${cleanAuditValue(initStamp)}|${cleanAuditValue(initActor)}]`;
+    const rows=activeTasks.map(t=>{
+      const u=updateById.get(String(t.id));
       const cleanNotes=visibleTaskNotes(t?.notes||'');
-      const initMarker=`[PM_INIT|${today()}|${cleanAuditValue(initStamp)}|${cleanAuditValue(initActor)}]`;
-      const payload={last_done:null,next_due:u.next_due,notes:[cleanNotes,initMarker].filter(Boolean).join('\n')};
-      const res=await supabaseClient.from('pm_tasks').update(payload).eq('id',u.id);
-      if(res.error)throw res.error;
+      return {
+        id:t.id,
+        department:String(t.department||'').trim(),
+        machine:String(t.machine||'').trim(),
+        task:String(t.task||'').trim(),
+        frequency:t.frequency,
+        performer:'טכנאי אחזקה',
+        duration:t.duration===null||t.duration===''||t.duration===undefined?null:Number(t.duration),
+        parts:t.parts||null,
+        notes:[cleanNotes,initMarker].filter(Boolean).join('\n'),
+        next_due:u.next_due,
+        last_done:null,
+        active:t.active!==false
+      };
+    });
+    for(let i=0;i<rows.length;i+=100){
+      const batch=rows.slice(i,i+100);
+      let lastErr=null;
+      for(let attempt=1;attempt<=3;attempt++){
+        const res=await supabaseClient.from('pm_tasks').upsert(batch,{onConflict:'id'});
+        if(!res.error){lastErr=null;break;}
+        lastErr=res.error;
+        console.warn(`PM init batch ${i/100+1} attempt ${attempt} failed:`,res.error.message);
+        if(attempt<3)await new Promise(r=>setTimeout(r,350*attempt));
+      }
+      if(lastErr)throw lastErr;
     }
 
     // Clear local copies immediately so stale history cannot flash before cloud reload.
@@ -2494,8 +2523,9 @@ async function initializePMPlan(){
     for(const t of cloudActive){
       const cycleEnd=nextDueFrom(base,t.frequency);
       const hasThisInit=String(t.notes||'').includes(`[PM_INIT|${base}|`);
-      if(!t.nextDue||t.nextDue<base||t.nextDue>=cycleEnd||!hasThisInit)
-        bad.push(`${t.department} / ${t.machine} / ${t.task}`);
+      const expected=expectedDueById.get(String(t.id));
+      if(!t.nextDue||t.nextDue<base||t.nextDue>=cycleEnd||!hasThisInit||t.nextDue!==expected)
+        bad.push(`${t.department} / ${t.machine} / ${t.task} (${t.nextDue||'NULL'} != ${expected||'?'})`);
     }
     // Distribution audit: for every department+frequency group with more than one task
     // and a cycle longer than one day, the cloud must contain more than one due date.
@@ -2517,7 +2547,14 @@ async function initializePMPlan(){
         }
       }
     }
-    if(cloudActive.length!==activeTasks.length||bad.length||distributionBad.length){
+    const operatorBad=[];
+    for(const t of operatorTasks()){
+      const before=operatorBefore.get(String(t.id));
+      const after=JSON.stringify({nextDue:t.nextDue||null,lastDone:t.lastDone||null,notes:t.notes||null});
+      if(before!==undefined&&before!==after)operatorBad.push(`${t.department} / ${t.machine} / ${t.task}`);
+    }
+    if(operatorTasks().length!==operatorBefore.size)operatorBad.push('מספר משימות המפעיל השתנה במהלך האתחול');
+    if(cloudActive.length!==activeTasks.length||bad.length||distributionBad.length||operatorBad.length){
       const details=distributionBad.slice(0,8).join('; ');
       throw new Error(`אימות האתחול בענן נכשל: ${bad.length} משימות לא תקינות, ${distributionBad.length} קבוצות לא מפוזרות מתוך ${cloudActive.length} משימות פעילות.${details?' '+details:''}`);
     }
