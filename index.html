@@ -2398,7 +2398,7 @@ async function initializePMPlan(){
   const fmt=n=>String(n).padStart(2,'0');
   const updates=activeTasks.map(t=>{
     const base=`${now.getFullYear()}-${fmt(now.getMonth()+1)}-${fmt(now.getDate())}`;
-    return {id:t.id,next_due:base};
+    return {id:t.id,next_due:nextDueFrom(base,t.frequency)};
   });
 
   try{
