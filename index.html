@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v16-wo-free-equipment"/>
+<meta name="fop-build" content="20260821-v17-clean-dashboard-planning"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -473,6 +473,20 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">כל המכונות</option></select></div>
   <div class="field"><label>מקצוע</label><select id="pmDashboardTrade" onchange="renderDashboard()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
   <div class="field"><label>סוג עבודה</label><select id="pmDashboardWorkType" onchange="renderUnplannedDashboard()"><option value="">הכול</option><option value="PM">PM מחזורי</option><option value="WO">לא מתוכנן</option></select></div>
+</div>
+
+<div id="pmV17Dashboard">
+  <div class="pm-v17-kpis">
+    <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('open')"><strong id="pmV17Open">0</strong><span>פתוחות</span><small>PM + WO שעדיין דורשות טיפול</small></div>
+    <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('overdue')"><strong id="pmV17Overdue">0</strong><span>באיחור</span><small>עבר מועד היעד</small></div>
+    <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('week')"><strong id="pmV17Week">0</strong><span>לשבוע הקרוב</span><small>עבודה שדורשת תשומת לב בקרוב</small></div>
+    <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('wo')"><strong id="pmV17WO">0</strong><span>WO פתוחות</span><small id="pmV17WOUrgent">מתוכן 0 דחופות / משביתות</small></div>
+  </div>
+  <div class="pm-v17-split">
+    <div class="pm-v17-section"><h3>עומס לפי מקצוע</h3><div id="pmV17Trade" class="pm-v17-bars"></div></div>
+    <div class="pm-v17-section"><h3>סוג העבודה</h3><div id="pmV17Type" class="pm-v17-bars"></div></div>
+  </div>
+  <div class="pm-v17-section pm-v17-attention"><h3>דורש תשומת לב</h3><div id="pmV17Attention"></div></div>
 </div>
 
 <div class="pm-v3-status-grid">
@@ -3835,6 +3849,35 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 <style id="pm-bilingual-style">
 .pm-lang-switch{position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;z-index:10000;display:flex;gap:5px;background:rgba(255,255,255,.96);padding:5px;border-radius:12px;box-shadow:0 2px 12px #0002;border:1px solid #ddd}.pm-lang-switch button{border:0;background:transparent;border-radius:8px;padding:6px 9px;font-weight:800;font-size:15px;cursor:pointer}.pm-lang-switch button.active{background:#111;color:#fff}html[dir="ltr"] body{text-align:left}.pm-lang-switch{direction:ltr}
+
+/* ===== V17 CLEAN DASHBOARD + PLANNING ===== */
+.pm-v17-hidden{display:none!important}
+.pm-v17-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:14px 0}
+.pm-v17-kpi{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px;cursor:pointer;box-shadow:0 3px 12px rgba(15,23,42,.05)}
+.pm-v17-kpi strong{display:block;font-size:30px;line-height:1.05;margin-bottom:6px}
+.pm-v17-kpi span{font-weight:800}.pm-v17-kpi small{display:block;color:#64748b;margin-top:5px}
+.pm-v17-section{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px;margin-top:14px}
+.pm-v17-section h3{margin:0 0 12px}
+.pm-v17-split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.pm-v17-bars{display:grid;gap:9px}
+.pm-v17-bar{display:grid;grid-template-columns:90px 1fr auto;align-items:center;gap:9px}
+.pm-v17-track{height:9px;background:#eef2f7;border-radius:999px;overflow:hidden}.pm-v17-fill{height:100%;background:currentColor;border-radius:999px}
+.pm-v17-attention .pm-v3-mini{cursor:pointer}
+.pm-v17-planning-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.pm-v17-loadline{font-size:14px;color:#475569;font-weight:700}
+@media(max-width:760px){.pm-v17-kpis{grid-template-columns:1fr 1fr}.pm-v17-split{grid-template-columns:1fr}.pm-v17-kpi strong{font-size:25px}}
+
+#pmDashboard .pm-v3-status-grid,
+#pmDashboard .pm-plan-summary,
+#pmDashboard #pmWODashboardList,
+#pmDashboard .pm-v3-kpi-grid,
+#pmDashboard .pm-v3-backlog-banner,
+#pmDashboard .pm-plan-today,
+#pmDashboard .pm-v3-two-col{display:none!important}
+
+#pmPlanner .pm-plan-summary{display:none!important}
+#pmPlanner #pmWOPlannerList{margin-top:8px}
+#pmPlanner .panel-box:has(#pmWOPlannerList){display:none!important}
 </style>
 
 <script id="pm-bilingual-i18n">
@@ -3986,6 +4029,60 @@ const _renderReportV13=renderReport;renderReport=function(){_renderReportV13();r
 const _renderDashboardV13=renderDashboard;renderDashboard=function(){_renderDashboardV13();renderUnplannedDashboard();};
 function renderUnplannedEverywhere(){try{renderUnplannedDashboard();renderUnplannedPlanner();renderUnplannedReport();}catch(e){console.warn(e)}}
 document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{if(pmCurrentUser)loadWorkOrders()},900));
+
+/* ===== V17 dashboard/planning presentation layer ===== */
+function pmV17Set(id,v){const e=document.getElementById(id);if(e)e.textContent=v}
+function pmV17WOOpenRows(){
+  return (Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>String(w.status||'').toLowerCase()!=='completed');
+}
+function pmV17DashboardRender(){
+  const dep=document.getElementById('pmDashboardDepartment')?.value||'';
+  const machine=document.getElementById('pmDashboardMachine')?.value||'';
+  const trade=document.getElementById('pmDashboardTrade')?.value||'';
+  const pmOpen=v3OpenWorkThrough(today(),dep,machine,'').filter(x=>!trade||maintenanceTrade(x.t)===trade);
+  const overdue=pmOpen.filter(x=>x.due<today());
+  const weekEnd=addDays(today(),7);
+  const weekPM=v3OpenWorkThrough(weekEnd,dep,machine,'').filter(x=>x.due>=today()&&x.due<=weekEnd&&(!trade||maintenanceTrade(x.t)===trade));
+  const wo=pmV17WOOpenRows().filter(w=>(!dep||w.department===dep)&&(!machine||w.machine===machine)&&(!trade||String(w.trade||'')===trade));
+  const urgent=wo.filter(w=>['דחופה','משביתה'].includes(String(w.priority||'')));
+  const weekWO=wo.filter(w=>w.due_date&&String(w.due_date)>=today()&&String(w.due_date)<=weekEnd);
+  pmV17Set('pmV17Open',pmOpen.length+wo.length);
+  pmV17Set('pmV17Overdue',overdue.length+wo.filter(w=>w.due_date&&String(w.due_date)<today()).length);
+  pmV17Set('pmV17Week',weekPM.length+weekWO.length);
+  pmV17Set('pmV17WO',wo.length);pmV17Set('pmV17WOUrgent',`מתוכן ${urgent.length} דחופות / משביתות`);
+
+  const trades={'מכונאי':0,'חשמלאי':0,'משולב':0};
+  pmOpen.forEach(x=>{const k=maintenanceTrade(x.t)||'מכונאי';trades[k]=(trades[k]||0)+1});
+  wo.forEach(w=>{const k=w.trade||'מכונאי';trades[k]=(trades[k]||0)+1});
+  const maxT=Math.max(1,...Object.values(trades));
+  const tb=document.getElementById('pmV17Trade');if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${esc(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/maxT*100)}%"></div></div><strong>${v}</strong></div>`).join('');
+  const pmN=pmOpen.length,woN=wo.length,maxY=Math.max(1,pmN,woN);
+  const ty=document.getElementById('pmV17Type');if(ty)ty.innerHTML=[['PM',pmN],['WO',woN]].map(([k,v])=>`<div class="pm-v17-bar"><span>${k}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/maxY*100)}%"></div></div><strong>${v}</strong></div>`).join('');
+
+  const attPM=[...overdue,...weekPM].sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5);
+  const attWO=[...urgent,...wo.filter(w=>w.due_date&&String(w.due_date)<today())].filter((w,i,a)=>a.findIndex(z=>z.id===w.id)===i).slice(0,5);
+  const at=document.getElementById('pmV17Attention');
+  if(at){
+    const rows=[
+      ...attWO.map(w=>`<div class="pm-v3-mini" onclick="pmV17OpenPlanner('wo')"><div><strong>${esc(w.machine||'מכונה / תשתית')} — ${esc(w.description||'WO')}</strong><small>WO · ${esc(w.trade||'')} · יעד ${esc(fDate(w.due_date))}</small></div><span class="tag red">${esc(w.priority||'פתוחה')}</span></div>`),
+      ...attPM.map(x=>v3MiniHtml(x,x.due<today()?'overdue':'waiting'))
+    ];
+    at.innerHTML=rows.length?rows.join(''):'<div class="empty">אין כרגע פריטים חריגים או דחופים.</div>';
+  }
+}
+function pmV17OpenPlanner(kind){
+  showTab('planner');
+  const status=document.getElementById('pmPlannerStatus'),type=document.getElementById('pmPlannerWorkType');
+  if(status)status.value='';if(type)type.value='';
+  if(kind==='overdue'&&status)status.value='overdue';
+  if(kind==='wo'&&type)type.value='WO';
+  if(kind==='week'){setPlanningPeriod('week');}
+  renderPlanner(); if(typeof renderUnplannedPlanner==='function')renderUnplannedPlanner();
+}
+const pmV17OldDashboard=renderDashboard;
+renderDashboard=function(){pmV17OldDashboard();pmV17DashboardRender();};
+const pmV17OldPlanner=renderPlanner;
+renderPlanner=function(){pmV17OldPlanner();if(typeof renderUnplannedPlanner==='function')renderUnplannedPlanner();};
 </script>
 
 </body></html>
