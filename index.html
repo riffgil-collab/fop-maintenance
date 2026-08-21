@@ -161,7 +161,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 .pm-modal-backdrop{display:none;position:fixed;z-index:10000;inset:0;background:rgba(4,17,35,.58);backdrop-filter:blur(6px);align-items:center;justify-content:center;padding:18px}.pm-modal-backdrop.open{display:flex}
 .pm-modal-card{width:min(520px,100%);background:#fff;border-radius:24px;padding:22px;box-shadow:0 24px 70px rgba(0,0,0,.28)}.pm-modal-card h3{margin:0 0 8px;color:var(--navy2)}.pm-modal-card p{margin:0 0 16px;color:var(--muted);font-size:12px;line-height:1.5}
 .pm-modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}.pm-modal-actions button{border:0;border-radius:12px;padding:13px;font-weight:900}.pm-modal-actions .create{background:#7042d4;color:#fff}.pm-modal-actions .cancel{background:#edf2f8;color:#203858}
-.pm-modal-status{min-height:20px;margin-top:10px;font-size:12px;color:var(--muted)}.pm-modal-status.error{color:#b60029}.pm-modal-status.success{color:#12733b}
+.pm-modal-status{min-height:20px;margin-top:10px;font-size:12px;color:var(--muted)}.pm-modal-status.error{color:#b60029}.pm-modal-status.success{color:#12733b}.pm-photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}.pm-photo-box{border:1px dashed #9fb0c5;border-radius:14px;padding:10px;background:#f8fafc}.pm-photo-box input{width:100%}.pm-photo-preview{display:none;width:100%;max-height:150px;object-fit:cover;border-radius:10px;margin-top:8px}.pm-history-notes{margin-top:7px;padding:8px 10px;background:#f7f9fc;border-radius:9px;font-size:11px;white-space:pre-wrap}.pm-history-photos{display:flex;gap:6px;margin-top:7px;flex-wrap:wrap}.pm-history-photos button{border:0;border-radius:8px;padding:6px 9px;background:#e8eef8;color:#17375e;font-weight:800;font-size:10px}
 .pm-access-denied{padding:22px;border:1px solid #f1d38c;border-radius:15px;background:#fff9e9;color:#725500;text-align:center;font-size:12px;font-weight:800}
 @media(max-width:760px){.pm-user-row{grid-template-columns:1fr}.pm-role-select,.pm-user-btn{width:100%}.pm-user-active{justify-content:flex-start}}
 
@@ -790,6 +790,19 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="pm-modal-status" id="pmPostponeStatus"></div>
 </div>
 </div>
+<div class="pm-modal-backdrop" id="pmCompleteModal" onclick="if(event.target===this)closeCompleteModal()">
+<div class="pm-modal-card" role="dialog" aria-modal="true">
+<h3>דיווח ביצוע טיפול</h3><p id="pmCompleteTaskText"></p>
+<label for="pmCompletionNotes">הערות על הטיפול (לא חובה)</label>
+<textarea id="pmCompletionNotes" rows="4" placeholder="מה בוצע, ממצאים, המלצה להמשך..." style="width:100%;box-sizing:border-box"></textarea>
+<div class="pm-photo-grid">
+<div class="pm-photo-box"><b>תמונה 1</b><input id="pmPhoto1" type="file" accept="image/*" capture="environment" onchange="previewCompletionPhoto(1)"><img id="pmPhotoPreview1" class="pm-photo-preview"></div>
+<div class="pm-photo-box"><b>תמונה 2</b><input id="pmPhoto2" type="file" accept="image/*" capture="environment" onchange="previewCompletionPhoto(2)"><img id="pmPhotoPreview2" class="pm-photo-preview"></div>
+</div>
+<small>עד שתי תמונות. האפליקציה מקטינה ודוחסת אותן לפני ההעלאה.</small>
+<div class="pm-modal-actions"><button class="cancel" onclick="closeCompleteModal()" type="button">ביטול</button><button class="create" id="pmCompleteSaveButton" onclick="saveCompletionWithDocumentation()" type="button">✓ שמור טיפול</button></div>
+<div class="pm-modal-status" id="pmCompleteStatus"></div>
+</div></div>
 <!--
   ============================================================
   FOP PREVENTIVE MAINTENANCE — SINGLE FILE ARCHITECTURE
@@ -1021,7 +1034,10 @@ function normalizeHistoryRow(h){
     machine:h.machine??task.machine??'',
     task:h.task??task.task??'',
     frequency:h.frequency??task.frequency??'',
-    performer:h.performer??task.performer??''
+    performer:h.performer??task.performer??'',
+    completionNotes:h.completionNotes??h.completion_notes??'',
+    photo1Path:h.photo1Path??h.photo_1_path??'',
+    photo2Path:h.photo2Path??h.photo_2_path??''
   };
 }
 
@@ -1111,13 +1127,13 @@ function taskDbPayload(t){
   };
 }
 
-async function insertHistoryAdaptive(t,date){
+async function insertHistoryAdaptive(t,date,documentation={}){
   const now=new Date().toISOString();
   const uid=pmCurrentUser?.id||null;
   const email=pmCurrentUser?.email||'משתמש';
 
   const candidates=[
-    {task_id:t.id,date,reported_at:now,reported_by:email,department:t.department,machine:t.machine,task:t.task,frequency:t.frequency,performer:t.performer},
+    {task_id:t.id,date,reported_at:now,reported_by:email,department:t.department,machine:t.machine,task:t.task,frequency:t.frequency,performer:t.performer,completion_notes:documentation.notes||null,photo_1_path:documentation.photo1Path||null,photo_2_path:documentation.photo2Path||null},
     {task_id:t.id,completed_date:date,completed_at:now,completed_by:uid},
     {task_id:t.id,completed_at:now,completed_by:uid},
     {task_id:t.id,performed_at:now,performed_by:uid},
@@ -1819,40 +1835,66 @@ async function savePostpone(){
 }
 
 
-async function completeTask(id){
+let pmCompletionTaskId=null;
+function completeTask(id){
   if(!requirePM('report','אין הרשאה לדווח טיפול.'))return;
   const t=tasks.find(x=>String(x.id)===String(id)), date=pmReportDate.value||today();
   if(!t)return;
-  if(history.some(h=>String(h.taskId)===String(id)&&h.date===date)){
-    statusLine('כבר קיים דיווח למשימה זו בתאריך שנבחר.','error');
-    return;
-  }
-
-  const nextDue=nextDueFrom(date,t.frequency);
-  statusLine('שומר טיפול בענן…','');
-
-  const updateRes=await supabaseClient
-    .from('pm_tasks')
-    .update({last_done:date,next_due:nextDue})
-    .eq('id',t.id);
-  if(updateRes.error){
-    statusLine('שמירת הטיפול נכשלה: '+updateRes.error.message,'error');
-    return;
-  }
-
-  try{
-    await insertHistoryAdaptive(t,date);
-  }catch(err){
-    // Roll back task dates if history could not be written, to keep the two tables consistent.
-    await supabaseClient.from('pm_tasks').update({last_done:t.lastDone||null,next_due:t.nextDue||null}).eq('id',t.id);
-    statusLine('הטיפול לא נשמר בהיסטוריה: '+(err?.message||'שגיאה לא ידועה'),'error');
-    return;
-  }
-
-  await reloadCloudData();
-  statusLine('הטיפול נשמר בענן ומועד הטיפול הבא חושב אוטומטית.','success');
+  if(history.some(h=>String(h.taskId)===String(id)&&h.date===date)){statusLine('כבר קיים דיווח למשימה זו בתאריך שנבחר.','error');return;}
+  pmCompletionTaskId=id;
+  document.getElementById('pmCompleteTaskText').textContent=`${t.machine} — ${t.task} · ${fDate(date)}`;
+  document.getElementById('pmCompletionNotes').value='';
+  for(const n of [1,2]){const inp=document.getElementById('pmPhoto'+n),img=document.getElementById('pmPhotoPreview'+n);inp.value='';img.removeAttribute('src');img.style.display='none';}
+  const st=document.getElementById('pmCompleteStatus');st.textContent='';st.className='pm-modal-status';
+  document.getElementById('pmCompleteModal').classList.add('open');
 }
-
+function closeCompleteModal(){document.getElementById('pmCompleteModal').classList.remove('open');pmCompletionTaskId=null;}
+function previewCompletionPhoto(n){const f=document.getElementById('pmPhoto'+n)?.files?.[0],img=document.getElementById('pmPhotoPreview'+n);if(!f){img.style.display='none';return;}const u=URL.createObjectURL(f);img.src=u;img.style.display='block';img.onload=()=>URL.revokeObjectURL(u);}
+async function compressMaintenancePhoto(file){
+  if(!file)return null;
+  const bitmap=await createImageBitmap(file); const maxDim=1280; let w=bitmap.width,h=bitmap.height;
+  if(Math.max(w,h)>maxDim){const scale=maxDim/Math.max(w,h);w=Math.round(w*scale);h=Math.round(h*scale);}
+  const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(bitmap,0,0,w,h);bitmap.close?.();
+  let quality=.72,blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',quality));
+  while(blob&&blob.size>300*1024&&quality>.38){quality-=.08;blob=await new Promise(r=>canvas.toBlob(r,'image/jpeg',quality));}
+  if(!blob)throw new Error('לא ניתן לעבד את התמונה.');
+  return blob;
+}
+function safeStorageName(v){return String(v||'task').replace(/[^a-zA-Z0-9_-]/g,'_').slice(0,80)}
+async function uploadMaintenancePhoto(file,t,date,index){
+  if(!file)return '';
+  const blob=await compressMaintenancePhoto(file);
+  if(blob.size>1024*1024)throw new Error('התמונה גדולה מדי גם לאחר דחיסה.');
+  const path=`${date}/${safeStorageName(t.id)}/${Date.now()}_${index}.jpg`;
+  const {error}=await supabaseClient.storage.from('maintenance-photos').upload(path,blob,{contentType:'image/jpeg',upsert:false});
+  if(error)throw error; return path;
+}
+async function saveCompletionWithDocumentation(){
+  const id=pmCompletionTaskId,t=tasks.find(x=>String(x.id)===String(id)),date=pmReportDate.value||today();if(!t)return;
+  const btn=document.getElementById('pmCompleteSaveButton'),st=document.getElementById('pmCompleteStatus');btn.disabled=true;st.className='pm-modal-status';
+  let photo1Path='',photo2Path='';
+  try{
+    st.textContent='מעבד ושומר את הדיווח…';
+    const f1=document.getElementById('pmPhoto1').files?.[0],f2=document.getElementById('pmPhoto2').files?.[0];
+    if(f1)photo1Path=await uploadMaintenancePhoto(f1,t,date,1);
+    if(f2)photo2Path=await uploadMaintenancePhoto(f2,t,date,2);
+    const notes=document.getElementById('pmCompletionNotes').value.trim();
+    const nextDue=nextDueFrom(date,t.frequency);
+    const updateRes=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextDue}).eq('id',t.id);
+    if(updateRes.error)throw updateRes.error;
+    try{await insertHistoryAdaptive(t,date,{notes,photo1Path,photo2Path});}
+    catch(err){await supabaseClient.from('pm_tasks').update({last_done:t.lastDone||null,next_due:t.nextDue||null}).eq('id',t.id);throw err;}
+    st.textContent='הטיפול נשמר.';st.classList.add('success');await reloadCloudData();statusLine('הטיפול, ההערות והתמונות נשמרו בענן.','success');setTimeout(closeCompleteModal,450);
+  }catch(err){
+    if(photo1Path)await supabaseClient.storage.from('maintenance-photos').remove([photo1Path]);
+    if(photo2Path)await supabaseClient.storage.from('maintenance-photos').remove([photo2Path]);
+    st.textContent='שמירת הטיפול נכשלה: '+(err?.message||'שגיאה לא ידועה');st.classList.add('error');
+  }finally{btn.disabled=false;}
+}
+async function openMaintenancePhoto(path){
+  if(!path)return;const {data,error}=await supabaseClient.storage.from('maintenance-photos').createSignedUrl(path,300);
+  if(error||!data?.signedUrl){statusLine('לא ניתן לפתוח את התמונה.','error');return;}window.open(data.signedUrl,'_blank');
+}
 
 /* ============================================================
    HISTORY
@@ -1866,7 +1908,7 @@ function fillHistoryMachines(){
 }
 function filteredHistory(){
   const dep=pmHistoryDepartment.value, machine=pmHistoryMachine.value, from=pmHistoryFrom.value, to=pmHistoryTo.value, q=pmHistorySearch.value.trim().toLowerCase();
-  return allHistoryEvents().filter(h=>(!dep||h.department===dep)&&(!machine||h.machine===machine)&&(!from||h.date>=from)&&(!to||h.date<=to)&&(!q||`${h.machine} ${h.task} ${h.department} ${h.performer} ${h.reportedBy||''} ${h.reason||''}`.toLowerCase().includes(q)))
+  return allHistoryEvents().filter(h=>(!dep||h.department===dep)&&(!machine||h.machine===machine)&&(!from||h.date>=from)&&(!to||h.date<=to)&&(!q||`${h.machine} ${h.task} ${h.department} ${h.performer} ${h.reportedBy||''} ${h.reason||''} ${h.completionNotes||''}`.toLowerCase().includes(q)))
 }
 function renderHistory(){
   const list=filteredHistory().slice(0,500);
@@ -1878,6 +1920,8 @@ function renderHistory(){
       <div><strong>${esc(fDate(h.date))}</strong><span class="pm-history-event ${postponed?'postponed':'completed'}">${postponed?'נדחה':'בוצע'}</span></div>
       <div><strong>${esc(h.machine)}</strong><small>${esc(h.task)}</small><small>${esc(h.department)} · ${esc(h.frequency)} · ${esc(h.performer)}</small>
         ${postponed?`<div class="pm-postpone-detail">מועד מקורי: ${esc(fDate(h.oldDue))} → מועד חדש: ${esc(fDate(h.newDue))}<br>סיבה: ${esc(h.reason||'—')}</div>`:''}
+        ${!postponed&&h.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${esc(h.completionNotes)}</div>`:''}
+        ${!postponed&&(h.photo1Path||h.photo2Path)?`<div class="pm-history-photos">${h.photo1Path?`<button type="button" onclick="openMaintenancePhoto('${esc(h.photo1Path)}')">📷 תמונה 1</button>`:''}${h.photo2Path?`<button type="button" onclick="openMaintenancePhoto('${esc(h.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:''}
       </div>
       <div class="history-user">${esc(h.reportedBy||'—')}</div>
       ${canManage&&!postponed?`<div class="pm-history-actions"><button class="pm-undo" type="button" onclick="undoCompletion('${esc(String(h.id??''))}','${esc(String(h.taskId??''))}','${esc(String(h.date??''))}')">↩ Undo</button></div>`:''}
