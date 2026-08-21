@@ -471,6 +471,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <div class="field"><label>תאריך עוגן</label><input id="pmDashboardAnchor" type="date" onchange="syncPlanningAnchorFromDashboard()"/></div>
   <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();renderDashboard()"></select></div>
   <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">כל המכונות</option></select></div>
+  <div class="field"><label>מקצוע</label><select id="pmDashboardTrade" onchange="renderDashboard()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
 </div>
 
 <div class="pm-v3-status-grid">
@@ -527,6 +528,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     <div class="field"><label>תאריך עוגן</label><input id="pmPlannerStart" type="date" onchange="syncDashboardAnchorFromPlanning()"/></div>
     <div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="fillPlanningMachines();pmPlanPage=0;renderPlanner()"></select></div>
     <div class="field"><label>מכונה</label><select id="pmPlannerMachine" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המכונות</option></select></div>
+    <div class="field"><label>מקצוע</label><select id="pmPlannerTrade" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
     <div class="field"><label>סטטוס</label><select id="pmPlannerStatus" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל הסטטוסים</option><option value="waiting">ממתינה לתכנון</option><option value="planned">מתוכננת</option><option value="postponed">נדחתה</option><option value="overdue">באיחור</option><option value="cancelled">בוטלה</option><option value="completed">בוצעה</option></select></div>
   </div>
 
@@ -582,6 +584,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();fillReportPerformers();renderReport()"></select></div>
 <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
 <div class="field"><label>מבצע</label><select id="pmReportPerformer" onchange="renderReport()"><option value="">מבצעים</option></select></div>
+<div class="field"><label>מקצוע</label><select id="pmReportTrade" onchange="renderReport()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
 </div>
 <label class="pm-report-mode"><input id="pmReportIncludeUnplanned" type="checkbox" onchange="renderReport()"/> הצג גם טיפולים פתוחים שלא שובצו לתוכנית העבודה</label>
 <div class="report-summary">
@@ -616,6 +619,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     <div class="field"><label>מחלקה</label><select id="pmMaintenanceCheckDepartment" onchange="fillMaintenanceCheckMachines();renderMaintenanceChecks()"><option value="">כל המחלקות</option></select></div>
     <div class="field"><label>מכונה</label><select id="pmMaintenanceCheckMachine" onchange="renderMaintenanceChecks()"><option value="">כל המכונות</option></select></div>
     <div class="field"><label>תדירות</label><select id="pmMaintenanceCheckFrequency" onchange="renderMaintenanceChecks()"><option value="">כל התדירויות</option></select></div>
+    <div class="field"><label>מקצוע</label><select id="pmMaintenanceCheckTrade" onchange="renderMaintenanceChecks()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
     <button type="button" class="primary-btn" onclick="printMaintenanceChecklist()">הדפס Checklist לאחזקה</button>
@@ -1510,7 +1514,7 @@ const PM_ELECTRICAL_TERMS=['חשמל','כבל','ארון חשמל','לוח חש'
 function pmHasTerm(text,terms){const x=String(text||'').toLowerCase();return terms.some(k=>x.includes(String(k).toLowerCase()));}
 function isMaintenanceInspection(t){if(!t||t.active===false||!isMaintenancePerformer(t.performer))return false;const x=t.task||'';return !pmHasTerm(x,PM_PHYSICAL_TERMS)&&pmHasTerm(x,PM_INSPECTION_TERMS);}
 function isMaintenanceTask(t){return !!t&&t.active!==false&&isMaintenancePerformer(t.performer)&&!isMaintenanceInspection(t);}
-function maintenanceTrade(t){const x=`${t?.task||''} ${t?.machine||''}`;return pmHasTerm(x,PM_ELECTRICAL_TERMS)?'חשמלאי':'מכונאי';}
+function maintenanceTrade(t){const x=`${t?.task||''} ${t?.machine||''}`;const e=pmHasTerm(x,PM_ELECTRICAL_TERMS),m=pmHasTerm(x,PM_MECHANICAL_TERMS);if(e&&m)return 'משולב';if(e)return 'חשמלאי';return 'מכונאי';}
 function maintenanceTasks(){return tasks.filter(isMaintenanceTask);}
 function maintenanceInspectionTasks(){return tasks.filter(isMaintenanceInspection);}
 function operatorTasks(){return tasks.filter(isOperatorTask);}
@@ -1570,9 +1574,9 @@ function fillMaintenanceCheckFilters(){
   fillMaintenanceCheckMachines();
 }
 function fillMaintenanceCheckMachines(){const sel=document.getElementById('pmMaintenanceCheckMachine');if(!sel)return;const dep=document.getElementById('pmMaintenanceCheckDepartment')?.value||'';const old=sel.value;const vals=[...new Set(maintenanceInspectionTasks().filter(t=>!dep||t.department===dep).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));sel.innerHTML='<option value="">כל המכונות</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(vals.includes(old))sel.value=old;}
-function maintenanceChecklistItems(){const dep=document.getElementById('pmMaintenanceCheckDepartment')?.value||'',machine=document.getElementById('pmMaintenanceCheckMachine')?.value||'',frequency=document.getElementById('pmMaintenanceCheckFrequency')?.value||'';return maintenanceInspectionTasks().filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!frequency||t.frequency===frequency)).sort((a,b)=>String(a.department).localeCompare(String(b.department),'he')||String(a.machine).localeCompare(String(b.machine),'he')||String(a.frequency).localeCompare(String(b.frequency),'he')||String(a.task).localeCompare(String(b.task),'he'));}
+function maintenanceChecklistItems(){const dep=document.getElementById('pmMaintenanceCheckDepartment')?.value||'',machine=document.getElementById('pmMaintenanceCheckMachine')?.value||'',frequency=document.getElementById('pmMaintenanceCheckFrequency')?.value||'',trade=document.getElementById('pmMaintenanceCheckTrade')?.value||'';return maintenanceInspectionTasks().filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!frequency||t.frequency===frequency)&&(!trade||maintenanceTrade(t)===trade)).sort((a,b)=>String(a.department).localeCompare(String(b.department),'he')||String(a.machine).localeCompare(String(b.machine),'he')||String(a.frequency).localeCompare(String(b.frequency),'he')||String(a.task).localeCompare(String(b.task),'he'));}
 function renderMaintenanceChecks(){const box=document.getElementById('pmMaintenanceChecksList');if(!box)return;const items=maintenanceChecklistItems();const c=document.getElementById('pmMaintenanceCheckCount');if(c)c.textContent=`${maintenanceInspectionTasks().length} בדיקות אחזקה במאגר · ${items.length} מוצגות לפי הסינון`;box.innerHTML=items.length?items.map(t=>`<div class="task-card"><div><div class="task-machine">${esc(t.machine)}</div><div class="task-desc">${esc(t.task)}</div><div class="task-meta">${esc(t.department)} · ${esc(t.frequency)} · ${Number(t.duration||0)} דק׳ · ${maintenanceTrade(t)}</div></div><span class="status">☐</span></div>`).join(''):'<div class="empty">אין בדיקות אחזקה לפי הסינון שנבחר.</div>';}
-function printMaintenanceChecklist(){const items=maintenanceChecklistItems();if(!items.length){alert('אין בדיקות להדפסה לפי הסינון שנבחר.');return;}const dep=document.getElementById('pmMaintenanceCheckDepartment')?.value||'כל המחלקות',machine=document.getElementById('pmMaintenanceCheckMachine')?.value||'כל המכונות',frequency=document.getElementById('pmMaintenanceCheckFrequency')?.value||'כל התדירויות';const rows=items.map((t,i)=>`<tr><td>${i+1}</td><td>${esc(t.department)}</td><td>${esc(t.machine)}</td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${maintenanceTrade(t)}</td><td style="width:55px">☐</td></tr>`).join('');const w=window.open('','_blank');w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>Checklist אחזקה</title><style>body{font-family:Arial,sans-serif;padding:24px}h1{font-size:22px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:7px;text-align:right;font-size:12px}.meta{margin:10px 0 18px}.sign{margin-top:24px;display:flex;justify-content:space-between}</style></head><body><h1>Checklist בדיקות אחזקה</h1><div class="meta">תאריך: __________ · מחלקה: ${esc(dep)} · מכונה: ${esc(machine)} · תדירות: ${esc(frequency)}</div><table><thead><tr><th>#</th><th>מחלקה</th><th>מכונה</th><th>בדיקה</th><th>תדירות</th><th>מקצוע</th><th>בוצע</th></tr></thead><tbody>${rows}</tbody></table><div class="sign"><span>שם איש אחזקה: __________________</span><span>חתימה: __________________</span><span>אישור מנהל: __________________</span></div><script>window.onload=()=>window.print();<\/script></body></html>`);w.document.close();}
+function printMaintenanceChecklist(){const items=maintenanceChecklistItems();if(!items.length){alert('אין בדיקות להדפסה לפי הסינון שנבחר.');return;}const dep=document.getElementById('pmMaintenanceCheckDepartment')?.value||'כל המחלקות',machine=document.getElementById('pmMaintenanceCheckMachine')?.value||'כל המכונות',frequency=document.getElementById('pmMaintenanceCheckFrequency')?.value||'כל התדירויות',trade=document.getElementById('pmMaintenanceCheckTrade')?.value||'כל המקצועות';const rows=items.map((t,i)=>`<tr><td>${i+1}</td><td>${esc(t.department)}</td><td>${esc(t.machine)}</td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${maintenanceTrade(t)}</td><td style="width:55px">☐</td></tr>`).join('');const w=window.open('','_blank');w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>Checklist אחזקה</title><style>body{font-family:Arial,sans-serif;padding:24px}h1{font-size:22px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:7px;text-align:right;font-size:12px}.meta{margin:10px 0 18px}.sign{margin-top:24px;display:flex;justify-content:space-between}</style></head><body><h1>Checklist בדיקות אחזקה</h1><div class="meta">תאריך: __________ · מחלקה: ${esc(dep)} · מכונה: ${esc(machine)} · תדירות: ${esc(frequency)} · מקצוע: ${esc(trade)}</div><table><thead><tr><th>#</th><th>מחלקה</th><th>מכונה</th><th>בדיקה</th><th>תדירות</th><th>מקצוע</th><th>בוצע</th></tr></thead><tbody>${rows}</tbody></table><div class="sign"><span>שם איש אחזקה: __________________</span><span>חתימה: __________________</span><span>אישור מנהל: __________________</span></div><script>window.onload=()=>window.print();<\/script></body></html>`);w.document.close();}
 
 function normalize(t){
   return {
@@ -1740,16 +1744,17 @@ function fillReportMachines(){
 function renderReport(){
   const dep=pmReportDepartment.value, machine=pmReportMachine.value;
   const performer=document.getElementById('pmReportPerformer')?.value||'';
+  const trade=document.getElementById('pmReportTrade')?.value||'';
   const reportDate=pmReportDate.value||today();
   const includeUnplanned=document.getElementById('pmReportIncludeUnplanned')?.checked===true;
   const planned=plannedItemsForDate(reportDate)
     .filter(x=>!isPlanItemDone(x))
-    .filter(x=>(!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer))
+    .filter(x=>(!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer)&&(!trade||maintenanceTrade(x.t)===trade))
     .map(x=>({t:x.t,s:stateOf({...x.t,nextDue:x.due}),plan:x.plan,plannedDue:x.due}));
   const plannedIds=new Set(planned.map(x=>String(x.t.id)));
   const extras=includeUnplanned?openTasks(dep)
     .filter(x=>!plannedIds.has(String(x.t.id)))
-    .filter(x=>(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer)):[];
+    .filter(x=>(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer)&&(!trade||maintenanceTrade(x.t)===trade)):[];
   const list=[...planned,...extras]
     .sort((a,b)=>(a.plan?0:1)-(b.plan?0:1)||a.s.n-b.s.n||a.t.machine.localeCompare(b.t.machine,'he'));
 
@@ -1767,7 +1772,7 @@ function renderReport(){
   pmOpenTasks.innerHTML=list.map(x=>`<div class="open-task ${x.s.state} ${x.s.state==='overdue'?'topbar-red':'topbar-orange'}" id="open-${x.t.id}">
     <div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div>
     <div class="big-late">${x.plan?'בתוכנית העבודה':(x.s.state==='overdue'?Math.abs(x.s.n)+' ימי איחור':'לביצוע היום')}</div>
-    <div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(x.plan?.assignee||x.t.performer)}<br>יעד: ${esc(fDate(x.plannedDue||x.t.nextDue))}${x.plan?`<br>תאריך מתוכנן: ${esc(fDate(x.plan.plannedDate))}<br>עדיפות: ${esc(x.plan.priority)}`:''}${x.t.lastDone?`<br>טיפול אחרון: ${esc(fDate(x.t.lastDone))}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div>
+    <div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(x.plan?.assignee||x.t.performer)}<br>מקצוע: ${maintenanceTrade(x.t)}<br>יעד: ${esc(fDate(x.plannedDue||x.t.nextDue))}${x.plan?`<br>תאריך מתוכנן: ${esc(fDate(x.plan.plannedDate))}<br>עדיפות: ${esc(x.plan.priority)}`:''}${x.t.lastDone?`<br>טיפול אחרון: ${esc(fDate(x.t.lastDone))}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div>
     ${x.t.parts?`<div class="meta"><strong>חלקים:</strong> ${esc(x.t.parts)}</div>`:''}
     ${visibleTaskNotes(x.t.notes)?`<div class="meta"><strong>הערות:</strong> ${esc(visibleTaskNotes(x.t.notes))}</div>`:''}</div>
     <div class="pm-task-actions">
@@ -3313,15 +3318,16 @@ renderDashboard=function(){
   const dep=document.getElementById('pmDashboardDepartment')?.value||'';
   const machine=document.getElementById('pmDashboardMachine')?.value||'';
   const performer=document.getElementById('pmDashboardPerformer')?.value||'';
+  const trade=document.getElementById('pmDashboardTrade')?.value||'';
   const dashAnchor=document.getElementById('pmDashboardAnchor');
   if(dashAnchor&&!dashAnchor.value)dashAnchor.value=document.getElementById('pmPlannerStart')?.value||pmBestPlanningAnchor(today());
   const {start,end,label}=v3PeriodBounds(pmV3DashboardPeriod,dashAnchor?.value||today());
-  const items=v3RequirementItems(start,end).filter(x=>isMaintenanceTask(x.t)&&v3FilterTask(x.t,dep,machine,'',x.plan));
+  const items=v3RequirementItems(start,end).filter(x=>isMaintenanceTask(x.t)&&v3FilterTask(x.t,dep,machine,'',x.plan)&&(!trade||maintenanceTrade(x.t)===trade));
   const groups={waiting:[],planned:[],completed:[],postponed:[],cancelled:[],overdue:[]};
   items.forEach(x=>{const st=v3OccurrenceState(x);(groups[st]||(groups[st]=[])).push(x)});
 
   v3Set('pmV3RangeText',`${label} · ${items.length} טיפולי אחזקה ייחודיים בטווח שנבחר`);
-  const openThroughEnd=v3OpenWorkThrough(end,dep,machine,'');
+  const openThroughEnd=v3OpenWorkThrough(end,dep,machine,'').filter(x=>!trade||maintenanceTrade(x.t)===trade);
   const previousBacklog=openThroughEnd.filter(x=>x.due<start);
   const dueInSelectedPeriod=openThroughEnd.filter(x=>x.due>=start&&x.due<=end);
   v3Set('pmV3Waiting',openThroughEnd.length);
@@ -3380,10 +3386,11 @@ filteredPlanningItems=function(){
   const dep=document.getElementById('pmPlannerDepartment')?.value||'';
   const machine=document.getElementById('pmPlannerMachine')?.value||'';
   const perf=document.getElementById('pmPlannerPerformer')?.value||'';
+  const trade=document.getElementById('pmPlannerTrade')?.value||'';
   const status=document.getElementById('pmPlannerStatus')?.value||'';
   return v3RequirementItems(start,end).filter(x=>{
     const st=v3OccurrenceState(x);
-    return (!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&isMaintenanceTask(x.t)&&(!status||st===status);
+    return (!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&isMaintenanceTask(x.t)&&(!trade||maintenanceTrade(x.t)===trade)&&(!status||st===status);
   }).sort((a,b)=>{
     const rank={overdue:0,waiting:1,postponed:2,planned:3,completed:4,cancelled:5};
     const ra=rank[v3OccurrenceState(a)]??9,rb=rank[v3OccurrenceState(b)]??9;
