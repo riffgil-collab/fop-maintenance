@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v33-task-management-rebuilt"/>
+<meta name="fop-build" content="20260821-v34-task-management-dynamic-filters"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -402,9 +402,12 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <style id="fop-qa-release-polish">html{scroll-behavior:smooth}body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}button,input,select,textarea{-webkit-tap-highlight-color:transparent}button{touch-action:manipulation}.card,.panel-box,.pm-v3-health,.pm-workload-box{box-shadow:0 10px 30px rgba(12,38,78,.07)}input:focus,select:focus,textarea:focus{outline:none!important;border-color:#8fb8ef!important;box-shadow:0 0 0 4px rgba(22,109,213,.10)!important}button:active{transform:translateY(1px)}@media(max-width:680px){button,.btn,input,select{min-height:44px}.pm-plan-row{gap:10px!important}.pm-plan-main strong{line-height:1.35}.pm-plan-main small{line-height:1.45}.task-card,.open-task{overflow-wrap:anywhere}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}</style>
 <style id="fop-v33-task-management-css">
 .tm-toolbar{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:10px;background:#fff;border:1px solid #e7e7e7;border-radius:16px;padding:14px;margin-bottom:12px}
-.tm-search{grid-column:span 1}.tm-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.tm-search{grid-column:span 1}
+.tm-filter-indicator{display:flex;justify-content:space-between;gap:10px;align-items:center;background:#f8fafc;border:1px solid #dbe4ef;border-radius:13px;padding:10px 13px;margin:10px 0;color:#475467}
+.tm-filter-indicator.active{background:#eef8f2;border-color:#8fc7a4;color:#17643a}.tm-filter-indicator span{font-size:12px}
+.tm-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
 .tm-summary>div{background:#fff;border:1px solid #e7e7e7;border-radius:14px;padding:12px 14px;display:flex;align-items:baseline;gap:8px}
-.tm-summary strong{font-size:24px}.tm-summary span{font-size:12px;color:#667085;font-weight:700}
+.tm-summary strong{font-size:24px}.tm-summary-primary{border-color:#8fc7a4!important;background:#f5fbf7!important}.tm-summary span{font-size:12px;color:#667085;font-weight:700}
 .tm-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
 .tm-layout{display:grid;grid-template-columns:minmax(310px,38%) 1fr;gap:14px;align-items:start}
 .tm-list-panel,.tm-editor-panel{background:#fff;border:1px solid #e7e7e7;border-radius:16px;overflow:hidden}
@@ -788,17 +791,21 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <div class="tm-toolbar">
     <div class="field"><label>מחלקה</label><select id="tmDepartment" onchange="tmFilterChanged('department')"><option value="">כל המחלקות</option></select></div>
     <div class="field"><label>מכונה / תשתית</label><select id="tmMachine" onchange="tmFilterChanged('machine')"><option value="">כל המכונות</option></select></div>
-    <div class="field"><label>סוג משימה</label><select id="tmKind" onchange="tmRenderList()">
-      <option value="">כל הסוגים</option><option value="physical">אחזקה פיזית</option><option value="inspection">בדיקת אחזקה</option><option value="operator">בדיקת מפעיל</option>
+    <div class="field"><label>סוג משימה</label><select id="tmKind" onchange="tmFilterChanged('kind')">
+      <option value="">כל הסוגים</option><option value="physical">PM</option><option value="inspection">בדיקת אחזקה</option><option value="operator">בדיקת מפעיל</option>
     </select></div>
-    <div class="field"><label>תדירות</label><select id="tmFrequency" onchange="tmRenderList()"><option value="">כל התדירויות</option></select></div>
-    <div class="field"><label>סטטוס</label><select id="tmStatus" onchange="tmRenderList()"><option value="">הכול</option><option value="active">פעילות</option><option value="inactive">לא פעילות</option></select></div>
+    <div class="field"><label>מקצוע מבצע</label><select id="tmTrade" onchange="tmFilterChanged('trade')">
+      <option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option><option value="מפעיל">מפעיל</option>
+    </select></div>
+    <div class="field"><label>תדירות</label><select id="tmFrequency" onchange="tmFilterChanged('frequency')"><option value="">כל התדירויות</option></select></div>
+    <div class="field"><label>סטטוס</label><select id="tmStatus" onchange="tmFilterChanged('status')"><option value="">הכול</option><option value="active">פעילות</option><option value="inactive">לא פעילות</option></select></div>
     <div class="field tm-search"><label>חיפוש</label><input id="tmSearch" oninput="tmRenderList()" placeholder="מכונה / משימה / הערה"/></div>
   </div>
 
+  <div id="tmFilterIndicator" class="tm-filter-indicator"><b>מציג את כל המאגר</b><span id="tmFilterIndicatorText">ללא סינון פעיל</span></div>
   <div class="tm-summary">
-    <div><strong id="tmCountAll">0</strong><span>במאגר</span></div>
-    <div><strong id="tmCountPhysical">0</strong><span>אחזקה פיזית</span></div>
+    <div class="tm-summary-primary"><strong id="tmCountFiltered">0</strong><span>מוצגות לפי הסינון</span></div>
+    <div><strong id="tmCountPhysical">0</strong><span>PM</span></div>
     <div><strong id="tmCountInspection">0</strong><span>בדיקות אחזקה</span></div>
     <div><strong id="tmCountOperator">0</strong><span>בדיקות מפעיל</span></div>
   </div>
@@ -842,7 +849,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 
         <div class="edit-grid">
           <div class="field full"><label>סוג משימה</label><select id="tmEditKind" onchange="tmKindChanged()">
-            <option value="physical">אחזקה פיזית</option><option value="inspection">בדיקת אחזקה</option><option value="operator">בדיקת מפעיל</option>
+            <option value="physical">PM</option><option value="inspection">בדיקת אחזקה</option><option value="operator">בדיקת מפעיל</option>
           </select></div>
           <div class="field"><label>מחלקה</label><input id="tmEditDepartment"/></div>
           <div class="field"><label>מכונה / תשתית</label><input id="tmEditMachine"/></div>
@@ -5033,7 +5040,7 @@ renderPlanner=function(){
 <script id="fop-v33-task-management">
 (function(){
  const $=id=>document.getElementById(id);
- const KINDS={physical:'אחזקה פיזית',inspection:'בדיקת אחזקה',operator:'בדיקת מפעיל'};
+ const KINDS={physical:'PM',inspection:'בדיקת אחזקה',operator:'בדיקת מפעיל'};
  let tmSelectedId=null,tmMode='view',tmSource='master',tmSyncing=false;
  const uniq=a=>[...new Set(a.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'));
  const tagKind=t=>{const m=String(t?.notes||'').match(/\[TASK_KIND:(physical|inspection|operator)\]/);return m?m[1]:null};
@@ -5058,8 +5065,11 @@ renderPlanner=function(){
    if(!sel)return;const old=sel.value;sel.innerHTML=`<option value="">${first}</option>`+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(vals.includes(old))sel.value=old;
  }
  function tmRows(){
-   const d=$('tmDepartment')?.value||'',m=$('tmMachine')?.value||'',k=$('tmKind')?.value||'',f=$('tmFrequency')?.value||'',st=$('tmStatus')?.value||'',q=($('tmSearch')?.value||'').trim().toLowerCase();
-   return tasks.filter(t=>(!d||t.department===d)&&(!m||t.machine===m)&&(!k||inferredKind(t)===k)&&(!f||t.frequency===f)&&(!st||(st==='active'?(t.active!==false):(t.active===false)))&&(!q||`${t.department} ${t.machine} ${t.task} ${cleanMeta(t.notes)}`.toLowerCase().includes(q)));
+   const d=$('tmDepartment')?.value||'',m=$('tmMachine')?.value||'',k=$('tmKind')?.value||'',tr=$('tmTrade')?.value||'',f=$('tmFrequency')?.value||'',st=$('tmStatus')?.value||'',q=($('tmSearch')?.value||'').trim().toLowerCase();
+   return tasks.filter(t=>{
+     const tk=inferredKind(t), trade=tk==='operator'?'מפעיל':maintenanceTrade(t);
+     return (!d||t.department===d)&&(!m||t.machine===m)&&(!k||tk===k)&&(!tr||trade===tr)&&(!f||t.frequency===f)&&(!st||(st==='active'?(t.active!==false):(t.active===false)))&&(!q||`${t.department} ${t.machine} ${t.task} ${cleanMeta(t.notes)} ${trade}`.toLowerCase().includes(q));
+   });
  }
  window.tmRefreshFilters=function(){
    if(!$('tmDepartment'))return;
@@ -5068,19 +5078,44 @@ renderPlanner=function(){
    options($('tmMachine'),uniq(tasks.filter(t=>!d||t.department===d).map(t=>t.machine)),'כל המכונות');
    options($('tmFrequency'),uniq(tasks.map(t=>t.frequency)),'כל התדירויות');
    ['tmEditFrequency'].forEach(id=>{const el=$(id);if(el){const old=el.value;el.innerHTML=uniq([...Object.keys(FREQ_DAYS),...tasks.map(t=>t.frequency)]).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(old)el.value=old}});
-   tmRenderList();tmFillMasterDepartments();
+   tmRebuildDependentOptions();tmRenderList();tmFillMasterDepartments();
  };
+
+ function tmRebuildDependentOptions(){
+   const d=$('tmDepartment')?.value||'',m=$('tmMachine')?.value||'',k=$('tmKind')?.value||'',tr=$('tmTrade')?.value||'',f=$('tmFrequency')?.value||'',st=$('tmStatus')?.value||'';
+   const compatible=(skip)=>tasks.filter(t=>{
+     const tk=inferredKind(t),trade=tk==='operator'?'מפעיל':maintenanceTrade(t);
+     return (skip==='department'||!d||t.department===d)&&(skip==='machine'||!m||t.machine===m)&&(skip==='kind'||!k||tk===k)&&(skip==='trade'||!tr||trade===tr)&&(skip==='frequency'||!f||t.frequency===f)&&(skip==='status'||!st||(st==='active'?(t.active!==false):(t.active===false)));
+   });
+   const setKeep=(id,vals,first,map=x=>x)=>{const el=$(id);if(!el)return;const old=el.value;el.innerHTML=`<option value="">${first}</option>`+uniq(vals).map(v=>`<option value="${esc(v)}">${esc(map(v))}</option>`).join('');if([...el.options].some(o=>o.value===old))el.value=old};
+   setKeep('tmDepartment',compatible('department').map(t=>t.department),'כל המחלקות');
+   setKeep('tmMachine',compatible('machine').map(t=>t.machine),'כל המכונות');
+   setKeep('tmKind',compatible('kind').map(t=>inferredKind(t)),'כל הסוגים',v=>KINDS[v]||v);
+   setKeep('tmTrade',compatible('trade').map(t=>inferredKind(t)==='operator'?'מפעיל':maintenanceTrade(t)),'כל המקצועות');
+   setKeep('tmFrequency',compatible('frequency').map(t=>t.frequency),'כל התדירויות');
+ }
+
  window.tmRenderList=function(){
    if(!$('tmTaskList'))return;const rows=tmRows();
    $('tmVisibleCount').textContent=`${rows.length} מוצגות`;
-   $('tmCountAll').textContent=tasks.length;$('tmCountPhysical').textContent=tasks.filter(t=>inferredKind(t)==='physical').length;$('tmCountInspection').textContent=tasks.filter(t=>inferredKind(t)==='inspection').length;$('tmCountOperator').textContent=tasks.filter(t=>inferredKind(t)==='operator').length;
+   $('tmCountFiltered').textContent=rows.length;
+   $('tmCountPhysical').textContent=rows.filter(t=>inferredKind(t)==='physical').length;
+   $('tmCountInspection').textContent=rows.filter(t=>inferredKind(t)==='inspection').length;
+   $('tmCountOperator').textContent=rows.filter(t=>inferredKind(t)==='operator').length;
+   const labels=[];
+   const add=(id,label)=>{const el=$(id);if(el&&el.value)labels.push(`${label}: ${el.options?.[el.selectedIndex]?.text||el.value}`)};
+   add('tmDepartment','מחלקה');add('tmMachine','מכונה');add('tmKind','סוג');add('tmTrade','מקצוע');add('tmFrequency','תדירות');add('tmStatus','סטטוס');
+   if(($('tmSearch')?.value||'').trim())labels.push(`חיפוש: ${$('tmSearch').value.trim()}`);
+   const ind=$('tmFilterIndicator');ind.classList.toggle('active',labels.length>0);
+   ind.querySelector('b').textContent=labels.length?`סינון פעיל — ${rows.length} מתוך ${tasks.length}`:`מציג את כל המאגר — ${tasks.length}`;
+   $('tmFilterIndicatorText').textContent=labels.length?labels.join(' · '):'ללא סינון פעיל';
    $('tmTaskList').innerHTML=rows.length?rows.map(t=>`<div class="tm-row ${String(t.id)===String(tmSelectedId)?'selected':''}" onclick="tmOpenEdit('${esc(String(t.id))}')"><div><div class="tm-row-title">${esc(t.machine)}</div><div class="tm-row-task">${esc(t.task)}</div><div class="tm-row-meta">${esc(t.department)} · ${esc(t.frequency||'—')} · ${Number(t.duration||0)} דק׳</div></div><span class="tm-pill ${t.active===false?'off':''}">${t.active===false?'לא פעילה':KINDS[inferredKind(t)]}</span></div>`).join(''):'<div class="empty">אין משימות לפי הסינון שנבחר.</div>';
  };
- window.tmFilterChanged=function(level){
+ window.tmFilterChanged=function(level){tmRebuildDependentOptions();
    if(level==='department'){const d=$('tmDepartment').value;options($('tmMachine'),uniq(tasks.filter(t=>!d||t.department===d).map(t=>t.machine)),'כל המכונות')}
    tmRenderList();tmSyncGlobalFilters();
  };
- window.tmClearFilters=function(){['tmDepartment','tmMachine','tmKind','tmFrequency','tmStatus','tmSearch'].forEach(id=>{if($(id))$(id).value=''});tmRefreshFilters();tmSyncGlobalFilters()};
+ window.tmClearFilters=function(){['tmDepartment','tmMachine','tmKind','tmTrade','tmFrequency','tmStatus','tmSearch'].forEach(id=>{if($(id))$(id).value=''});tmRefreshFilters();tmSyncGlobalFilters()};
  function fillForm(t){
    $('tmEditKind').value=inferredKind(t);$('tmEditDepartment').value=t.department||'';$('tmEditMachine').value=t.machine||'';$('tmEditTask').value=t.task||'';$('tmEditFrequency').value=t.frequency||Object.keys(FREQ_DAYS)[0];$('tmEditDuration').value=t.duration??'';$('tmEditDue').value=t.nextDue||'';$('tmEditLast').value=t.lastDone||'';$('tmEditParts').value=t.parts||'';$('tmEditNotes').value=cleanMeta(t.notes);$('tmEditActive').checked=t.active!==false;const tr=maintenanceTrade(t);if([...$('tmEditTrade').options].some(o=>o.value===tr))$('tmEditTrade').value=tr;tmKindChanged();
  }
@@ -5092,7 +5127,7 @@ renderPlanner=function(){
  window.tmFillMasterMachines=function(){const d=$('tmMasterDepartment').value;options($('tmMasterMachine'),uniq(tasks.filter(t=>!d||t.department===d).map(t=>t.machine)),'בחר מכונה');tmFillMasterTasks()};
  window.tmFillMasterTasks=function(){const d=$('tmMasterDepartment').value,m=$('tmMasterMachine').value,k=$('tmEditKind').value;const a=tasks.filter(t=>(!d||t.department===d)&&(!m||t.machine===m)&&inferredKind(t)===k);const el=$('tmMasterTask');el.innerHTML='<option value="">בחר משימה</option>'+a.map(t=>`<option value="${esc(String(t.id))}">${esc(t.task)}</option>`).join('')};
  window.tmAdoptMasterTask=function(){const t=tasks.find(x=>String(x.id)===String($('tmMasterTask').value));if(!t)return;fillForm(t);$('tmEditDepartment').value=t.department||'';$('tmEditMachine').value=t.machine||''};
- window.tmKindChanged=function(){const k=$('tmEditKind').value;$('tmKindBadge').textContent=KINDS[k];$('tmTradeField').style.display=k==='operator'?'none':'block';$('tmLogicNote').textContent=k==='physical'?'משימת אחזקה פיזית: נכנסת לתוכנית האחזקה המחזורית ול-KPI המתוכננות.':k==='inspection'?'בדיקת אחזקה: מופיעה בכרטיסיית בדיקות אחזקה ואינה נכנסת לתכנון ה-PM המחזורי.':'בדיקת מפעיל: מופיעה בכרטיסיית בדיקות מפעיל ואינה נכנסת לתכנון האחזקה.';if(tmMode==='new'&&tmSource==='master')tmFillMasterTasks()};
+ window.tmKindChanged=function(){const k=$('tmEditKind').value;$('tmKindBadge').textContent=KINDS[k];$('tmTradeField').style.display=k==='operator'?'none':'block';$('tmLogicNote').textContent=k==='physical'?'PM: טיפול אחזקה מתוכנן/מחזורי שנכנס לתכנון, לדשבורד ולדוחות.':k==='inspection'?'בדיקת אחזקה: מופיעה בכרטיסיית בדיקות אחזקה ואינה נכנסת לתכנון ה-PM המחזורי.':'בדיקת מפעיל: מופיעה בכרטיסיית בדיקות מפעיל ואינה נכנסת לתכנון האחזקה.';if(tmMode==='new'&&tmSource==='master')tmFillMasterTasks()};
  window.tmSave=async function(){
    if(!requirePM('writeTasks','אין הרשאה לשמור משימות.'))return;
    const kind=$('tmEditKind').value,department=$('tmEditDepartment').value.trim(),machine=$('tmEditMachine').value.trim(),task=$('tmEditTask').value.trim();
