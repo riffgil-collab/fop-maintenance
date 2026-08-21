@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v19-dashboard-period-safe"/>
+<meta name="fop-build" content="20260821-v20-weekly-minimum"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -3878,6 +3878,12 @@ document.addEventListener('DOMContentLoaded',()=>{
 #pmPlanner .pm-plan-summary{display:none!important}
 #pmPlanner #pmWOPlannerList{margin-top:8px}
 #pmPlanner .panel-box:has(#pmWOPlannerList){display:none!important}
+
+/* ===== V20: weekly is the minimum planning horizon ===== */
+#pmDashboard button[onclick*="setDashboardPeriod('day')"],
+#pmDashboard button[onclick*='setDashboardPeriod("day")'],
+#pmPlanner button[onclick*="setPlanningPeriod('day')"],
+#pmPlanner button[onclick*='setPlanningPeriod("day")']{display:none!important}
 </style>
 
 <script id="pm-bilingual-i18n">
@@ -4115,6 +4121,33 @@ const pmV17OldDashboard=renderDashboard;
 renderDashboard=function(){pmV17OldDashboard();pmV17DashboardRender();};
 const pmV17OldPlanner=renderPlanner;
 renderPlanner=function(){pmV17OldPlanner();if(typeof renderUnplannedPlanner==='function')renderUnplannedPlanner();};
+
+/* ===== V20: no daily planning/dashboard; minimum period is week ===== */
+(function(){
+  const oldDash=window.setDashboardPeriod;
+  if(typeof oldDash==='function'){
+    window.setDashboardPeriod=function(p){
+      return oldDash(p==='day'?'week':p);
+    };
+  }
+  const oldPlan=window.setPlanningPeriod;
+  if(typeof oldPlan==='function'){
+    window.setPlanningPeriod=function(p){
+      return oldPlan(p==='day'?'week':p);
+    };
+  }
+  function forceWeeklyMinimum(){
+    try{
+      if(typeof pmDashboardPeriod!=='undefined' && pmDashboardPeriod==='day') pmDashboardPeriod='week';
+      if(typeof planningPeriod!=='undefined' && planningPeriod==='day') planningPeriod='week';
+      if(typeof pmPlanningPeriod!=='undefined' && pmPlanningPeriod==='day') pmPlanningPeriod='week';
+      if(typeof renderDashboard==='function') renderDashboard();
+      if(typeof renderPlanner==='function') renderPlanner();
+    }catch(e){ console.warn('V20 weekly minimum init',e); }
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(forceWeeklyMinimum,0));
+  else setTimeout(forceWeeklyMinimum,0);
+})();
 </script>
 
 </body></html>
