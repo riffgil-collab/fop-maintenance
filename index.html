@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v37-controlled-wo-to-pm"/>
+<meta name="fop-build" content="20260821-v38-role-permissions"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -425,6 +425,10 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 @media(max-width:520px){.tm-toolbar{grid-template-columns:1fr}.tm-summary{grid-template-columns:repeat(2,1fr)}.tm-layout{display:flex;flex-direction:column}.tm-list-panel,.tm-editor-panel{width:100%}.tm-source-buttons{flex-direction:column}}
 </style>
 
+<style id="pm-v38-role-permissions">
+#pmDashboard.pm-dashboard-readonly button:disabled{opacity:.72;cursor:default}
+#pmDashboard.pm-dashboard-readonly [onclick]{cursor:default}
+</style>
 </head>
 <body>
 <div aria-hidden="true" id="pmAuthOverlay">
@@ -632,6 +636,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div class="panel-box" style="margin-top:16px"><h3>עבודות לא מתוכננות (WO)</h3><div class="pm-plan-note">עבודות חד־פעמיות שהתגלו בבדיקה או בתקלה. הן משתלבות בעומס ובתכנון אך אינן יוצרות מחזור עתידי.</div><div id="pmWOPlannerList"></div></div>
 </section>
 <section class="pm-panel" id="pmReport">
+<div id="pmTechnicianScopeNote" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#475569">מכונאים וחשמלאים רואים את כלל טיפולי האחזקה ויכולים לדווח ביצוע, הערה ועד שתי תמונות.</div>
 <div class="toolbar">
 <div class="field report-date"><label>תאריך ביצוע</label><input id="pmReportDate" type="date"/></div>
 <div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();fillReportPerformers();renderReport()"></select></div>
@@ -990,10 +995,10 @@ let pmCurrentProfile=null;
 let pmCurrentRole='viewer';
 
 const PM_ROLES={
-  admin:{label:'Admin',settings:true,report:true,users:true,initialize:true,importPlan:true,writeTasks:true,manageExceptions:true},
-  maintenance_manager:{label:'Maintenance Manager',settings:true,report:true,users:false,initialize:false,importPlan:false,writeTasks:true,manageExceptions:true},
-  technician:{label:'Technician',settings:false,report:true,users:false,initialize:false,importPlan:false,writeTasks:false,manageExceptions:false},
-  viewer:{label:'Viewer',settings:false,report:false,users:false,initialize:false,importPlan:false,writeTasks:false,manageExceptions:false}
+  admin:{label:'Admin',tabs:['dashboard','planner','report','reports','history','operatorChecks','maintenanceChecks','editTasks','initialization','users'],dashboardReadOnly:false,report:true,users:true,initialize:true,importPlan:true,writeTasks:true,manageExceptions:true},
+  maintenance_manager:{label:'Maintenance Manager',tabs:['dashboard','planner','report','reports','history','operatorChecks','maintenanceChecks'],dashboardReadOnly:false,report:true,users:false,initialize:false,importPlan:false,writeTasks:false,manageExceptions:true},
+  technician:{label:'Technician',tabs:['dashboard','report'],dashboardReadOnly:true,report:true,users:false,initialize:false,importPlan:false,writeTasks:false,manageExceptions:false},
+  viewer:{label:'Viewer',tabs:['dashboard'],dashboardReadOnly:true,report:false,users:false,initialize:false,importPlan:false,writeTasks:false,manageExceptions:false}
 };
 
 
@@ -1033,30 +1038,37 @@ function applyPMPermissions(){
   const badge=document.getElementById('pmRoleBadge');
   if(badge){badge.textContent=cfg.label;badge.className='pm-role-badge '+pmCurrentRole}
 
-  const settingsTab=document.querySelector('[data-pm="settings"]');
-  const usersTab=document.getElementById('pmUsersTabButton');
-  const initializationTab=document.getElementById('pmInitializationTabButton');
-  const reportTab=document.querySelector('[data-pm="report"]');
-  if(settingsTab)settingsTab.style.display=cfg.settings?'':'none';
-  if(usersTab)usersTab.style.display=cfg.users?'':'none';
-  if(initializationTab)initializationTab.style.display=cfg.initialize?'':'none';
-  if(reportTab)reportTab.style.display=cfg.report?'':'none';
+  document.querySelectorAll('.pm-tab[data-pm]').forEach(tab=>{
+    tab.style.display=cfg.tabs.includes(tab.dataset.pm)?'':'none';
+  });
 
   const initBtn=document.getElementById('pmInitBtn');
   const importBtn=document.getElementById('pmImportBtn');
   if(initBtn)initBtn.style.display=cfg.initialize?'':'none';
   if(importBtn)importBtn.style.display=cfg.importPlan?'':'none';
-  const resetBtn=document.getElementById('pmResetDataBtn');if(resetBtn)resetBtn.style.display=cfg.settings?'':'none';
+  const resetBtn=document.getElementById('pmResetDataBtn');if(resetBtn)resetBtn.style.display=pmCurrentRole==='admin'?'':'none';
 
-  const settingsPanel=document.getElementById('pmSettings');
-  if(settingsPanel){
-    settingsPanel.querySelectorAll('.add-box,.settings-grid,.settings-actions,#pmSettingsEditor').forEach(el=>{
-      if(!cfg.writeTasks)el.style.display='none';
+  // Dashboard is strictly read-only for Technician and Viewer.
+  const dash=document.getElementById('pmDashboard');
+  if(dash){
+    dash.classList.toggle('pm-dashboard-readonly',!!cfg.dashboardReadOnly);
+    dash.querySelectorAll('button,a,[onclick]').forEach(el=>{
+      if(cfg.dashboardReadOnly){
+        if(!el.dataset.pmSavedOnclick && el.getAttribute('onclick'))el.dataset.pmSavedOnclick=el.getAttribute('onclick');
+        el.removeAttribute('onclick');
+        if(el.tagName==='BUTTON')el.disabled=true;
+      }else{
+        if(el.dataset.pmSavedOnclick){el.setAttribute('onclick',el.dataset.pmSavedOnclick);delete el.dataset.pmSavedOnclick}
+        if(el.tagName==='BUTTON')el.disabled=false;
+      }
     });
   }
 
+  const techNote=document.getElementById('pmTechnicianScopeNote');
+  if(techNote)techNote.style.display=pmCurrentRole==='technician'?'block':'none';
+
   const current=document.querySelector('.pm-tab.active');
-  if(current && current.style.display==='none')showTab('dashboard');
+  if(!current || current.style.display==='none')showTab('dashboard');
 }
 
 function requirePM(cap,message='אין הרשאה לבצע פעולה זו.'){
@@ -1810,6 +1822,8 @@ function weekStartFrom(s=today()){
   const d=dObj(s); const day=d.getDay(); d.setDate(d.getDate()-day); return dateStr(d)
 }
 function showTab(name){
+  const cfg=PM_ROLES[pmCurrentRole]||PM_ROLES.viewer;
+  if(!cfg.tabs.includes(name))return statusLine('אין הרשאה לכרטיסייה זו.','error');
   if((name==='editTasks'||name==='addTask')&&!pmCan('settings'))return statusLine('אין הרשאה לניהול משימות.','error');
   if(name==='users'&&!pmCan('users'))return statusLine('ניהול משתמשים זמין ל-Admin בלבד.','error');
   if(name==='initialization'&&!pmCan('initialize'))return statusLine('אתחול מערכת זמין ל-Admin בלבד.','error');
