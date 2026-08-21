@@ -518,7 +518,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
   <div class="field"><label>תאריך עוגן</label><input id="pmDashboardAnchor" type="date" onchange="syncPlanningAnchorFromDashboard()"/></div>
   <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();renderDashboard()"></select></div>
   <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">כל המכונות</option></select></div>
-  <div class="field"><label>מקצוע</label><select id="pmDashboardTrade" onchange="renderDashboard()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
+  <div class="field"><label>מקצוע</label><select id="pmDashboardTrade" onchange="renderDashboard()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
   <div class="field"><label>סוג עבודה</label><select id="pmDashboardWorkType" onchange="renderDashboard()"><option value="">הכול</option><option value="PM">PM מחזורי</option><option value="WO">לא מתוכנן</option></select></div>
 </div>
 
@@ -599,7 +599,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="field"><label>תאריך עוגן</label><input id="pmPlannerStart" type="date" onchange="syncDashboardAnchorFromPlanning()"/></div>
     <div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="fillPlanningMachines();pmPlanPage=0;renderPlanner()"></select></div>
     <div class="field"><label>מכונה</label><select id="pmPlannerMachine" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המכונות</option></select></div>
-    <div class="field"><label>מקצוע</label><select id="pmPlannerTrade" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
+    <div class="field"><label>מקצוע</label><select id="pmPlannerTrade" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
     <div class="field"><label>סוג עבודה</label><select id="pmPlannerWorkType" onchange="renderUnplannedPlanner()"><option value="">הכול</option><option value="PM">PM מחזורי</option><option value="WO">לא מתוכנן</option></select></div>
     <button type="button" class="btn" onclick="openUnplannedModal()">➕ עבודה לא מתוכננת</button>
     <div class="field"><label>סטטוס</label><select id="pmPlannerStatus" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל הסטטוסים</option><option value="waiting">ממתינה לתכנון</option><option value="planned">מתוכננת</option><option value="postponed">נדחתה</option><option value="overdue">באיחור</option><option value="cancelled">בוטלה</option><option value="completed">בוצעה</option></select></div>
@@ -659,7 +659,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();renderReport()"></select></div>
 <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
 
-<div class="field"><label>מקצוע</label><select id="pmReportTrade" onchange="renderReport()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
+<div class="field"><label>מקצוע</label><select id="pmReportTrade" onchange="renderReport()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
 </div>
 <div id="pmReportFilterIndicator" style="font-size:12px;font-weight:800;color:#475569;margin:4px 0 10px">מציג: כל המקצועות</div>
 <label class="pm-report-mode"><input id="pmReportIncludeUnplanned" type="checkbox" onchange="renderReport()"/> הצג גם טיפולים פתוחים שלא שובצו לתוכנית העבודה</label>
@@ -735,7 +735,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
         <option value="">כל המקצועות</option>
         <option value="מכונאי">מכונאי</option>
         <option value="חשמלאי">חשמלאי</option>
-        <option value="משולב">משולב</option>
+        
       </select>
     </div>
     <div class="field"><label>סוג עבודה</label>
@@ -975,7 +975,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="field" id="pmWOEquipmentDatabaseField"><label>מכונה / תשתית</label><select id="pmWOMachine"></select></div>
     <div class="field" id="pmWOEquipmentFreeField" style="display:none"><label>מכונה / תשתית חדשה</label><input id="pmWOEquipmentFree" type="text" placeholder="הקלד שם מכונה או תשתית"/></div>
     <div class="field" style="flex:2"><label>עבודה נדרשת</label><input id="pmWODescription" type="text" placeholder="תיאור העבודה"/></div>
-    <div class="field"><label>מקצוע</label><select id="pmWOTrade"><option>מכונאי</option><option>חשמלאי</option><option>משולב</option></select></div>
+    <div class="field"><label>מקצוע</label><select id="pmWOTrade"><option>מכונאי</option><option>חשמלאי</option></select></div>
     <div class="field"><label>עדיפות</label><select id="pmWOPriority"><option>רגילה</option><option>דחופה</option><option>משביתה</option></select></div>
     <div class="field"><label>תאריך יעד</label><input id="pmWODueDate" type="date"/></div>
     <div class="field"><label>תאריך מתוכנן</label><input id="pmWOPlannedDate" type="date"/></div>
@@ -988,7 +988,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div style="width:100%;font-weight:900;color:#173765">הגדרת PM מחזורי חדש</div>
     <div style="width:100%;font-size:12px;color:var(--muted)">ה-WO יישאר אירוע נפרד. הנתונים הבאים ייצרו משימת PM חדשה ומקושרת ל-WO.</div>
     <div class="field" style="flex:2"><label>תיאור משימת PM</label><input id="pmWORecurringTask" type="text"/></div>
-    <div class="field"><label>מקצוע PM</label><select id="pmWORecurringTrade"><option>מכונאי</option><option>חשמלאי</option><option>משולב</option></select></div>
+    <div class="field"><label>מקצוע PM</label><select id="pmWORecurringTrade"><option>מכונאי</option><option>חשמלאי</option></select></div>
     <div class="field"><label>תדירות</label><select id="pmWORecurringFrequency"></select></div>
     <div class="field"><label>מועד PM ראשון</label><input id="pmWORecurringFirstDue" type="date"/></div>
     <div class="field"><label>משך PM משוער (דקות)</label><input id="pmWORecurringDuration" type="number" min="0" step="5"/></div>
@@ -3002,18 +3002,12 @@ async function importPMPlanToSupabase(){
     return;
   }
 
-  const rows=TASK_SEED.map(t=>({
-    department:t.department,
-    machine:t.machine,
-    task:t.task,
-    frequency:t.frequency,
-    performer:t.performer||null,
-    duration:t.duration===null||t.duration===undefined||t.duration===''?null:Number(t.duration),
-    parts:t.parts||null,
-    notes:t.notes||null,
-    next_due:t.nextDue||null,
-    last_done:t.lastDone||null,
-    active:t.active!==false
+  // V47: import must use the same authoritative V46 classification path as normal task editing.
+  // This prevents a fresh/empty database from being populated without task_type + trade.
+  const rows=TASK_SEED.map(t=>taskDbPayload({
+    ...t,
+    taskType:isOperatorPerformer(t.performer)?'inspection':(isMaintenanceInspection(t)?'inspection':'maintenance'),
+    trade:isOperatorPerformer(t.performer)?null:maintenanceTrade(t)
   }));
 
   for(let i=0;i<rows.length;i+=200){
@@ -4401,8 +4395,9 @@ async function saveUnplannedWorkOrder(){
   if(r.error){pmWOStatus.textContent='שמירה נכשלה: '+r.error.message;pmWOStatus.className='pm-modal-status error';return;}
 
   if(makePM){
-    const marker=`[WO_SOURCE:${r.data.id}] [TRADE:${pmDef.trade}] [TASK_KIND:physical]`;
-    const row={department:dep,machine,task:pmDef.task,frequency:pmDef.frequency,performer:'טכנאי אחזקה',duration:pmDef.duration,parts:null,notes:`${marker}${pmDef.notes?` ${pmDef.notes}`:''}`,active:true,last_done:null,next_due:pmDef.firstDue};
+    // V47: database columns are authoritative. Keep only WO provenance in notes.
+    const marker=`[WO_SOURCE:${r.data.id}]`;
+    const row=taskDbPayload({department:dep,machine,task:pmDef.task,frequency:pmDef.frequency,performer:'טכנאי אחזקה',taskType:'maintenance',trade:pmDef.trade,duration:pmDef.duration,parts:null,notes:`${marker}${pmDef.notes?` ${pmDef.notes}`:''}`,active:true,lastDone:null,nextDue:pmDef.firstDue});
     const pr=await supabaseClient.from('pm_tasks').insert(row);
     if(pr.error){
       await supabaseClient.from('pm_work_orders').delete().eq('id',r.data.id);
@@ -4510,9 +4505,9 @@ function pmV17DashboardRender(){
   pmV17Set('pmV17WO',wo.length);
   pmV17Set('pmV17WOUrgent',`מתוכן ${urgent.length} דחופות / משביתות`);
 
-  const trades={'מכונאי':0,'חשמלאי':0,'משולב':0};
+  const trades={'מכונאי':0,'חשמלאי':0};
   pmOpen.forEach(x=>{const k=maintenanceTrade(x.t)||'מכונאי';trades[k]=(trades[k]||0)+1});
-  wo.forEach(w=>{const k=w.trade||'מכונאי';trades[k]=(trades[k]||0)+1});
+  wo.forEach(w=>{const k=w.trade==='חשמלאי'?'חשמלאי':'מכונאי';trades[k]=(trades[k]||0)+1});
   const maxT=Math.max(1,...Object.values(trades));
   const tb=document.getElementById('pmV17Trade');
   if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${esc(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/maxT*100)}%"></div></div><strong>${v}</strong></div>`).join('');
@@ -4854,8 +4849,8 @@ renderPlanner=function(){
     pmV17Set('pmV17WO',wo.length);
     pmV17Set('pmV17WOUrgent',`מתוכן ${urgent.length} דחופות / משביתות`);
 
-    const trades={'מכונאי':0,'חשמלאי':0,'משולב':0};
-    rows.forEach(r=>{trades[r.trade]=(trades[r.trade]||0)+1});
+    const trades={'מכונאי':0,'חשמלאי':0};
+    rows.forEach(r=>{const k=r.trade==='חשמלאי'?'חשמלאי':'מכונאי';trades[k]=(trades[k]||0)+1});
     const maxT=Math.max(1,...Object.values(trades));
     const tb=$('pmV17Trade');
     if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>
@@ -5251,8 +5246,12 @@ renderPlanner=function(){
    const legacy=n.match(/\[KIND:(physical|inspection|operator)\]/);
    return legacy?legacy[1]:null;
  };
- const cleanMeta=n=>String(n||'').split(/\r?\n/).filter(x=>!(/^\[(TASK_KIND|TRADE):/.test(x.trim()))).join('\n').trim();
- const taggedNotes=(visible)=>String(visible||'').trim();
+ // V47: system/audit metadata is hidden from the editor and preserved automatically on save.
+ // Handles both modern one-tag-per-line metadata and older inline tags created by WO flows.
+ const systemMetaTokens=n=>String(n||'').match(/\[(?:TASK_KIND|TRADE|WO_SOURCE):[^\]]+\]|\[PM_[A-Z0-9_]+\|[^\]]*\]/g)||[];
+ const cleanMeta=n=>String(n||'').replace(/\[(?:TASK_KIND|TRADE|WO_SOURCE):[^\]]+\]|\[PM_[A-Z0-9_]+\|[^\]]*\]/g,'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean).join('\n').trim();
+ const systemMeta=n=>systemMetaTokens(n).join('\n').trim();
+ const taggedNotes=(visible,existing='')=>[String(visible||'').trim(),systemMeta(existing)].filter(Boolean).join('\n');
  const inferredKind=t=>{
    // Business rule: performer wins for operator tasks; task_type wins for maintenance technician tasks.
    if(isOperatorPerformer(t?.performer))return 'operator';
@@ -5345,11 +5344,12 @@ renderPlanner=function(){
    if(!department||!machine||!task){statusLine('יש למלא מחלקה, מכונה / תשתית ותיאור משימה.','error');return}
    const performer=kind==='operator'?'מפעיל':'טכנאי אחזקה',trade=kind==='operator'?null:$('tmEditTrade').value;
    const taskType=kind==='physical'?'maintenance':'inspection';
-   const base={department,machine,task,frequency:$('tmEditFrequency').value,performer,taskType,trade,duration:$('tmEditDuration').value===''?null:Number($('tmEditDuration').value),parts:$('tmEditParts').value.trim()||null,notes:taggedNotes($('tmEditNotes').value),nextDue:$('tmEditDue').value||null,lastDone:$('tmEditLast').value||null,active:$('tmEditActive').checked};
+   const existingTask=tmMode==='new'?null:tasks.find(x=>String(x.id)===String(tmSelectedId));
+    const base={department,machine,task,frequency:$('tmEditFrequency').value,performer,taskType,trade,duration:$('tmEditDuration').value===''?null:Number($('tmEditDuration').value),parts:$('tmEditParts').value.trim()||null,notes:taggedNotes($('tmEditNotes').value,existingTask?.notes||''),nextDue:$('tmEditDue').value||null,lastDone:$('tmEditLast').value||null,active:$('tmEditActive').checked};
    statusLine('שומר משימה בענן…','');
    let res;
    if(tmMode==='new')res=await supabaseClient.from('pm_tasks').insert(taskDbPayload(base)).select('*').single();
-   else {const old=tasks.find(x=>String(x.id)===String(tmSelectedId));res=await supabaseClient.from('pm_tasks').update(taskDbPayload({...old,...base})).eq('id',old.id).select('*').single()}
+   else {const old=existingTask;res=await supabaseClient.from('pm_tasks').update(taskDbPayload({...old,...base})).eq('id',old.id).select('*').single()}
    if(res.error){statusLine('שמירת המשימה נכשלה: '+res.error.message,'error');return}
    await reloadCloudData();tmRefreshFilters();tmSelectedId=String(res.data?.id||tmSelectedId||'');if(tmSelectedId)tmOpenEdit(tmSelectedId);tmRefreshDependentTabs();statusLine(tmMode==='new'?'המשימה נוספה למאגר בהצלחה.':'המשימה עודכנה בהצלחה.','success');
  };
