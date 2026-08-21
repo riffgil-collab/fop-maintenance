@@ -1794,7 +1794,7 @@ function renderReport(){
     ${x.t.parts?`<div class="meta"><strong>חלקים:</strong> ${esc(x.t.parts)}</div>`:''}
     ${visibleTaskNotes(x.t.notes)?`<div class="meta"><strong>הערות:</strong> ${esc(visibleTaskNotes(x.t.notes))}</div>`:''}</div>
     <div class="pm-task-actions">
-      <button class="complete" onclick="completeTask('${x.t.id}')">✓ בוצע</button>
+      <button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}')">✓ בוצע</button>
       ${canManage?`<button class="pm-postpone" onclick="openPostponeModal('${x.t.id}')">📅 דחיית טיפול</button>`:''}
     </div></div></div>`).join('')
 }
@@ -1836,19 +1836,45 @@ async function savePostpone(){
 
 
 let pmCompletionTaskId=null;
-function completeTask(id){
+let pmCompletionWorkPlanId='';
+let pmCompletionOccurrenceDue='';
+let pmCompletionReportDate='';
+function openCompletionDocumentation(id,workPlanId='',occurrenceDue=''){
   if(!requirePM('report','אין הרשאה לדווח טיפול.'))return;
   const t=tasks.find(x=>String(x.id)===String(id)), date=pmReportDate.value||today();
   if(!t)return;
   if(history.some(h=>String(h.taskId)===String(id)&&h.date===date)){statusLine('כבר קיים דיווח למשימה זו בתאריך שנבחר.','error');return;}
   pmCompletionTaskId=id;
+  pmCompletionWorkPlanId=workPlanId||'';
+  pmCompletionOccurrenceDue=occurrenceDue||'';
+  pmCompletionReportDate=date;
   document.getElementById('pmCompleteTaskText').textContent=`${t.machine} — ${t.task} · ${fDate(date)}`;
   document.getElementById('pmCompletionNotes').value='';
   for(const n of [1,2]){const inp=document.getElementById('pmPhoto'+n),img=document.getElementById('pmPhotoPreview'+n);inp.value='';img.removeAttribute('src');img.style.display='none';}
   const st=document.getElementById('pmCompleteStatus');st.textContent='';st.className='pm-modal-status';
   document.getElementById('pmCompleteModal').classList.add('open');
 }
-function closeCompleteModal(){document.getElementById('pmCompleteModal').classList.remove('open');pmCompletionTaskId=null;}
+function pmOpenCompletionModal(id,workPlanId='',occurrenceDue=''){
+  try{
+    const modal=document.getElementById('pmCompleteModal');
+    if(!modal){ alert('שגיאה: חלון דיווח הטיפול לא נמצא.'); return false; }
+    // Store context first. NO database write is allowed here.
+    pmCompletionTaskId=id; pmCompletionWorkPlanId=workPlanId||''; pmCompletionOccurrenceDue=occurrenceDue||'';
+    pmCompletionReportDate=(document.getElementById('pmReportDate')?.value)||today();
+    const t=tasks.find(x=>String(x.id)===String(id));
+    document.getElementById('pmCompleteTaskText').textContent=t?`${t.machine} — ${t.task} · ${fDate(pmCompletionReportDate)}`:'דיווח ביצוע טיפול';
+    document.getElementById('pmCompletionNotes').value='';
+    for(const n of [1,2]){const inp=document.getElementById('pmPhoto'+n),img=document.getElementById('pmPhotoPreview'+n);if(inp)inp.value='';if(img){img.removeAttribute('src');img.style.display='none';}}
+    const st=document.getElementById('pmCompleteStatus');if(st){st.textContent='';st.className='pm-modal-status';}
+    modal.classList.add('open');
+    document.body.style.overflow='hidden';
+    return false;
+  }catch(err){ console.error('pmOpenCompletionModal',err); alert('לא ניתן לפתוח את חלון הדיווח: '+(err?.message||err)); return false; }
+}
+function completeTask(id,workPlanId='',occurrenceDue=''){ return pmOpenCompletionModal(id,workPlanId,occurrenceDue); }
+window.pmOpenCompletionModal=pmOpenCompletionModal;
+window.completeTask=completeTask;
+function closeCompleteModal(){document.getElementById('pmCompleteModal').classList.remove('open');document.body.style.overflow='';pmCompletionTaskId=null;pmCompletionWorkPlanId='';pmCompletionOccurrenceDue='';pmCompletionReportDate='';}
 function previewCompletionPhoto(n){const f=document.getElementById('pmPhoto'+n)?.files?.[0],img=document.getElementById('pmPhotoPreview'+n);if(!f){img.style.display='none';return;}const u=URL.createObjectURL(f);img.src=u;img.style.display='block';img.onload=()=>URL.revokeObjectURL(u);}
 async function compressMaintenancePhoto(file){
   if(!file)return null;
@@ -1870,21 +1896,38 @@ async function uploadMaintenancePhoto(file,t,date,index){
   if(error)throw error; return path;
 }
 async function saveCompletionWithDocumentation(){
-  const id=pmCompletionTaskId,t=tasks.find(x=>String(x.id)===String(id)),date=pmReportDate.value||today();if(!t)return;
+  const id=pmCompletionTaskId,t=tasks.find(x=>String(x.id)===String(id)),date=pmCompletionReportDate||pmReportDate.value||today();if(!t)return;
+  let p=pmCompletionWorkPlanId?pmWorkPlan.find(x=>String(x.id)===String(pmCompletionWorkPlanId)):null;
+  const due=pmCompletionOccurrenceDue||wpDueFromNotes(p?.notes)||t.nextDue||date;
+  if(!p&&typeof wpLatestForOccurrence==='function')p=wpLatestForOccurrence(t.id,due);
   const btn=document.getElementById('pmCompleteSaveButton'),st=document.getElementById('pmCompleteStatus');btn.disabled=true;st.className='pm-modal-status';
   let photo1Path='',photo2Path='';
+  const oldLast=t.lastDone||null,oldNext=t.nextDue||null;
   try{
     st.textContent='מעבד ושומר את הדיווח…';
     const f1=document.getElementById('pmPhoto1').files?.[0],f2=document.getElementById('pmPhoto2').files?.[0];
     if(f1)photo1Path=await uploadMaintenancePhoto(f1,t,date,1);
     if(f2)photo2Path=await uploadMaintenancePhoto(f2,t,date,2);
     const notes=document.getElementById('pmCompletionNotes').value.trim();
-    const nextDue=nextDueFrom(date,t.frequency);
-    const updateRes=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextDue}).eq('id',t.id);
+    // Preserve the V8 occurrence/backlog logic: only advance the master pointer when closing its current earliest due occurrence.
+    const nextMaster=(String(oldNext||'')===String(due)&&typeof pmNextOpenDueAfter==='function')?pmNextOpenDueAfter(t,due):oldNext;
+    const updateRes=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextMaster}).eq('id',t.id);
     if(updateRes.error)throw updateRes.error;
-    try{await insertHistoryAdaptive(t,date,{notes,photo1Path,photo2Path});}
-    catch(err){await supabaseClient.from('pm_tasks').update({last_done:t.lastDone||null,next_due:t.nextDue||null}).eq('id',t.id);throw err;}
-    st.textContent='הטיפול נשמר.';st.classList.add('success');await reloadCloudData();statusLine('הטיפול, ההערות והתמונות נשמרו בענן.','success');setTimeout(closeCompleteModal,450);
+    try{
+      await insertHistoryAdaptive(t,date,{notes,photo1Path,photo2Path});
+      if(p){
+        const r=await supabaseClient.from('pm_work_plan').update({status:'Completed',completed_date:date}).eq('id',p.id);if(r.error)throw r.error;
+      }else{
+        const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
+        const r=await supabaseClient.from('pm_work_plan').insert({task_id:t.id,planned_date:date,assigned_to:t.performer||null,priority:'בינונית',status:'Completed',completed_date:date,postponed_reason:null,notes:`PM_DUE:${due}`,created_by:actor});if(r.error)throw r.error;
+      }
+    }catch(err){
+      await supabaseClient.from('pm_tasks').update({last_done:oldLast,next_due:oldNext}).eq('id',t.id);
+      if(p)await supabaseClient.from('pm_work_plan').update({status:(typeof v3RowStatus==='function'&&v3RowStatus(p)==='postponed')?'Postponed':'Planned',completed_date:null}).eq('id',p.id);
+      throw err;
+    }
+    st.textContent='הטיפול נשמר.';st.classList.add('success');
+    await reloadCloudData();statusLine('הטיפול, ההערות והתמונות נשמרו בענן.','success');setTimeout(closeCompleteModal,450);
   }catch(err){
     if(photo1Path)await supabaseClient.storage.from('maintenance-photos').remove([photo1Path]);
     if(photo2Path)await supabaseClient.storage.from('maintenance-photos').remove([photo2Path]);
@@ -3102,7 +3145,7 @@ renderReport=function(){
     <div class="big-late">${x.plan?'לביצוע בתוכנית':(x.s.state==='overdue'?Math.abs(x.s.n)+' ימי איחור':'לביצוע היום')}</div>
     <div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(x.plan?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.plannedDue||x.t.nextDue))}${x.plan?`<br>תאריך מתוכנן: ${esc(fDate(x.plan.plannedDate))}<br>עדיפות: ${esc(x.plan.priority)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}${visibleTaskNotes(x.t.notes)?`<br><b>הערות:</b> ${esc(visibleTaskNotes(x.t.notes))}`:''}</div>
     <div class="pm-task-actions">
-      <button class="complete" onclick="completeTask('${x.t.id}','${x.plan?.id||''}')">✓ בוצע</button>
+      <button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}','${x.plan?.id||''}')">✓ בוצע</button>
       ${canManage&&x.plan?`<button class="pm-postpone" onclick="moveWorkPlan('${x.plan.id}')">דחה / שנה תאריך</button>`:''}
       ${canManage&&!x.plan?`<button class="pm-postpone" onclick="openPostponeModal('${x.t.id}')">דחיית טיפול</button>`:''}
     </div>
@@ -3555,43 +3598,13 @@ renderReport=function(){
   repOpen.textContent=list.length+' משימות להצגה';repLate.textContent=list.filter(x=>v3OccurrenceState(x,reportDate)==='overdue').length+' באיחור';repToday.textContent=planned.length+' בתוכנית העבודה';
   const doneForDate=pmWorkPlan.filter(p=>v3RowStatus(p)==='completed'&&p.completedDate===reportDate).length,total=planned.length+doneForDate;pmProgressFill.style.width=(total?doneForDate/total*100:0)+'%';pmProgressText.textContent=`${doneForDate} מתוך ${total} בוצעו`;
   if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין משימות לביצוע בתאריך ובסינון שנבחרו.</div>';return}
-  const canManage=pmCan('manageExceptions');pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div><div class="pm-task-actions"><button class="complete" onclick="completeTask('${x.t.id}','${p?.id||''}','${x.due}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
+  const canManage=pmCan('manageExceptions');pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div><div class="pm-task-actions"><button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}','${p?.id||''}','${x.due}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
 };
 
 // Completion accepts Planned or Postponed rows and closes them as Completed.
-const __v3CompleteBase=completeTask;
-completeTask=async function(id,workPlanId='',occurrenceDue=''){
-  if(!requirePM('report','אין הרשאה לדווח טיפול.'))return;
-  const t=tasks.find(x=>String(x.id)===String(id)),date=pmReportDate.value||today();if(!t)return;
-  let p=workPlanId?pmWorkPlan.find(x=>String(x.id)===String(workPlanId)):null;
-  const due=occurrenceDue||wpDueFromNotes(p?.notes)||t.nextDue||date;
-  if(!p)p=wpLatestForOccurrence(t.id,due);
-  if(history.some(h=>String(h.taskId)===String(id)&&h.date===date)){statusLine('כבר קיים דיווח למשימה זו בתאריך שנבחר.','error');return}
-
-  const oldLast=t.lastDone||null,oldNext=t.nextDue||null;
-  // Closing a later occurrence must NEVER erase an older backlog occurrence.
-  // Advance the master pointer only when the occurrence being closed is the current earliest due.
-  const nextMaster=(String(oldNext||'')===String(due))?pmNextOpenDueAfter(t,due):oldNext;
-  statusLine('שומר טיפול בענן…');
-  const updateRes=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextMaster}).eq('id',t.id);
-  if(updateRes.error){statusLine('שמירת הטיפול נכשלה: '+updateRes.error.message,'error');return}
-  try{
-    await insertHistoryAdaptive(t,date);
-    if(p){
-      const r=await supabaseClient.from('pm_work_plan').update({status:'Completed',completed_date:date}).eq('id',p.id);if(r.error)throw r.error;
-    }else{
-      // An unplanned completion still closes ONE explicit PM occurrence.
-      const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
-      const r=await supabaseClient.from('pm_work_plan').insert({task_id:t.id,planned_date:date,assigned_to:t.performer||null,priority:'בינונית',status:'Completed',completed_date:date,postponed_reason:null,notes:`PM_DUE:${due}`,created_by:actor});
-      if(r.error)throw r.error;
-    }
-  }catch(err){
-    await supabaseClient.from('pm_tasks').update({last_done:oldLast,next_due:oldNext}).eq('id',t.id);
-    if(p)await supabaseClient.from('pm_work_plan').update({status:v3RowStatus(p)==='postponed'?'Postponed':'Planned',completed_date:null}).eq('id',p.id);
-    statusLine('הטיפול לא נשמר באופן מלא: '+(err?.message||'שגיאה'),'error');return;
-  }
-  await reloadCloudData();statusLine('הטיפול בוצע ונרשם מול מופע התחזוקה המתאים.','success');
-};
+// Completion is intentionally routed through one unique modal entry point.
+// No database/history update occurs until the user presses 'שמור טיפול'.
+window.completeTask=pmOpenCompletionModal;
 
 renderTodayWorkPlan=function(){
   const date=today();const items=v3RequirementItems(date,date).filter(x=>x.plan&&x.plan.plannedDate===date);const done=items.filter(x=>v3OccurrenceState(x,date)==='completed');const pending=items.filter(x=>!['completed','cancelled'].includes(v3OccurrenceState(x,date)));const mins=v3HoursFromItems(items.filter(x=>v3OccurrenceState(x,date)!=='cancelled'));
