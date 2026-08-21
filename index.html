@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v23-dashboard-planner-aligned"/>
+<meta name="fop-build" content="20260821-v24-dashboard-trade-filter-fixed"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -472,7 +472,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();renderDashboard()"></select></div>
   <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">כל המכונות</option></select></div>
   <div class="field"><label>מקצוע</label><select id="pmDashboardTrade" onchange="renderDashboard()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
-  <div class="field"><label>סוג עבודה</label><select id="pmDashboardWorkType" onchange="renderUnplannedDashboard()"><option value="">הכול</option><option value="PM">PM מחזורי</option><option value="WO">לא מתוכנן</option></select></div>
+  <div class="field"><label>סוג עבודה</label><select id="pmDashboardWorkType" onchange="renderDashboard()"><option value="">הכול</option><option value="PM">PM מחזורי</option><option value="WO">לא מתוכנן</option></select></div>
 </div>
 
 <div id="pmV17Dashboard">
@@ -4054,7 +4054,8 @@ function pmV17DashboardRender(){
 
   // PM: use exactly the selected dashboard period, not a fixed backlog horizon.
   const pmPeriod=v3RequirementItems(rangeStart,rangeEnd)
-    .filter(x=>v3FilterTask(x.t,dep,machine,trade,x.plan))
+    .filter(x=>v3FilterTask(x.t,dep,machine,'',x.plan))
+    .filter(x=>!trade||maintenanceTrade(x.t)===trade)
     .filter(x=>!['completed','cancelled'].includes(v3OccurrenceState(x,anchor)));
 
   // "Open" = work belonging to the selected period that is still actionable.
