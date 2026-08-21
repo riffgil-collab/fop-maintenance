@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v22-dashboard-no-day-actual"/>
+<meta name="fop-build" content="20260821-v23-dashboard-planner-aligned"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -4148,6 +4148,50 @@ renderPlanner=function(){pmV17OldPlanner();if(typeof renderUnplannedPlanner==='f
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',()=>setTimeout(forceWeeklyMinimum,0));
   else setTimeout(forceWeeklyMinimum,0);
 })();
+
+/* ===== V23: one population for Dashboard -> Planning ===== */
+function pmV23DashboardOpenPM(){
+  const dep=document.getElementById('pmDashboardDepartment')?.value||'';
+  const machine=document.getElementById('pmDashboardMachine')?.value||'';
+  const trade=document.getElementById('pmDashboardTrade')?.value||'';
+  const anchor=document.getElementById('pmDashboardAnchor')?.value||today();
+  const range=v3PeriodBounds(pmV3DashboardPeriod||'week',anchor);
+  return v3RequirementItems(range.start,range.end).filter(x=>{
+    const st=v3OccurrenceState(x,anchor);
+    return isMaintenanceTask(x.t) &&
+      v3FilterTask(x.t,dep,machine,'',x.plan) &&
+      (!trade||maintenanceTrade(x.t)===trade) &&
+      !['completed','cancelled'].includes(st);
+  });
+}
+function pmV23SyncDashboardToPlanner(){
+  const anchor=document.getElementById('pmDashboardAnchor')?.value||today();
+  const pStart=document.getElementById('pmPlannerStart'); if(pStart)pStart.value=anchor;
+  const map=[['pmDashboardDepartment','pmPlannerDepartment'],['pmDashboardTrade','pmPlannerTrade']];
+  map.forEach(([a,b])=>{const x=document.getElementById(a),y=document.getElementById(b);if(x&&y){y.value=x.value||'';y.dispatchEvent(new Event('change',{bubbles:false}));}});
+  const dm=document.getElementById('pmDashboardMachine'),pm=document.getElementById('pmPlannerMachine');
+  if(dm&&pm)pm.value=dm.value||'';
+  if(typeof setPlanningPeriod==='function')setPlanningPeriod(pmV3DashboardPeriod||'week');
+}
+const pmV23BaseFilteredPlanningItems=filteredPlanningItems;
+filteredPlanningItems=function(){
+  const status=document.getElementById('pmPlannerStatus')?.value||'';
+  // Normal planning opened without a status = actionable work only, exactly as dashboard.
+  const items=pmV23BaseFilteredPlanningItems();
+  if(status)return items;
+  return items.filter(x=>!['completed','cancelled'].includes(v3OccurrenceState(x)));
+};
+pmV17OpenPlanner=function(kind){
+  pmV23SyncDashboardToPlanner();
+  showTab('planner');
+  const status=document.getElementById('pmPlannerStatus'),type=document.getElementById('pmPlannerWorkType');
+  if(status)status.value='';
+  if(type)type.value=kind==='wo'?'WO':'';
+  if(kind==='overdue'&&status)status.value='overdue';
+  pmPlanPage=0;
+  renderPlanner();
+  if(typeof renderUnplannedPlanner==='function')renderUnplannedPlanner();
+};
 </script>
 
 </body></html>
