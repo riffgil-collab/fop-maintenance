@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v24-dashboard-trade-filter-fixed"/>
+<meta name="fop-build" content="20260821-v25-cancellation-control"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -479,6 +479,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <div class="pm-v17-kpis">
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('open')"><strong id="pmV17Open">0</strong><span>פתוחות</span><small>PM + WO שעדיין דורשות טיפול</small></div>
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('overdue')"><strong id="pmV17Overdue">0</strong><span>באיחור</span><small>עבר מועד היעד</small></div>
+    <div class="pm-v17-kpi" onclick="pmV25OpenCancelled()"><strong id="pmV25Cancelled">0</strong><span>בוטלו</span><small>בתקופה שנבחרה · לחיצה לצפייה ושחזור</small></div>
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('week')"><strong id="pmV17Week">0</strong><span>לשבוע הקרוב</span><small>עבודה שדורשת תשומת לב בקרוב</small></div>
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('wo')"><strong id="pmV17WO">0</strong><span>WO פתוחות</span><small id="pmV17WOUrgent">מתוכן 0 דחופות / משביתות</small></div>
   </div>
@@ -4192,6 +4193,69 @@ pmV17OpenPlanner=function(kind){
   pmPlanPage=0;
   renderPlanner();
   if(typeof renderUnplannedPlanner==='function')renderUnplannedPlanner();
+};
+
+/* ===== V25: cancellation control, visibility and restore ===== */
+function pmV25CancelledItems(){
+  const dep=document.getElementById('pmDashboardDepartment')?.value||'';
+  const machine=document.getElementById('pmDashboardMachine')?.value||'';
+  const trade=document.getElementById('pmDashboardTrade')?.value||'';
+  const anchor=document.getElementById('pmDashboardAnchor')?.value||today();
+  const range=v3PeriodBounds(pmV3DashboardPeriod||'week',anchor);
+  return v3RequirementItems(range.start,range.end).filter(x=>
+    isMaintenanceTask(x.t) &&
+    (!dep||x.t.department===dep) &&
+    (!machine||x.t.machine===machine) &&
+    (!trade||maintenanceTrade(x.t)===trade) &&
+    v3OccurrenceState(x,anchor)==='cancelled'
+  );
+}
+function pmV25RenderCancelledKPI(){pmV17Set('pmV25Cancelled',pmV25CancelledItems().length)}
+const pmV25Dash=renderDashboard;
+renderDashboard=function(){pmV25Dash();pmV25RenderCancelledKPI();};
+
+function pmV25OpenCancelled(){
+  pmV23SyncDashboardToPlanner();
+  showTab('planner');
+  const st=document.getElementById('pmPlannerStatus');if(st)st.value='cancelled';
+  const wt=document.getElementById('pmPlannerWorkType');if(wt)wt.value='PM';
+  pmPlanPage=0;renderPlanner();
+}
+async function pmV25RestoreCancelled(taskId,due){
+  if(!pmCan('manageExceptions'))return statusLine('שחזור ביטול זמין למנהל אחזקה בלבד.','error');
+  const row=v3OccurrenceRow(taskId,due);
+  if(!row)return statusLine('לא נמצאה רשומת הביטול.','error');
+  const ok=await pmConfirm('להחזיר את הטיפול לרשימת העבודה הפתוחה? סיבת הביטול תישאר מתועדת ברשומה.','ביטול ביטול טיפול');
+  if(!ok)return;
+  try{
+    const audit=`ביטול בוטל ושוחזר על ידי ${pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש'} בתאריך ${today()}. סיבת הביטול המקורית: ${row.postponedReason||''}`;
+    const res=await supabaseClient.from('pm_work_plan').update({
+      status:'Waiting',completed_date:null,
+      notes:`PM_DUE:${due} | ${audit}`
+    }).eq('id',row.id);
+    if(res.error)throw res.error;
+    const t=tasks.find(x=>String(x.id)===String(taskId));
+    if(t && String(t.nextDue||'')>String(due)){
+      const tr=await supabaseClient.from('pm_tasks').update({next_due:due}).eq('id',taskId);
+      if(tr.error)throw tr.error;
+    }
+    await reloadCloudData();statusLine('הביטול בוטל והטיפול הוחזר לרשימת העבודה.','success');pmToast('הטיפול הוחזר','success');
+  }catch(err){statusLine('שחזור הטיפול נכשל: '+(err?.message||'שגיאה'),'error')}
+}
+const pmV25Planner=renderPlanner;
+renderPlanner=function(){
+  pmV25Planner();
+  const st=document.getElementById('pmPlannerStatus')?.value||'';
+  if(st!=='cancelled')return;
+  document.querySelectorAll('#pmPlannerDetail .pm-plan-item').forEach(()=>{});
+  const items=filteredPlanningItems();
+  const detail=document.getElementById('pmPlannerDetail');
+  if(!detail)return;
+  const pageItems=items.slice(pmPlanPage*PM_PLAN_PAGE_SIZE,(pmPlanPage+1)*PM_PLAN_PAGE_SIZE);
+  detail.innerHTML=pageItems.length?pageItems.map(item=>{
+    const p=item.plan;
+    return `<div class="task-card cancelled"><div><div class="task-machine">${esc(item.t.machine)}</div><div class="task-desc">${esc(item.t.task)}</div><div class="task-meta">${esc(item.t.department)} · ${esc(maintenanceTrade(item.t))} · יעד ${esc(fDate(item.due))}<br><strong>סיבת ביטול:</strong> ${esc(p?.postponedReason||'לא תועדה')}</div></div><div class="pm-task-actions"><span class="tag">בוטלה</span>${pmCan('manageExceptions')?`<button type="button" class="btn" onclick="pmV25RestoreCancelled('${item.t.id}','${item.due}')">↩ החזר לרשימה</button>`:''}</div></div>`;
+  }).join(''):'<div class="empty">אין טיפולים שבוטלו בתקופה שנבחרה.</div>';
 };
 </script>
 
