@@ -1078,7 +1078,7 @@ async function loadCloudData(){
     refreshAll();
     fillDashboardMachines();
     fillReportPerformers();
-    statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב: ${maintenanceTasks().length} עבודות אחזקה, ${maintenanceInspectionTasks().length} בדיקות אחזקה, ${operatorTasks().length} מפעיל · ${history.length} דיווחים.`,'success');
+    const tc=maintenanceTradeCounts(); statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב: ${maintenanceTasks().length} עבודות אחזקה, ${maintenanceInspectionTasks().length} בדיקות אחזקה, ${operatorTasks().length} מפעיל · מקצוע: ${tc['מכונאי']} מכונאי / ${tc['חשמלאי']} חשמלאי / ${tc['משולב']} משולב · ${history.length} דיווחים.`,'success');
     return true;
   }catch(err){
     pmCloudReady=false;
@@ -1511,10 +1511,12 @@ function isOperatorTask(t){return !!t&&t.active!==false&&isOperatorPerformer(t.p
 const PM_PHYSICAL_TERMS=['גירוז','גרוז','גרז','שימון','שמון','החלף','החלפת','החלפה','להחליף','נקה','לנקות','ניקוי','ניקיוי','ניקיון','נקיון','חיזוק','חזק','הדק','הידוק','כוון','כיוון','פירוק','לפרק','ריסוס','טיפול','מתיחה','מתיחת','מילוי','שטיפה','שחרר','רוקן','ריקון','ניקוז','הוספת','העבר חומצה','יישום','ישום'];
 const PM_INSPECTION_TERMS=['בדיק','בדוק','וודא','ודא','ויזואל','תקינות','נזילות','נזילת','רעשים','חופש','שחיקה','רגישות','מצב '];
 const PM_ELECTRICAL_TERMS=['חשמל','כבל','ארון חשמל','לוח חש','מפסק','לחצן','חירום','חרום','חייש','גשש','סנסור','מגע','קונטקט','ממסר','פחת','פיוז','נתיך','הארקה','גוף חימום','גופי חימום','תרמוקפל','טרמוסטט','בקר','plc','אנקודר','סוללה','סוללות','אינברטר','ווסת תדר','אלקטר','פנל הפעלה'];
+const PM_MECHANICAL_TERMS=['מיסב','שרשרת','גיר','ממסרה','הידראול','פנאומ','צילינדר','בוכנה','רצוע','גלגל','בורג','אום','מסילה','מוביל','דיזה','אקדח','מזין','שסתום','ברז','משאבה','מסוע','כננת','אונקל','הרמה','בלם','מצמד','ציר','פילטר','שמן','גריז','גרז','גירוז','שימון','קפיץ','רולר','גליל','צינור','וואקום','מפוח','מכבש','מערגל','מניפולטור','ספירלה'];
 function pmHasTerm(text,terms){const x=String(text||'').toLowerCase();return terms.some(k=>x.includes(String(k).toLowerCase()));}
 function isMaintenanceInspection(t){if(!t||t.active===false||!isMaintenancePerformer(t.performer))return false;const x=t.task||'';return !pmHasTerm(x,PM_PHYSICAL_TERMS)&&pmHasTerm(x,PM_INSPECTION_TERMS);}
 function isMaintenanceTask(t){return !!t&&t.active!==false&&isMaintenancePerformer(t.performer)&&!isMaintenanceInspection(t);}
 function maintenanceTrade(t){const x=`${t?.task||''} ${t?.machine||''}`;const e=pmHasTerm(x,PM_ELECTRICAL_TERMS),m=pmHasTerm(x,PM_MECHANICAL_TERMS);if(e&&m)return 'משולב';if(e)return 'חשמלאי';return 'מכונאי';}
+function maintenanceTradeCounts(list=maintenanceTasks()){return list.reduce((a,t)=>{const k=maintenanceTrade(t);a[k]=(a[k]||0)+1;return a;},{'מכונאי':0,'חשמלאי':0,'משולב':0});}
 function maintenanceTasks(){return tasks.filter(isMaintenanceTask);}
 function maintenanceInspectionTasks(){return tasks.filter(isMaintenanceInspection);}
 function operatorTasks(){return tasks.filter(isOperatorTask);}
