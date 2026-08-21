@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v12-history-docs-fixed"/>
+<meta name="fop-build" content="20260821-v16-wo-free-equipment"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -836,7 +836,9 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <div class="pm-modal-head"><h3>פתיחת עבודה לא מתוכננת (WO)</h3><button type="button" onclick="closeUnplannedModal()">✕</button></div>
   <div class="toolbar">
     <div class="field"><label>מחלקה</label><select id="pmWODepartment" onchange="fillWOMachines()"></select></div>
-    <div class="field"><label>מכונה</label><select id="pmWOMachine"></select></div>
+    <div class="field"><label>מקור מכונה / תשתית</label><select id="pmWOEquipmentMode" onchange="toggleWOEquipmentMode()"><option value="database">בחירה מהמאגר</option><option value="free">מכונה / תשתית אחרת</option></select></div>
+    <div class="field" id="pmWOEquipmentDatabaseField"><label>מכונה / תשתית</label><select id="pmWOMachine"></select></div>
+    <div class="field" id="pmWOEquipmentFreeField" style="display:none"><label>מכונה / תשתית חדשה</label><input id="pmWOEquipmentFree" type="text" placeholder="הקלד שם מכונה או תשתית"/></div>
     <div class="field" style="flex:2"><label>עבודה נדרשת</label><input id="pmWODescription" type="text" placeholder="תיאור העבודה"/></div>
     <div class="field"><label>מקצוע</label><select id="pmWOTrade"><option>מכונאי</option><option>חשמלאי</option><option>משולב</option></select></div>
     <div class="field"><label>עדיפות</label><select id="pmWOPriority"><option>רגילה</option><option>דחופה</option><option>משביתה</option></select></div>
@@ -848,7 +850,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <div class="field"><label>הערה / מה התגלה בבדיקה</label><textarea id="pmWONotes" rows="3"></textarea></div>
   <div class="field" style="margin-top:10px"><label style="display:flex;gap:8px;align-items:center"><input id="pmWOAddRecurring" type="checkbox" onchange="toggleWORecurringFields()"> הוסף גם לתוכנית האחזקה המחזורית</label></div>
   <div id="pmWORecurringFields" style="display:none" class="toolbar">
-    <div class="field"><label>תדירות עתידית</label><select id="pmWORecurringFrequency"></select></div>
+    <div class="field"><label>תדירות עתידית</label><select id="pmWORecurringFrequency"></select><div style="font-size:11px;color:var(--muted);margin-top:6px">אם הוזנה מכונה / תשתית חדשה, סימון זה יכניס אותה למאגר דרך הטיפול המחזורי החדש.</div></div>
     <div class="field"><label>הטיפול המחזורי הבא יחושב לאחר סגירת ה-WO</label><div style="font-size:12px;color:var(--muted);padding:10px 0">המחזור הבא ייקבע לפי תאריך הביצוע בפועל.</div></div>
   </div>
   <div id="pmWOStatus" class="pm-modal-status"></div>
@@ -3934,6 +3936,8 @@ function fillWOMachines(){
   const vals=[...new Set(tasks.filter(t=>!dep||t.department===dep).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
   sel.innerHTML='<option value="">בחר מכונה</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(vals.includes(current))sel.value=current;
 }
+function toggleWOEquipmentMode(){const free=document.getElementById('pmWOEquipmentMode')?.value==='free';const db=document.getElementById('pmWOEquipmentDatabaseField'),fr=document.getElementById('pmWOEquipmentFreeField');if(db)db.style.display=free?'none':'';if(fr)fr.style.display=free?'':'none';}
+function getWOEquipment(){return document.getElementById('pmWOEquipmentMode')?.value==='free'?(document.getElementById('pmWOEquipmentFree')?.value||'').trim():(document.getElementById('pmWOMachine')?.value||'');}
 function toggleWORecurringFields(){const on=document.getElementById('pmWOAddRecurring')?.checked;const box=document.getElementById('pmWORecurringFields');if(box)box.style.display=on?'flex':'none';}
 function initWORecurringFrequency(){const s=document.getElementById('pmWORecurringFrequency');if(!s)return;s.innerHTML=Object.keys(FREQ_DAYS).map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');s.value='חודשי';}
 function openUnplannedModal(){
@@ -3941,12 +3945,12 @@ function openUnplannedModal(){
   fillWODepartments();initWORecurringFrequency();
   const dep=document.getElementById('pmPlannerDepartment')?.value||'';if(dep&&[...pmWODepartment.options].some(o=>o.value===dep))pmWODepartment.value=dep;fillWOMachines();
   const mach=document.getElementById('pmPlannerMachine')?.value||'';if(mach&&[...pmWOMachine.options].some(o=>o.value===mach))pmWOMachine.value=mach;
-  pmWODescription.value='';pmWOTrade.value=document.getElementById('pmPlannerTrade')?.value||'מכונאי';pmWOPriority.value='רגילה';pmWODueDate.value=today();pmWOPlannedDate.value='';pmWODuration.value=30;pmWOAssignee.value='';pmWONotes.value='';pmWOAddRecurring.checked=false;toggleWORecurringFields();pmWOStatus.textContent='';document.getElementById('pmUnplannedModal').classList.add('open');
+  pmWOEquipmentMode.value='database';pmWOEquipmentFree.value='';toggleWOEquipmentMode();pmWODescription.value='';pmWOTrade.value=document.getElementById('pmPlannerTrade')?.value||'מכונאי';pmWOPriority.value='רגילה';pmWODueDate.value=today();pmWOPlannedDate.value='';pmWODuration.value=30;pmWOAssignee.value='';pmWONotes.value='';pmWOAddRecurring.checked=false;toggleWORecurringFields();pmWOStatus.textContent='';document.getElementById('pmUnplannedModal').classList.add('open');
 }
 function closeUnplannedModal(){document.getElementById('pmUnplannedModal').classList.remove('open');}
 async function saveUnplannedWorkOrder(){
-  const dep=pmWODepartment.value,machine=pmWOMachine.value,description=pmWODescription.value.trim(),due=pmWODueDate.value;
-  if(!dep||!machine||!description||!due){pmWOStatus.textContent='יש לבחור מחלקה ומכונה ולמלא תיאור ותאריך יעד.';pmWOStatus.className='pm-modal-status error';return;}
+  const dep=pmWODepartment.value,machine=getWOEquipment(),description=pmWODescription.value.trim(),due=pmWODueDate.value;
+  if(!dep||!machine||!description||!due){pmWOStatus.textContent='יש לבחור מחלקה ומכונה / תשתית ולמלא תיאור ותאריך יעד.';pmWOStatus.className='pm-modal-status error';return;}
   const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
   const payload={department:dep,machine,description,trade:pmWOTrade.value,priority:pmWOPriority.value,due_date:due,planned_date:pmWOPlannedDate.value||null,duration:Number(pmWODuration.value||0),assigned_to:pmWOAssignee.value.trim()||null,notes:pmWONotes.value.trim()||null,status:pmWOPlannedDate.value?'Planned':'Open',created_by:actor};
   pmWOStatus.textContent='שומר…';pmWOStatus.className='pm-modal-status';
