@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260820-maintenance-anchor-fix-v23"/>
+<meta name="fop-build" content="20260821-v12-history-docs-fixed"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -1132,13 +1132,21 @@ async function insertHistoryAdaptive(t,date,documentation={}){
   const uid=pmCurrentUser?.id||null;
   const email=pmCurrentUser?.email||'משתמש';
 
+  // Documentation columns are known to exist in pm_history. Keep them on EVERY
+  // schema fallback so a successful legacy insert can never silently drop notes/photos.
+  const docs={
+    completion_notes:documentation.notes||null,
+    photo_1_path:documentation.photo1Path||null,
+    photo_2_path:documentation.photo2Path||null
+  };
   const candidates=[
-    {task_id:t.id,date,reported_at:now,reported_by:email,department:t.department,machine:t.machine,task:t.task,frequency:t.frequency,performer:t.performer,completion_notes:documentation.notes||null,photo_1_path:documentation.photo1Path||null,photo_2_path:documentation.photo2Path||null},
-    {task_id:t.id,completed_date:date,completed_at:now,completed_by:uid},
-    {task_id:t.id,completed_at:now,completed_by:uid},
-    {task_id:t.id,performed_at:now,performed_by:uid},
-    {task_id:t.id,date,reported_by:email},
-    {task_id:t.id}
+    // Current schema used by this installation (verified: completed_at + documentation columns).
+    {task_id:t.id,completed_at:now,completed_by:uid,...docs},
+    {task_id:t.id,completed_date:date,completed_at:now,completed_by:uid,...docs},
+    {task_id:t.id,date,reported_at:now,reported_by:email,department:t.department,machine:t.machine,task:t.task,frequency:t.frequency,performer:t.performer,...docs},
+    {task_id:t.id,performed_at:now,performed_by:uid,...docs},
+    {task_id:t.id,date,reported_by:email,...docs},
+    {task_id:t.id,...docs}
   ];
 
   let lastError=null;
