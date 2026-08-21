@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v31-dashboard-planned-kpi"/>
+<meta name="fop-build" content="20260821-v32-unified-task-management"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -758,7 +758,24 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div id="pmHistoryList"></div>
 </section>
 <section class="pm-panel" id="pmEditTasks">
-<div class="section-title"><h3>עריכת משימות</h3><small>איתור ועריכת משימה קיימת</small></div>
+<div class="section-title"><h3>ניהול משימות</h3><small>הוספה ועריכה של PM, בדיקות אחזקה ובדיקות מפעיל</small></div>
+<div class="pm-v3-periods" style="margin-bottom:14px"><button type="button" id="pmTaskModeEdit" class="active" onclick="pmV32TaskMode('edit')">עריכת משימה</button><button type="button" id="pmTaskModeAdd" onclick="pmV32TaskMode('add')">+ משימה חדשה</button></div>
+<div id="pmV32AddArea" class="panel-box" style="display:none"><div class="edit-grid">
+<div class="field full"><label>סוג משימה</label><select id="v32Type" onchange="pmV32TypeChanged()"><option value="PM">טיפול אחזקה פיזי (PM)</option><option value="maintenance_check">בדיקת אחזקה</option><option value="operator_check">בדיקת מפעיל</option></select></div>
+<div class="field full"><label>מקור</label><select id="v32Source" onchange="pmV32SourceChanged()"><option value="master">בחירה ממאגר ברירת המחדל</option><option value="manual">הזנה חופשית — לא קיים במאגר</option></select></div>
+<div class="field"><label>מחלקה</label><select id="v32Department" onchange="pmV32FillMachines()"></select></div>
+<div class="field"><label>מכונה / תשתית</label><select id="v32Machine" onchange="pmV32FillTasks()"></select></div>
+<div class="field full" id="v32MasterTaskWrap"><label>משימה מהמאגר</label><select id="v32MasterTask" onchange="pmV32AdoptMaster()"></select></div>
+<div class="field full" id="v32ManualDepartmentWrap" style="display:none"><label>מחלקה חדשה / חופשית</label><input id="v32ManualDepartment"/></div>
+<div class="field full" id="v32ManualMachineWrap" style="display:none"><label>מכונה / תשתית חדשה</label><input id="v32ManualMachine"/></div>
+<div class="field full"><label>תיאור המשימה</label><input id="v32TaskText"/></div>
+<div class="field"><label>מקצוע / מבצע</label><select id="v32Trade"><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option><option value="מפעיל">מפעיל</option></select></div>
+<div class="field" id="v32FrequencyWrap"><label>תדירות</label><select id="v32Frequency"></select></div>
+<div class="field"><label>משך בדקות</label><input id="v32Duration" type="number" min="0"/></div>
+<div class="field" id="v32DueWrap"><label>מועד ראשון</label><input id="v32Due" type="date"/></div>
+<div class="field full"><label>הערות</label><textarea id="v32Notes" class="textarea"></textarea></div>
+</div><div id="v32LogicNote" class="sub" style="margin:10px 0"></div><button class="btn" type="button" onclick="pmV32CreateTask()">+ שמירת משימה חדשה</button></div>
+<div id="pmV32EditArea">
 <div class="panel-box">
   <div class="settings-grid" style="display:flex;flex-direction:column;gap:12px">
     <div class="field"><label>1. מחלקה</label><select id="pmSettingsDepartment" onchange="refreshEditTaskFilters('department')"></select></div>
@@ -773,10 +790,10 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <button class="danger-btn" onclick="toggleCurrentTask()">הפעלה / ביטול משימה</button>
 </div>
 <div class="editor" id="pmSettingsEditor"></div>
-<div style="margin-top:12px"><button class="back" id="pmResetDataBtn" onclick="resetData()">טעינה מחדש מהענן</button></div>
+<div style="margin-top:12px"><button class="back" id="pmResetDataBtn" onclick="resetData()">טעינה מחדש מהענן</button></div></div>
 </section>
 
-<section class="pm-panel" id="pmAddTask">
+<section class="pm-panel" id="pmAddTask" style="display:none!important">
 <div class="section-title"><h3>הוספת משימה חדשה</h3><small>יצירת משימת אחזקה חדשה</small></div>
 <div class="add-box">
 <div class="edit-grid">
@@ -4951,6 +4968,27 @@ renderPlanner=function(){
     return r;
   };
   setTimeout(()=>{try{renderDashboard()}catch(e){}},0);
+})();
+</script>
+<script id="fop-v32-unified-task-management">
+(function(){
+ const $=id=>document.getElementById(id), uniq=a=>[...new Set(a.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'));
+ const rows=()=>window.pmTasks||[];
+ const typ=t=>{const x=String(t.task_type||t.type||t.category||'').toLowerCase();return x.includes('operator')||x.includes('מפעיל')?'operator_check':(x.includes('check')||x.includes('בדיק'))?'maintenance_check':'PM'};
+ window.pmV32TaskMode=m=>{$('pmV32AddArea').style.display=m==='add'?'block':'none';$('pmV32EditArea').style.display=m==='edit'?'block':'none';$('pmTaskModeAdd').classList.toggle('active',m==='add');$('pmTaskModeEdit').classList.toggle('active',m==='edit');if(m==='add')pmV32Refresh()};
+ window.pmV32Refresh=()=>{let a=rows();$('v32Department').innerHTML='<option value="">בחר מחלקה</option>'+uniq(a.map(x=>x.department)).map(x=>`<option>${esc(x)}</option>`).join('');$('v32Frequency').innerHTML=uniq(a.map(x=>x.frequency)).map(x=>`<option>${esc(x)}</option>`).join('');pmV32FillMachines();pmV32TypeChanged();pmV32SourceChanged()};
+ window.pmV32FillMachines=()=>{let d=$('v32Department').value,a=rows().filter(x=>!d||x.department===d);$('v32Machine').innerHTML='<option value="">בחר מכונה / תשתית</option>'+uniq(a.map(x=>x.machine)).map(x=>`<option>${esc(x)}</option>`).join('');pmV32FillTasks()};
+ window.pmV32FillTasks=()=>{let d=$('v32Department').value,m=$('v32Machine').value,t=$('v32Type').value,a=rows().filter(x=>(!d||x.department===d)&&(!m||x.machine===m)&&typ(x)===t);$('v32MasterTask').innerHTML='<option value="">בחר משימה</option>'+a.map(x=>`<option value="${esc(String(x.id))}">${esc(x.task||x.description||'')}</option>`).join('')};
+ window.pmV32AdoptMaster=()=>{let t=rows().find(x=>String(x.id)===$('v32MasterTask').value);if(!t)return;$('v32TaskText').value=t.task||t.description||'';$('v32Duration').value=t.duration??'';let p=t.performer||t.trade||'';if([...$('v32Trade').options].some(o=>o.value===p))$('v32Trade').value=p;if(t.frequency&&[...$('v32Frequency').options].some(o=>o.value===t.frequency))$('v32Frequency').value=t.frequency};
+ window.pmV32SourceChanged=()=>{let x=$('v32Source').value==='manual';$('v32ManualDepartmentWrap').style.display=x?'block':'none';$('v32ManualMachineWrap').style.display=x?'block':'none';$('v32MasterTaskWrap').style.display=x?'none':'block';$('v32Department').disabled=x;$('v32Machine').disabled=x};
+ window.pmV32TypeChanged=()=>{let t=$('v32Type').value,p=t==='PM';$('v32FrequencyWrap').style.display=p?'block':'none';$('v32DueWrap').style.display=p?'block':'none';$('v32LogicNote').textContent=p?'PM נכנס לניהול המחזורי, לתכנון, לדשבורד ולדוחות.':t==='maintenance_check'?'בדיקת אחזקה נשמרת בכרטיסיית בדיקות אחזקה ואינה נכנסת לתכנון המחזורי.':'בדיקת מפעיל נשמרת בכרטיסיית בדיקות מפעיל ואינה נכנסת לתכנון המחזורי.';if(t==='operator_check')$('v32Trade').value='מפעיל';pmV32FillTasks()};
+ window.pmV32CreateTask=async()=>{let t=$('v32Type').value,man=$('v32Source').value==='manual',d=(man?$('v32ManualDepartment').value:$('v32Department').value).trim(),m=(man?$('v32ManualMachine').value:$('v32Machine').value).trim(),task=$('v32TaskText').value.trim();if(!d||!m||!task){statusLine('יש למלא מחלקה, מכונה/תשתית ותיאור משימה.','error');return}
+   newDepartment.value=d;newMachine.value=m;newTask.value=task;newPerformer.value=$('v32Trade').value;newDuration.value=$('v32Duration').value;newNotes.value=$('v32Notes').value;
+   if(t==='PM'){newFrequency.value=$('v32Frequency').value;newDue.value=$('v32Due').value;await addTask()}
+   else {newFrequency.value='';newDue.value='';await addTask();let created=(window.pmTasks||[]).slice().reverse().find(x=>x.department===d&&x.machine===m&&(x.task||'')===task);if(created){created.task_type=t;created.category=t;created.is_cyclic=false;created.is_plannable=false;if(typeof saveTask==='function')await saveTask(created)}}
+   pmV32Refresh();if(typeof renderDashboard==='function')renderDashboard();if(typeof renderPlanner==='function')renderPlanner();if(typeof renderReports==='function')renderReports();if(typeof renderMaintenanceChecks==='function')renderMaintenanceChecks();if(typeof renderOperatorChecks==='function')renderOperatorChecks();
+ };
+ const old=window.showTab||showTab;window.showTab=showTab=function(n){if(n==='addTask'){n='editTasks';setTimeout(()=>pmV32TaskMode('add'),0)}let r=old(n);if(n==='editTasks')setTimeout(pmV32Refresh,0);return r};
 })();
 </script>
 </body></html>
