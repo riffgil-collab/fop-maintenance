@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v18-period-kpi-fixed"/>
+<meta name="fop-build" content="20260821-v19-dashboard-period-safe"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -4039,8 +4039,11 @@ function pmV17DashboardRender(){
   const dep=document.getElementById('pmDashboardDepartment')?.value||'';
   const machine=document.getElementById('pmDashboardMachine')?.value||'';
   const trade=document.getElementById('pmDashboardTrade')?.value||'';
-  const anchor=document.getElementById('pmDashboardDate')?.value||today();
-  const range=periodRange(anchor,pmDashboardPeriod||'day');
+  // Use the existing V3 dashboard controls. V18 referenced non-existent legacy variables
+  // (pmDashboardDate / pmDashboardPeriod / periodRange), which threw during refreshAll()
+  // and made loadCloudData() report a false cloud-load failure.
+  const anchor=document.getElementById('pmDashboardAnchor')?.value||today();
+  const range=v3PeriodBounds((typeof pmV3DashboardPeriod!=='undefined'?pmV3DashboardPeriod:'day'),anchor);
   const rangeStart=range.start, rangeEnd=range.end;
 
   // PM: use exactly the selected dashboard period, not a fixed backlog horizon.
