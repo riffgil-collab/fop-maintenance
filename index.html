@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v40-load-fix"/>
+<meta name="fop-build" content="20260821-v45-final-audited"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -430,6 +430,23 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 #pmDashboard.pm-dashboard-readonly [onclick]{cursor:default}
 </style>
 </head>
+
+<!--
+FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
+- PM / WO lifecycle separation verified.
+- WO -> PM keeps independently selected first PM due date.
+- PM task kind metadata normalized with legacy compatibility.
+- pm_history preserved across initialization.
+- Dashboard / Planning / Treatment Report synchronization fixes retained.
+- Treatment profession filter and progress use same filtered population.
+- WO execution-log entries obey history filters.
+- Completion rollback protects against orphan history rows.
+- Sensitive mutations enforce role checks inside write functions.
+- Bulk planning / unplanning use final authoritative pm_work_plan mutations with rollback.
+- Historical documentation edit is Manager/Admin only.
+- Technician may report work; Viewer is read-only through role capabilities.
+- No duplicate DOM IDs; all inline handler function names resolve.
+-->
 <body>
 <div aria-hidden="true" id="pmAuthOverlay">
 <div class="pm-auth-card">
@@ -1591,17 +1608,28 @@ async function saveSelectedPlanning(){
   const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
   const stamp=new Date().toISOString();
   statusLine(`שומר ${keys.length} משימות בתוכנית…`);
+  const changed=[];
   try{
     const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
     for(const key of keys){
       const item=lookup.get(key);if(!item)continue;
+      changed.push({task:item.t,oldNotes:String(item.t.notes||'')});
       const marker=`[PM_PLAN|${cleanAuditValue(item.due)}|${cleanAuditValue(plannedDate)}|${cleanAuditValue(priority)}|${cleanAuditValue(assignee||item.t.performer||'')}|${cleanAuditValue(actor)}|${stamp}]`;
       await appendPlanningMarker(item.t,marker);
     }
     await reloadCloudData();
     renderPlanner();
-    statusLine(`${keys.length} משימות שובצו לתוכנית העבודה.`, 'success');
-  }catch(err){statusLine('שמירת התכנון נכשלה: '+(err?.message||'שגיאה לא ידועה'),'error')}
+    statusLine(`${changed.length} משימות שובצו לתוכנית העבודה.`, 'success');
+  }catch(err){
+    for(const x of changed.reverse()){
+      try{
+        await supabaseClient.from('pm_tasks').update({notes:x.oldNotes||null}).eq('id',x.task.id);
+        x.task.notes=x.oldNotes;
+      }catch(rb){console.error('Planning rollback failed',x.task.id,rb)}
+    }
+    try{await reloadCloudData();renderPlanner()}catch(_){}
+    statusLine('שמירת התכנון נכשלה והמערכת ניסתה להחזיר את כל השינויים: '+(err?.message||'שגיאה לא ידועה'),'error');
+  }
 }
 async function unplanSelected(){
   if(!pmCan('manageExceptions'))return statusLine('שינוי תוכנית זמין למנהל אחזקה בלבד.','error');
@@ -1609,15 +1637,26 @@ async function unplanSelected(){
   if(!await pmConfirm(`להסיר ${keys.length} משימות מתוכנית העבודה?`))return;
   const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
   const stamp=new Date().toISOString();
+  const changed=[];
   try{
     const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
     for(const key of keys){
       const item=lookup.get(key);if(!item)continue;
+      changed.push({task:item.t,oldNotes:String(item.t.notes||'')});
       await appendPlanningMarker(item.t,`[PM_UNPLAN|${cleanAuditValue(item.due)}|${cleanAuditValue(actor)}|${stamp}]`);
     }
-    await reloadCloudData(); renderPlanner();
-    statusLine(`${keys.length} משימות הוסרו מתוכנית העבודה.`, 'success');
-  }catch(err){statusLine('הסרת התכנון נכשלה: '+(err?.message||'שגיאה לא ידועה'),'error')}
+    await reloadCloudData();renderPlanner();
+    statusLine(`${changed.length} משימות הוסרו מתוכנית העבודה.`, 'success');
+  }catch(err){
+    for(const x of changed.reverse()){
+      try{
+        await supabaseClient.from('pm_tasks').update({notes:x.oldNotes||null}).eq('id',x.task.id);
+        x.task.notes=x.oldNotes;
+      }catch(rb){console.error('Unplan rollback failed',x.task.id,rb)}
+    }
+    try{await reloadCloudData();renderPlanner()}catch(_){}
+    statusLine('הסרת התכנון נכשלה והמערכת ניסתה להחזיר את כל השינויים: '+(err?.message||'שגיאה לא ידועה'),'error');
+  }
 }
 function plannedItemsForDate(date){
   const out=[];
@@ -1830,7 +1869,7 @@ function showTab(name){
   if(name==='report'&&!pmCan('report'))return statusLine('דיווח טיפול אינו זמין בהרשאה שלך.','error');
   document.querySelectorAll('.pm-tab').forEach(b=>b.classList.toggle('active',b.dataset.pm===name));
   document.querySelectorAll('.pm-panel').forEach(p=>p.classList.remove('active'));
-  const id={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',history:'pmHistory',reports:'pmReports',operatorChecks:'pmOperatorChecks',maintenanceChecks:'pmMaintenanceChecks',editTasks:'pmEditTasks',addTask:'pmAddTask',initialization:'pmInitialization',users:'pmUsers'}[name];
+  const id={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',history:'pmHistory',reports:'pmReports',operatorChecks:'pmOperatorChecks',maintenanceChecks:'pmMaintenanceChecks',editTasks:'pmEditTasks',initialization:'pmInitialization',users:'pmUsers'}[name];
   document.getElementById(id)?.classList.add('active');
   if(name==='dashboard'){syncDashboardViewFromPlanner();renderDashboard();}
   if(name==='planner')renderPlanner();
@@ -2075,6 +2114,7 @@ async function uploadMaintenancePhoto(file,t,date,index){
   if(error)throw error; return path;
 }
 async function saveCompletionWithDocumentation(){
+  if(!pmCan('report'))return statusLine('אין הרשאה לדווח ביצוע טיפול.','error');
   const id=pmCompletionTaskId,t=tasks.find(x=>String(x.id)===String(id)),date=pmCompletionReportDate||pmReportDate.value||today();if(!t)return;
   let p=pmCompletionWorkPlanId?pmWorkPlan.find(x=>String(x.id)===String(pmCompletionWorkPlanId)):null;
   const due=pmCompletionOccurrenceDue||wpDueFromNotes(p?.notes)||t.nextDue||date;
@@ -2092,8 +2132,9 @@ async function saveCompletionWithDocumentation(){
     const nextMaster=(String(oldNext||'')===String(due)&&typeof pmNextOpenDueAfter==='function')?pmNextOpenDueAfter(t,due):oldNext;
     const updateRes=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextMaster}).eq('id',t.id);
     if(updateRes.error)throw updateRes.error;
+    let insertedHistory=null;
     try{
-      await insertHistoryAdaptive(t,date,{notes,photo1Path,photo2Path});
+      insertedHistory=await insertHistoryAdaptive(t,date,{notes,photo1Path,photo2Path});
       if(p){
         const r=await supabaseClient.from('pm_work_plan').update({status:'Completed',completed_date:date}).eq('id',p.id);if(r.error)throw r.error;
       }else{
@@ -2101,8 +2142,15 @@ async function saveCompletionWithDocumentation(){
         const r=await supabaseClient.from('pm_work_plan').insert({task_id:t.id,planned_date:date,assigned_to:t.performer||null,priority:'בינונית',status:'Completed',completed_date:date,postponed_reason:null,notes:`PM_DUE:${due}`,created_by:actor});if(r.error)throw r.error;
       }
     }catch(err){
+      // Roll back the master pointer.
       await supabaseClient.from('pm_tasks').update({last_done:oldLast,next_due:oldNext}).eq('id',t.id);
+      // Roll back a changed plan row.
       if(p)await supabaseClient.from('pm_work_plan').update({status:(typeof v3RowStatus==='function'&&v3RowStatus(p)==='postponed')?'Postponed':'Planned',completed_date:null}).eq('id',p.id);
+      // If history was written before the plan failed, remove the orphan audit row.
+      if(insertedHistory?.id){
+        const hr=await supabaseClient.from('pm_history').delete().eq('id',insertedHistory.id);
+        if(hr.error)console.error('Completion rollback: failed to remove orphan pm_history row',hr.error);
+      }
       throw err;
     }
     st.textContent='הטיפול נשמר.';st.classList.add('success');
@@ -2146,7 +2194,7 @@ function renderHistory(){
         ${!postponed&&(h.photo1Path||h.photo2Path)?`<div class="pm-history-photos">${h.photo1Path?`<button type="button" onclick="openMaintenancePhoto('${esc(h.photo1Path)}')">📷 תמונה 1</button>`:''}${h.photo2Path?`<button type="button" onclick="openMaintenancePhoto('${esc(h.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:''}
       </div>
       <div class="history-user">${esc(h.reportedBy||'—')}</div>
-      ${!postponed?`<div class="pm-history-actions">${pmCan('report')?`<button class="secondary-btn" type="button" onclick="openHistoryEdit('${esc(String(h.id??''))}')">✏️ עריכת תיעוד</button>`:''}${canManage?`<button class="pm-undo" type="button" onclick="undoCompletion('${esc(String(h.id??''))}','${esc(String(h.taskId??''))}','${esc(String(h.date??''))}')">↩ החזר לתוכנית</button>`:''}</div>`:''}
+      ${!postponed?`<div class="pm-history-actions">${pmCan('manageExceptions')?`<button class="secondary-btn" type="button" onclick="openHistoryEdit('${esc(String(h.id??''))}')">✏️ עריכת תיעוד</button>`:''}${canManage?`<button class="pm-undo" type="button" onclick="undoCompletion('${esc(String(h.id??''))}','${esc(String(h.taskId??''))}','${esc(String(h.date??''))}')">↩ החזר לתוכנית</button>`:''}</div>`:''}
     </div>`;
   }).join('')
 }
@@ -2689,7 +2737,7 @@ async function initializePMPlan(){
   // stay printable-only and are excluded from due-date generation, dashboard, planning and cyclic tracking.
   const activeTasks=maintenanceTasks().filter(t=>t&&t.active!==false);
   if(!activeTasks.length){await pmMessage('אין טיפולי אחזקה פעילים לאתחול.');return}
-  if(!await pmConfirm('לאתחל את תוכנית האחזקה?\n\nהפעולה תיצור נקודת התחלה חדשה: תוכנית העבודה והיסטוריית התוכנית הקודמת יימחקו, כולל ביצועים ודחיות, ומועדי הטיפול הבאים יחושבו מחדש. מאגר המכונות והטיפולים יישמר.'))return;
+  if(!await pmConfirm('לאתחל את תוכנית האחזקה?\n\nהפעולה תיצור נקודת התחלה חדשה: תוכנית העבודה הפעילה תאופס ומועדי הטיפול הבאים יחושבו מחדש. היסטוריית הביצועים נשמרת כ-Audit Trail, ומאגר המכונות והטיפולים נשמר.'))return;
 
   statusLine('מאתחל את תוכנית האחזקה…');
   const now=new Date();
@@ -2755,18 +2803,15 @@ async function initializePMPlan(){
   }
 
   try{
-    // Full program reset: clear the previous operational plan AND its visible history.
-    // Keep the master task/machine definitions, but remove old planning/audit state.
+    // Full program reset: clear the previous ACTIVE operational plan only.
+    // Keep master task/machine definitions and preserve execution history as audit trail.
     const ids=allMaintenanceMasterTasks.map(t=>t.id);
     for(let i=0;i<ids.length;i+=100){
       const batch=ids.slice(i,i+100);
       const planRes=await supabaseClient.from('pm_work_plan').delete().in('task_id',batch);
       if(planRes.error)throw planRes.error;
 
-      // Best-effort physical cleanup only. RLS may legally block DELETE without returning
-      // a useful matched-row count, so the PM_INIT marker below is the source of truth.
-      const histRes=await supabaseClient.from('pm_history').delete().in('task_id',batch);
-      if(histRes.error)console.warn('pm_history reset cleanup skipped; old rows will stay archived:',histRes.error.message);
+      // V41: pm_history is an audit trail and is intentionally preserved across initialization.
     }
     // v22: write ALL maintenance-technician tasks in bulk batches instead of 1 HTTP request per task.
     // The old per-row loop could stop halfway on a transient request failure, leaving some departments
@@ -3757,15 +3802,40 @@ moveWorkPlan=async function(planId){
 
 // Daily report is driven by the plan, with optional unplanned backlog visibility and cancel action.
 renderReport=function(){
-  const dep=pmReportDepartment.value,machine=pmReportMachine.value,performer=document.getElementById('pmReportPerformer')?.value||'',reportDate=pmReportDate.value||today(),includeUnplanned=document.getElementById('pmReportIncludeUnplanned')?.checked===true;
-  const planned=v3RequirementItems(reportDate,reportDate).filter(x=>x.plan&&x.plan.plannedDate===reportDate).filter(x=>!['completed','cancelled','waiting'].includes(v3OccurrenceState(x,reportDate))).filter(x=>v3FilterTask(x.t,dep,machine,performer,x.plan));
+  const dep=pmReportDepartment.value||'',machine=pmReportMachine.value||'',trade=document.getElementById('pmReportTrade')?.value||'',reportDate=pmReportDate.value||today(),includeUnplanned=document.getElementById('pmReportIncludeUnplanned')?.checked===true;
+  const fi=document.getElementById('pmReportFilterIndicator');if(fi)fi.textContent='מציג: '+(trade||'כל המקצועות');
+
+  const taskMatches=t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!trade||maintenanceTrade(t)===trade);
+
+  const planned=v3RequirementItems(reportDate,reportDate)
+    .filter(x=>x.plan&&x.plan.plannedDate===reportDate)
+    .filter(x=>!['completed','cancelled','waiting'].includes(v3OccurrenceState(x,reportDate)))
+    .filter(x=>taskMatches(x.t));
+
   let extras=[];
-  if(includeUnplanned){extras=v3CurrentBacklog(dep,machine,performer,reportDate).filter(x=>!planned.some(p=>String(p.t.id)===String(x.t.id)&&p.due===x.due));}
+  if(includeUnplanned){
+    extras=v3CurrentBacklog(dep,machine,'',reportDate)
+      .filter(x=>taskMatches(x.t))
+      .filter(x=>!planned.some(p=>String(p.t.id)===String(x.t.id)&&p.due===x.due));
+  }
   const list=[...planned,...extras];
-  repOpen.textContent=list.length+' משימות להצגה';repLate.textContent=list.filter(x=>v3OccurrenceState(x,reportDate)==='overdue').length+' באיחור';repToday.textContent=planned.length+' בתוכנית העבודה';
-  const doneForDate=pmWorkPlan.filter(p=>v3RowStatus(p)==='completed'&&p.completedDate===reportDate).length,total=planned.length+doneForDate;pmProgressFill.style.width=(total?doneForDate/total*100:0)+'%';pmProgressText.textContent=`${doneForDate} מתוך ${total} בוצעו`;
+
+  repOpen.textContent=list.length+' משימות להצגה';
+  repLate.textContent=list.filter(x=>v3OccurrenceState(x,reportDate)==='overdue').length+' באיחור';
+  repToday.textContent=planned.length+' בתוכנית העבודה';
+
+  // Progress must be filtered by the exact same department/machine/profession.
+  const completedRows=pmWorkPlan.filter(p=>{
+    if(v3RowStatus(p)!=='completed'||p.completedDate!==reportDate)return false;
+    const t=wpTask(p);return !!t&&taskMatches(t);
+  });
+  const doneForDate=completedRows.length,total=planned.length+doneForDate;
+  pmProgressFill.style.width=(total?doneForDate/total*100:0)+'%';
+  pmProgressText.textContent=`${doneForDate} מתוך ${total} בוצעו`;
+
   if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין משימות לביצוע בתאריך ובסינון שנבחרו.</div>';return}
-  const canManage=pmCan('manageExceptions');pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div><div class="pm-task-actions"><button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}','${p?.id||''}','${x.due}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
+  const canManage=pmCan('manageExceptions');
+  pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מקצוע: ${esc(maintenanceTrade(x.t))}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div><div class="pm-task-actions"><button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}','${p?.id||''}','${x.due}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
 };
 
 // Completion accepts Planned or Postponed rows and closes them as Completed.
@@ -4244,6 +4314,7 @@ function openUnplannedModal(){
 }
 function closeUnplannedModal(){document.getElementById('pmUnplannedModal').classList.remove('open');}
 async function saveUnplannedWorkOrder(){
+  if(!pmCan('manageExceptions'))return statusLine('פתיחת WO זמינה למנהל אחזקה או Admin בלבד.','error');
   const dep=pmWODepartment.value,machine=getWOEquipment(),description=pmWODescription.value.trim(),due=pmWODueDate.value;
   if(!dep||!machine||!description||!due){pmWOStatus.textContent='יש לבחור מחלקה ומכונה / תשתית ולמלא תיאור ותאריך יעד.';pmWOStatus.className='pm-modal-status error';return;}
 
@@ -4278,7 +4349,7 @@ async function saveUnplannedWorkOrder(){
   if(r.error){pmWOStatus.textContent='שמירה נכשלה: '+r.error.message;pmWOStatus.className='pm-modal-status error';return;}
 
   if(makePM){
-    const marker=`[WO_SOURCE:${r.data.id}] [TRADE:${pmDef.trade}] [KIND:physical]`;
+    const marker=`[WO_SOURCE:${r.data.id}] [TRADE:${pmDef.trade}] [TASK_KIND:physical]`;
     const row={department:dep,machine,task:pmDef.task,frequency:pmDef.frequency,performer:'טכנאי אחזקה',duration:pmDef.duration,parts:null,notes:`${marker}${pmDef.notes?` ${pmDef.notes}`:''}`,active:true,last_done:null,next_due:pmDef.firstDue};
     const pr=await supabaseClient.from('pm_tasks').insert(row);
     if(pr.error){
@@ -4303,10 +4374,32 @@ function renderUnplannedReport(){const el=document.getElementById('pmWOReportLis
 function pmOpenWOCompletion(id){const w=pmWorkOrders.find(x=>String(x.id)===String(id));if(!w)return false;pmCompletionIsWO=true;pmCompletionTaskId=id;pmCompletionWorkPlanId='';pmCompletionOccurrenceDue='';pmCompletionReportDate=pmReportDate?.value||today();pmCompleteTaskText.textContent=`WO · ${w.machine} — ${w.description}`;pmCompletionNotes.value='';for(const n of [1,2]){const inp=document.getElementById('pmPhoto'+n),img=document.getElementById('pmPhotoPreview'+n);if(inp)inp.value='';if(img){img.removeAttribute('src');img.style.display='none';}}pmCompleteStatus.textContent='';pmCompleteModal.classList.add('open');document.body.style.overflow='hidden';return false;}
 const _closeCompleteModalV13=closeCompleteModal;closeCompleteModal=function(){pmCompletionIsWO=false;_closeCompleteModalV13();};
 const _saveCompletionV13=saveCompletionWithDocumentation;saveCompletionWithDocumentation=async function(){
+ if(!pmCan('report'))return statusLine('אין הרשאה לדווח ביצוע טיפול.','error');
  if(!pmCompletionIsWO)return _saveCompletionV13();
- const w=pmWorkOrders.find(x=>String(x.id)===String(pmCompletionTaskId));if(!w)return;const date=pmCompletionReportDate||today(),btn=pmCompleteSaveButton,st=pmCompleteStatus;btn.disabled=true;let p1='',p2='';try{st.textContent='מעבד ושומר WO…';const pseudo={id:'WO_'+w.id};const f1=pmPhoto1.files?.[0],f2=pmPhoto2.files?.[0];if(f1)p1=await uploadMaintenancePhoto(f1,pseudo,date,1);if(f2)p2=await uploadMaintenancePhoto(f2,pseudo,date,2);const r=await supabaseClient.from('pm_work_orders').update({status:'Completed',completed_date:date,completion_notes:pmCompletionNotes.value.trim()||null,photo_1_path:p1||null,photo_2_path:p2||null}).eq('id',w.id);if(r.error)throw r.error;const linked=tasks.filter(t=>String(t.notes||'').includes('[WO_SOURCE:'+w.id+']'));for(const t of linked){await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextDueFrom(date,t.frequency)}).eq('id',t.id);}await reloadCloudData();st.textContent='ה-WO הושלמה ונשמרה בהיסטוריה.';st.className='pm-modal-status success';setTimeout(closeCompleteModal,450);}catch(e){if(p1)await supabaseClient.storage.from('maintenance-photos').remove([p1]);if(p2)await supabaseClient.storage.from('maintenance-photos').remove([p2]);st.textContent='שמירה נכשלה: '+(e?.message||e);st.className='pm-modal-status error';}finally{btn.disabled=false;}
+ const w=pmWorkOrders.find(x=>String(x.id)===String(pmCompletionTaskId));if(!w)return;const date=pmCompletionReportDate||today(),btn=pmCompleteSaveButton,st=pmCompleteStatus;btn.disabled=true;let p1='',p2='';try{st.textContent='מעבד ושומר WO…';const pseudo={id:'WO_'+w.id};const f1=pmPhoto1.files?.[0],f2=pmPhoto2.files?.[0];if(f1)p1=await uploadMaintenancePhoto(f1,pseudo,date,1);if(f2)p2=await uploadMaintenancePhoto(f2,pseudo,date,2);const r=await supabaseClient.from('pm_work_orders').update({status:'Completed',completed_date:date,completion_notes:pmCompletionNotes.value.trim()||null,photo_1_path:p1||null,photo_2_path:p2||null}).eq('id',w.id);if(r.error)throw r.error;
+/* V41: WO completion is independent from the PM schedule created from it.
+   The PM keeps the first due date explicitly chosen during creation. */
+await reloadCloudData();st.textContent='ה-WO הושלמה ונשמרה בהיסטוריה.';st.className='pm-modal-status success';setTimeout(closeCompleteModal,450);}catch(e){if(p1)await supabaseClient.storage.from('maintenance-photos').remove([p1]);if(p2)await supabaseClient.storage.from('maintenance-photos').remove([p2]);st.textContent='שמירה נכשלה: '+(e?.message||e);st.className='pm-modal-status error';}finally{btn.disabled=false;}
 };
-function renderWOHistory(){const el=document.getElementById('pmHistoryList');if(!el)return;const done=pmWorkOrders.filter(w=>w.status==='Completed');if(!done.length)return;const html=done.map(w=>`<div class="history-row"><div><strong>${esc(fDate(w.completedDate))}</strong><span class="pm-history-event completed">WO בוצע</span></div><div><strong>${esc(w.machine)}</strong><small>${esc(w.description)}</small><small>${esc(w.department)} · ${esc(w.trade)} · ${esc(w.priority)}</small>${w.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${esc(w.completionNotes)}</div>`:''}${(w.photo1Path||w.photo2Path)?`<div class="pm-history-photos">${w.photo1Path?`<button onclick="openMaintenancePhoto('${esc(w.photo1Path)}')">📷 תמונה 1</button>`:''}${w.photo2Path?`<button onclick="openMaintenancePhoto('${esc(w.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:''}</div></div>`).join('');el.insertAdjacentHTML('beforeend',html);}
+function renderWOHistory(){
+  const el=document.getElementById('pmHistoryList');if(!el)return;
+  const dep=pmHistoryDepartment?.value||'',machine=pmHistoryMachine?.value||'',from=pmHistoryFrom?.value||'',to=pmHistoryTo?.value||'',q=(pmHistorySearch?.value||'').trim().toLowerCase();
+  const done=pmWorkOrders.filter(w=>{
+    if(w.status!=='Completed')return false;
+    const date=String(w.completedDate||'');
+    if(dep&&w.department!==dep)return false;
+    if(machine&&w.machine!==machine)return false;
+    if(from&&date<from)return false;
+    if(to&&date>to)return false;
+    if(q&&!`${w.machine||''} ${w.description||''} ${w.department||''} ${w.trade||''} ${w.completionNotes||''}`.toLowerCase().includes(q))return false;
+    return true;
+  });
+  if(!done.length)return;
+  const html=done.map(w=>`<div class="history-row"><div><strong>${esc(fDate(w.completedDate))}</strong><span class="pm-history-event completed">WO בוצע</span></div><div><strong>${esc(w.machine)}</strong><small>${esc(w.description)}</small><small>${esc(w.department)} · ${esc(w.trade)} · ${esc(w.priority)}</small>${w.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${esc(w.completionNotes)}</div>`:''}${(w.photo1Path||w.photo2Path)?`<div class="pm-history-photos">${w.photo1Path?`<button onclick="openMaintenancePhoto('${esc(w.photo1Path)}')">📷 תמונה 1</button>`:''}${w.photo2Path?`<button onclick="openMaintenancePhoto('${esc(w.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:''}</div></div>`).join('');
+  // If the base PM history renderer showed its empty state, replace it before appending WO rows.
+  if(el.querySelector('.empty'))el.innerHTML='';
+  el.insertAdjacentHTML('beforeend',html);
+}
 const _renderHistoryV13=renderHistory;renderHistory=function(){_renderHistoryV13();renderWOHistory();};
 const _renderPlannerV13=renderPlanner;renderPlanner=function(){_renderPlannerV13();renderUnplannedPlanner();};
 const _renderReportV13=renderReport;renderReport=function(){_renderReportV13();renderUnplannedReport();};
@@ -5099,7 +5192,13 @@ renderPlanner=function(){
  const KINDS={physical:'PM',inspection:'בדיקת אחזקה',operator:'בדיקת מפעיל'};
  let tmSelectedId=null,tmMode='view',tmSource='master',tmSyncing=false;
  const uniq=a=>[...new Set(a.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'));
- const tagKind=t=>{const m=String(t?.notes||'').match(/\[TASK_KIND:(physical|inspection|operator)\]/);return m?m[1]:null};
+ const tagKind=t=>{
+   const n=String(t?.notes||'');
+   const m=n.match(/\[TASK_KIND:(physical|inspection|operator)\]/);
+   if(m)return m[1];
+   const legacy=n.match(/\[KIND:(physical|inspection|operator)\]/);
+   return legacy?legacy[1]:null;
+ };
  const cleanMeta=n=>String(n||'').split(/\r?\n/).filter(x=>!(/^\[(TASK_KIND|TRADE):/.test(x.trim()))).join('\n').trim();
  const taggedNotes=(visible,kind,trade)=>{
    const lines=[String(visible||'').trim(),`[TASK_KIND:${kind}]`];
@@ -5185,6 +5284,7 @@ renderPlanner=function(){
  window.tmAdoptMasterTask=function(){const t=tasks.find(x=>String(x.id)===String($('tmMasterTask').value));if(!t)return;fillForm(t);$('tmEditDepartment').value=t.department||'';$('tmEditMachine').value=t.machine||''};
  window.tmKindChanged=function(){const k=$('tmEditKind').value;$('tmKindBadge').textContent=KINDS[k];$('tmTradeField').style.display=k==='operator'?'none':'block';$('tmLogicNote').textContent=k==='physical'?'PM: טיפול אחזקה מתוכנן/מחזורי שנכנס לתכנון, לדשבורד ולדוחות.':k==='inspection'?'בדיקת אחזקה: מופיעה בכרטיסיית בדיקות אחזקה ואינה נכנסת לתכנון ה-PM המחזורי.':'בדיקת מפעיל: מופיעה בכרטיסיית בדיקות מפעיל ואינה נכנסת לתכנון האחזקה.';if(tmMode==='new'&&tmSource==='master')tmFillMasterTasks()};
  window.tmSave=async function(){
+   if(pmCurrentRole!=='admin')return statusLine('ניהול משימות זמין ל-Admin בלבד.','error');
    if(!requirePM('writeTasks','אין הרשאה לשמור משימות.'))return;
    const kind=$('tmEditKind').value,department=$('tmEditDepartment').value.trim(),machine=$('tmEditMachine').value.trim(),task=$('tmEditTask').value.trim();
    if(!department||!machine||!task){statusLine('יש למלא מחלקה, מכונה / תשתית ותיאור משימה.','error');return}
@@ -5245,7 +5345,7 @@ renderPlanner=function(){
 let pmHistoryEditId='';
 
 function openHistoryEdit(id){
-  if(!pmCan('report'))return statusLine('אין הרשאה לערוך תיעוד טיפול.','error');
+  if(!pmCan('manageExceptions'))return statusLine('עריכת תיעוד היסטורי זמינה למנהל אחזקה או Admin בלבד.','error');
   const h=history.find(x=>String(x.id??'')===String(id));
   if(!h)return statusLine('רשומת הטיפול לא נמצאה.','error');
   pmHistoryEditId=String(id);
@@ -5277,6 +5377,7 @@ function previewHistoryEditPhoto(n){
 }
 
 async function saveHistoryEdit(){
+  if(!pmCan('manageExceptions'))return statusLine('עריכת תיעוד היסטורי זמינה למנהל אחזקה או Admin בלבד.','error');
   const h=history.find(x=>String(x.id??'')===String(pmHistoryEditId));
   if(!h)return;
   const btn=document.getElementById('pmHistoryEditSave'),st=document.getElementById('pmHistoryEditStatus');
@@ -5318,4 +5419,137 @@ async function saveHistoryEdit(){
   }finally{btn.disabled=false}
 }
 </script>
+
+<script id="fop-v44-authoritative-mutations">
+/* ================================================================
+   V44 CONSOLIDATION — AUTHORITATIVE MUTATION ENTRYPOINTS
+   These definitions are intentionally LAST in the file.
+   Earlier legacy implementations remain inert for compatibility,
+   but all UI calls resolve to these final functions.
+   ================================================================ */
+(function(){
+  function workPlanDbPayload(p){
+    return {
+      task_id:p.taskId,
+      planned_date:p.plannedDate||null,
+      assigned_to:p.assignedTo||null,
+      priority:p.priority||'בינונית',
+      status:p.status||'Planned',
+      completed_date:p.completedDate||null,
+      postponed_reason:p.postponedReason||null,
+      notes:p.notes||null,
+      created_by:p.createdBy||null
+    };
+  }
+
+  async function rollbackWorkPlan(changes){
+    for(const c of [...changes].reverse()){
+      try{
+        if(c.kind==='insert'){
+          const r=await supabaseClient.from('pm_work_plan').delete().eq('id',c.id);
+          if(r.error)throw r.error;
+        }else{
+          const r=await supabaseClient.from('pm_work_plan').update(workPlanDbPayload(c.before)).eq('id',c.before.id);
+          if(r.error)throw r.error;
+        }
+      }catch(e){
+        console.error('V44 work-plan rollback failed',c,e);
+      }
+    }
+  }
+
+  window.saveSelectedPlanning=saveSelectedPlanning=async function(){
+    if(!pmCan('manageExceptions'))return statusLine('תכנון עבודה זמין למנהל אחזקה או Admin בלבד.','error');
+    const keys=selectedPlanKeys();
+    if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
+
+    const plannedDate=document.getElementById('pmPlanDate')?.value;
+    if(!plannedDate)return statusLine('יש לבחור תאריך מתוכנן.','error');
+
+    const priority=document.getElementById('pmPlanPriority')?.value||'בינונית';
+    const assignee=(document.getElementById('pmPlanAssignee')?.value||'').trim();
+    const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
+    const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
+    const changes=[];
+    let changedCount=0;
+
+    statusLine(`שומר ${keys.length} משימות בתוכנית העבודה…`);
+
+    try{
+      for(const key of keys){
+        const item=lookup.get(key);if(!item)continue;
+        const existing=v3OccurrenceRow(item.t.id,item.due);
+        const payload={
+          task_id:item.t.id,
+          planned_date:plannedDate,
+          assigned_to:assignee||existing?.assignedTo||item.t.performer||null,
+          priority,
+          status:'Planned',
+          completed_date:null,
+          postponed_reason:null,
+          notes:`PM_DUE:${item.due}`,
+          created_by:actor
+        };
+
+        if(existing){
+          changes.push({kind:'update',before:{...existing}});
+          const r=await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id);
+          if(r.error)throw r.error;
+        }else{
+          const r=await supabaseClient.from('pm_work_plan').insert(payload).select('*').single();
+          if(r.error)throw r.error;
+          changes.push({kind:'insert',id:r.data.id});
+        }
+        changedCount++;
+      }
+
+      await reloadCloudData();
+      renderPlanner();
+      statusLine(`${changedCount} משימות שובצו לתוכנית העבודה.`,'success');
+    }catch(err){
+      await rollbackWorkPlan(changes);
+      try{await reloadCloudData();renderPlanner()}catch(_){}
+      statusLine('שמירת תוכנית העבודה נכשלה. השינויים שבוצעו לפני הכשל הוחזרו: '+(err?.message||'שגיאה'),'error');
+    }
+  };
+
+  window.unplanSelected=unplanSelected=async function(){
+    if(!pmCan('manageExceptions'))return statusLine('שינוי תוכנית זמין למנהל אחזקה או Admin בלבד.','error');
+    const keys=selectedPlanKeys();
+    if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
+    if(!await pmConfirm(`להחזיר ${keys.length} משימות למצב ממתינה לתכנון?`))return;
+
+    const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
+    const changes=[];
+    let changedCount=0;
+
+    try{
+      for(const key of keys){
+        const item=lookup.get(key);if(!item)continue;
+        const existing=v3OccurrenceRow(item.t.id,item.due);
+        if(!existing)continue;
+
+        changes.push({kind:'update',before:{...existing}});
+        const r=await supabaseClient.from('pm_work_plan').update({
+          status:'Unplanned',
+          planned_date:item.due,
+          completed_date:null,
+          postponed_reason:null
+        }).eq('id',existing.id);
+        if(r.error)throw r.error;
+        changedCount++;
+      }
+
+      await reloadCloudData();
+      renderPlanner();
+      statusLine(`${changedCount} משימות הוחזרו לממתינה לתכנון.`,'success');
+    }catch(err){
+      await rollbackWorkPlan(changes);
+      try{await reloadCloudData();renderPlanner()}catch(_){}
+      statusLine('עדכון המשימות נכשל. השינויים שבוצעו לפני הכשל הוחזרו: '+(err?.message||'שגיאה'),'error');
+    }
+  };
+})();
+</script>
+
 </body></html>
