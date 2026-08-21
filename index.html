@@ -832,7 +832,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   ============================================================
 -->
 
-<div class="pm-modal" id="pmUnplannedModal"><div class="pm-modal-card">
+<div class="pm-modal-backdrop" id="pmUnplannedModal" onclick="if(event.target===this)closeUnplannedModal()"><div class="pm-modal-card">
   <div class="pm-modal-head"><h3>פתיחת עבודה לא מתוכננת (WO)</h3><button type="button" onclick="closeUnplannedModal()">✕</button></div>
   <div class="toolbar">
     <div class="field"><label>מחלקה</label><input id="pmWODepartment" type="text" placeholder="מחלקה"/></div>
