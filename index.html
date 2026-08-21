@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v25-cancellation-control"/>
+<meta name="fop-build" content="20260821-v27-work-plan-pm-wo-report"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -678,11 +678,18 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     <div class="field"><label>תאריך עוגן</label><input id="pmReportsAnchor" type="date" onchange="renderReports()"/></div>
     <div class="field"><label>מחלקה</label><select id="pmReportsDepartment" onchange="fillReportMachinesV4();renderReports()"><option value="">כל המחלקות</option></select></div>
     <div class="field"><label>מכונה</label><select id="pmReportsMachine" onchange="renderReports()"><option value="">כל המכונות</option></select></div>
-    <div class="field"><label>מבצע</label>
-      <select id="pmReportsPerformer" onchange="renderReports()">
-        <option value="">כל המבצעים</option>
-        <option value="operator">מפעיל</option>
-        <option value="technician">טכנאי</option>
+    <div class="field"><label>מקצוע</label>
+      <select id="pmReportsTrade" onchange="renderReports()">
+        <option value="">כל המקצועות</option>
+        <option value="מכונאי">מכונאי</option>
+        <option value="חשמלאי">חשמלאי</option>
+      </select>
+    </div>
+    <div class="field"><label>סוג עבודה</label>
+      <select id="pmReportsWorkType" onchange="renderReports()">
+        <option value="">הכול</option>
+        <option value="PM">PM</option>
+        <option value="WO">WO</option>
       </select>
     </div>
     <div class="field"><label>סטטוס</label>
@@ -716,7 +723,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
         </div>
         <div id="pmReportLogoRight"></div>
       </div>
-      <h2>תוכנית עבודה</h2>
+      <h2>תוכנית עבודה — טיפולי אחזקה PM</h2>
       <div id="pmReportsMeta" class="pm-report-meta"></div>
     </div>
     <div class="pm-report-table-wrap">
@@ -3749,7 +3756,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     const {start,end}=reportBounds();
     const dep=byId('pmReportsDepartment')?.value||'';
     const machine=byId('pmReportsMachine')?.value||'';
-    const performer=byId('pmReportsPerformer')?.value||'';
+    const trade=byId('pmReportsTrade')?.value||'';
     const status=byId('pmReportsStatus')?.value||'';
     return v3RequirementItems(start,end).map(item=>{
       const st=v3OccurrenceState(item);
@@ -3757,7 +3764,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       return {item,state:st,date:displayDate(item,st),assigned};
     }).filter(r=>{
       const t=r.item.t;
-      return (!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!performer||performerKind(r.assigned)===performer||performerKind(t.performer)===performer)&&(!status||r.state===status);
+      return isMaintenanceTask(t)&&(!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!trade||maintenanceTrade(t)===trade)&&(!status||r.state===status);
     }).sort((a,b)=>clean(a.date).localeCompare(clean(b.date))||clean(a.item.t.department).localeCompare(clean(b.item.t.department),'he')||clean(a.item.t.machine).localeCompare(clean(b.item.t.machine),'he'));
   }
   function copyReportLogos(){
@@ -3790,8 +3797,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
     fillReportsDepartments();
     currentRows=reportRows();
-    const {label}=reportBounds(),dep=byId('pmReportsDepartment').value,machine=byId('pmReportsMachine').value,performer=byId('pmReportsPerformer').value,status=byId('pmReportsStatus').value;
-    const filterText=[dep&&`מחלקה: ${dep}`,machine&&`מכונה: ${machine}`,performer&&`מבצע: ${performer==='operator'?'מפעיל':'טכנאי'}`,status&&`סטטוס: ${statusLabels[status]||status}`].filter(Boolean).join(' · ');
+    const {label}=reportBounds(),dep=byId('pmReportsDepartment').value,machine=byId('pmReportsMachine').value,trade=byId('pmReportsTrade').value,status=byId('pmReportsStatus').value;
+    const filterText=[dep&&`מחלקה: ${dep}`,machine&&`מכונה: ${machine}`,trade&&`מקצוע: ${trade}`,status&&`סטטוס: ${statusLabels[status]||status}`].filter(Boolean).join(' · ');
     byId('pmReportsMeta').textContent=`${label}${filterText?' · '+filterText:''} · הופק: ${new Date().toLocaleString('he-IL')}`;
     const mins=currentRows.reduce((a,r)=>a+Number(r.item.t.duration||0),0);
     byId('pmReportsCount').textContent=currentRows.length;byId('pmReportsHours').textContent=hours(mins)+' שעות';
@@ -3845,6 +3852,55 @@ document.addEventListener('DOMContentLoaded',()=>{
     fillReportsDepartments();
   });
 })();
+
+/* ===== V27: Work Plan Report = PM + WO, never inspections ===== */
+(function(){
+  const oldReportRows=reportRows;
+  function woState(w){
+    const x=String(w.status||'').toLowerCase();
+    if(x==='completed')return 'completed'; if(x==='cancelled')return 'cancelled';
+    if(x==='postponed')return 'postponed'; if(x==='planned')return 'planned';
+    const d=String(w.dueDate||w.due_date||''); return d&&d<today()?'overdue':'waiting';
+  }
+  reportRows=function(){
+    const {start,end}=reportBounds();
+    const dep=byId('pmReportsDepartment')?.value||'',machine=byId('pmReportsMachine')?.value||'';
+    const trade=byId('pmReportsTrade')?.value||'',status=byId('pmReportsStatus')?.value||'';
+    const workType=byId('pmReportsWorkType')?.value||'';
+    const pmRows=workType==='WO'?[]:oldReportRows().map(r=>({...r,workType:'PM'}));
+    const woRows=workType==='PM'?[]:(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).map(w=>{
+      const st=woState(w),date=String(w.plannedDate||w.planned_date||w.dueDate||w.due_date||'');
+      return {workType:'WO',state:st,date,wo:w,assigned:w.assignee||''};
+    }).filter(r=>{
+      const w=r.wo,d=r.date;
+      return d&&d>=start&&d<=end&&(!dep||w.department===dep)&&(!machine||w.machine===machine)&&(!trade||w.trade===trade)&&(!status||r.state===status);
+    });
+    return [...pmRows,...woRows].sort((a,b)=>String(a.date).localeCompare(String(b.date)));
+  };
+
+  const oldRender=window.renderReports;
+  window.renderReports=function(){
+    const body=byId('pmReportsBody');if(!body)return;
+    if(!byId('pmReportsAnchor').value)byId('pmReportsAnchor').value=today();
+    copyReportLogos(); fillReportsDepartments();
+    currentRows=reportRows();
+    const {label}=reportBounds(),dep=byId('pmReportsDepartment').value,machine=byId('pmReportsMachine').value,trade=byId('pmReportsTrade').value,status=byId('pmReportsStatus').value,wt=byId('pmReportsWorkType').value;
+    const filterText=[dep&&`מחלקה: ${dep}`,machine&&`מכונה: ${machine}`,trade&&`מקצוע: ${trade}`,wt&&`סוג: ${wt}`,status&&`סטטוס: ${statusLabels[status]||status}`].filter(Boolean).join(' · ');
+    byId('pmReportsMeta').textContent=`${label}${filterText?' · '+filterText:''} · הופק: ${new Date().toLocaleString('he-IL')}`;
+    const mins=currentRows.reduce((a,r)=>a+Number(r.workType==='WO'?(r.wo.duration||0):(r.item.t.duration||0)),0);
+    byId('pmReportsCount').textContent=currentRows.length;byId('pmReportsHours').textContent=hours(mins)+' שעות';
+    byId('pmReportsFooterCount').textContent=currentRows.length;byId('pmReportsFooterHours').textContent=hours(mins);
+    body.innerHTML=currentRows.length?currentRows.map(r=>{
+      if(r.workType==='WO'){
+        const w=r.wo,note=w.notes||'';
+        return `<tr><td>${esc(fDate(r.date))}</td><td>${esc(w.department||'')}</td><td><strong>${esc(w.machine||'')}</strong><br><small>WO</small></td><td>${esc(w.description||'')}</td><td>WO</td><td>${Number(w.duration||0)} דק׳</td><td>${esc(r.assigned||w.trade||'')}</td><td class="status-cell">${esc(statusLabels[r.state]||r.state)}</td><td>${note?esc(note):'________________'}</td></tr>`;
+      }
+      const t=r.item.t,p=r.item.plan,note=p?.postponedReason||'';
+      return `<tr><td>${esc(fDate(r.date))}</td><td>${esc(t.department)}</td><td><strong>${esc(t.machine)}</strong><br><small>PM</small></td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${Number(t.duration||0)} דק׳</td><td>${esc(r.assigned)}</td><td class="status-cell">${esc(statusLabels[r.state]||r.state)}</td><td>${note?esc(note):'________________'}</td></tr>`;
+    }).join(''):'<tr><td colspan="9" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לפילטרים שנבחרו.</td></tr>';
+  };
+})();
+
 </script>
 
 
