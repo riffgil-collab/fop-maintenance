@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v29-final-sync"/>
+<meta name="fop-build" content="20260821-v31-dashboard-planned-kpi"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -478,6 +478,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div id="pmV17Dashboard">
   <div class="pm-v17-kpis">
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('open')"><strong id="pmV17Open">0</strong><span>פתוחות</span><small>PM + WO שעדיין דורשות טיפול</small></div>
+    <div class="pm-v17-kpi" onclick="pmV31OpenPlanned()"><strong id="pmV31Planned">0</strong><span>מתוכננות</span><small>PM + WO ששובצו לתוכנית בתקופה</small></div>
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('overdue')"><strong id="pmV17Overdue">0</strong><span>באיחור</span><small>עבר מועד היעד</small></div>
     <div class="pm-v17-kpi" onclick="pmV25OpenCancelled()"><strong id="pmV25Cancelled">0</strong><span>בוטלו</span><small>בתקופה שנבחרה · לחיצה לצפייה ושחזור</small></div>
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('week')"><strong id="pmV17Week">0</strong><span>לשבוע הקרוב</span><small>עבודה שדורשת תשומת לב בקרוב</small></div>
@@ -685,6 +686,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
         <option value="">כל המקצועות</option>
         <option value="מכונאי">מכונאי</option>
         <option value="חשמלאי">חשמלאי</option>
+        <option value="משולב">משולב</option>
       </select>
     </div>
     <div class="field"><label>סוג עבודה</label>
@@ -4470,13 +4472,16 @@ renderPlanner=function(){
         priority:item.plan?.priority||'',
         note:item.plan?.postponedReason||''
       };
-    }).filter(r=>
+    }).filter(r=>{
+      const statusDate = String(r.date||r.due||'');
+      const statusInPeriod = (status==='open' || status==='waiting' || status==='overdue') ? true : (statusDate>=start && statusDate<=end);
+      return statusInPeriod &&
       isMaintenanceTask(r.task) &&
       (!department||r.department===department) &&
       (!machine||r.machine===machine) &&
       tradeMatches(r.trade,trade) &&
-      stateMatches(r.state,status)
-    );
+      stateMatches(r.state,status);
+    });
   }
 
   // WO source. Open WO backlog remains visible until it is closed, exactly like PM backlog.
@@ -4907,6 +4912,45 @@ renderPlanner=function(){
   });
   const dep=$('pmPlannerDepartment');
   if(dep)dep.onchange=function(){fillPlanningMachines();pmPlanPage=0;renderPlanner();};
+})();
+</script>
+
+<script id="fop-v31-dashboard-planned-kpi">
+(function(){
+  const $=id=>document.getElementById(id);
+  function opts(){
+    return {
+      period:(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week',
+      anchor:$('pmDashboardAnchor')?.value||today(),
+      department:$('pmDashboardDepartment')?.value||'',
+      machine:$('pmDashboardMachine')?.value||'',
+      trade:$('pmDashboardTrade')?.value||'',
+      workType:$('pmDashboardWorkType')?.value||'',
+      status:'planned'
+    };
+  }
+  window.pmV31OpenPlanned=function(){
+    const a=$('pmDashboardAnchor')?.value||today();
+    if($('pmPlannerStart'))$('pmPlannerStart').value=a;
+    if(typeof setPlanningPeriod==='function')setPlanningPeriod((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week');
+    if($('pmPlannerDepartment'))$('pmPlannerDepartment').value=$('pmDashboardDepartment')?.value||'';
+    if(typeof fillPlanningMachines==='function')fillPlanningMachines();
+    if($('pmPlannerMachine'))$('pmPlannerMachine').value=$('pmDashboardMachine')?.value||'';
+    if($('pmPlannerTrade'))$('pmPlannerTrade').value=$('pmDashboardTrade')?.value||'';
+    if($('pmPlannerWorkType'))$('pmPlannerWorkType').value=$('pmDashboardWorkType')?.value||'';
+    if($('pmPlannerStatus'))$('pmPlannerStatus').value='planned';
+    pmPlanPage=0; showTab('planner'); renderPlanner();
+  };
+  const prev=window.renderDashboard || renderDashboard;
+  window.renderDashboard=renderDashboard=function(){
+    const r=prev();
+    try{
+      const rows=window.fopUnifiedWorkSource.getWork(opts());
+      if($('pmV31Planned'))$('pmV31Planned').textContent=rows.length;
+    }catch(e){console.warn('V31 planned KPI',e)}
+    return r;
+  };
+  setTimeout(()=>{try{renderDashboard()}catch(e){}},0);
 })();
 </script>
 </body></html>
