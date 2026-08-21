@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v27-work-plan-pm-wo-report"/>
+<meta name="fop-build" content="20260821-v28-reports-aligned-fixed"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -673,6 +673,8 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
       <select id="pmReportsPeriod" onchange="renderReports()">
         <option value="week">שבוע</option>
         <option value="month">חודש</option>
+        <option value="half">חצי שנה</option>
+        <option value="year">שנה</option>
       </select>
     </div>
     <div class="field"><label>תאריך עוגן</label><input id="pmReportsAnchor" type="date" onchange="renderReports()"/></div>
@@ -694,8 +696,8 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     </div>
     <div class="field"><label>סטטוס</label>
       <select id="pmReportsStatus" onchange="renderReports()">
-        <option value="planned" selected>מתוכננת</option>
-        <option value="">כל הסטטוסים</option>
+        <option value="planned">מתוכננת</option>
+        <option value="" selected>כל הסטטוסים</option>
         <option value="waiting">ממתינה לתכנון</option>
         <option value="postponed">נדחתה</option>
         <option value="overdue">באיחור</option>
@@ -3899,6 +3901,85 @@ document.addEventListener('DOMContentLoaded',()=>{
       return `<tr><td>${esc(fDate(r.date))}</td><td>${esc(t.department)}</td><td><strong>${esc(t.machine)}</strong><br><small>PM</small></td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${Number(t.duration||0)} דק׳</td><td>${esc(r.assigned)}</td><td class="status-cell">${esc(statusLabels[r.state]||r.state)}</td><td>${note?esc(note):'________________'}</td></tr>`;
     }).join(''):'<tr><td colspan="9" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לפילטרים שנבחרו.</td></tr>';
   };
+})();
+
+
+/* ===== V28: Reports use the same period/population rules as Dashboard ===== */
+(function(){
+  window.reportBounds=function(){
+    const p=byId('pmReportsPeriod')?.value||'week';
+    const anchor=byId('pmReportsAnchor')?.value||today();
+    const b=v3PeriodBounds(p,anchor);
+    return {start:b.start,end:b.end,label:v3PeriodLabel(p,b.start,b.end)};
+  };
+
+  function reportWOState(w,anchor){
+    const x=String(w.status||'').toLowerCase();
+    if(x==='completed')return 'completed';
+    if(x==='cancelled')return 'cancelled';
+    if(x==='postponed')return 'postponed';
+    if(x==='planned')return 'planned';
+    const d=String(w.dueDate||w.due_date||'');
+    return d&&d<String(anchor||today())?'overdue':'waiting';
+  }
+
+  reportRows=function(){
+    if(!pmWorkPlanLoaded)return [];
+    const {start,end}=reportBounds();
+    const anchor=byId('pmReportsAnchor')?.value||today();
+    const dep=byId('pmReportsDepartment')?.value||'';
+    const machine=byId('pmReportsMachine')?.value||'';
+    const trade=byId('pmReportsTrade')?.value||'';
+    const status=byId('pmReportsStatus')?.value||'';
+    const wt=byId('pmReportsWorkType')?.value||'';
+
+    let rows=[];
+
+    if(wt!=='WO'){
+      rows.push(...v3RequirementItems(start,end).map(item=>{
+        const state=v3OccurrenceState(item,anchor);
+        return {workType:'PM',item,state,date:displayDate(item,state),assigned:item.plan?.assignedTo||item.t.performer||''};
+      }).filter(r=>{
+        const t=r.item.t;
+        // Same PM class as Dashboard: real physical maintenance only.
+        if(!isMaintenanceTask(t))return false;
+        if(dep&&t.department!==dep)return false;
+        if(machine&&t.machine!==machine)return false;
+        if(trade&&maintenanceTrade(t)!==trade)return false;
+        // "All statuses" in a work-plan report means actionable work, same as Dashboard open KPI.
+        if(status){
+          if(r.state!==status)return false;
+        }else if(['completed','cancelled'].includes(r.state)) return false;
+        return true;
+      }));
+    }
+
+    if(wt!=='PM'){
+      rows.push(...(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).map(w=>{
+        const state=reportWOState(w,anchor);
+        const date=String(w.plannedDate||w.planned_date||w.dueDate||w.due_date||'');
+        return {workType:'WO',wo:w,state,date,assigned:w.assignee||''};
+      }).filter(r=>{
+        const w=r.wo;
+        if(!r.date||r.date<start||r.date>end)return false;
+        if(dep&&w.department!==dep)return false;
+        if(machine&&w.machine!==machine)return false;
+        if(trade&&w.trade!==trade)return false;
+        if(status){
+          if(r.state!==status)return false;
+        }else if(['completed','cancelled'].includes(r.state)) return false;
+        return true;
+      }));
+    }
+    return rows.sort((a,b)=>String(a.date).localeCompare(String(b.date))||
+      String(a.workType).localeCompare(String(b.workType)));
+  };
+
+  // Default reports to all actionable PM+WO.
+  document.addEventListener('DOMContentLoaded',()=>{
+    const wt=byId('pmReportsWorkType'); if(wt) wt.value='';
+    const st=byId('pmReportsStatus'); if(st) st.value='';
+  });
 })();
 
 </script>
