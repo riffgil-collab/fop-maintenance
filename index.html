@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v35-no-history-tab"/>
+<meta name="fop-build" content="20260821-v36b-maintenance-log-fixed"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -468,6 +468,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <button class="pm-tab" data-pm="report" onclick="showTab('report')">דיווח טיפול</button>
 
 <button class="pm-tab" data-pm="reports" onclick="showTab('reports')">דוחות</button>
+<button class="pm-tab" data-pm="history" onclick="showTab('history')">יומן ביצועים</button>
 <button class="pm-tab" data-pm="operatorChecks" onclick="showTab('operatorChecks')">בדיקות מפעיל</button>
 <button class="pm-tab" data-pm="maintenanceChecks" onclick="showTab('maintenanceChecks')">בדיקות אחזקה</button>
 <button class="pm-tab" data-pm="editTasks" onclick="showTab('editTasks')">ניהול משימות</button>
@@ -772,6 +773,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </section>
 
 <section class="pm-panel" id="pmHistory">
+<div class="section-title"><h3>יומן ביצועים</h3><small>טיפולים שבוצעו — הערות, תמונות ושחזור לתוכנית</small></div>
 <div class="history-filters">
 <div class="field"><label>מחלקה</label><select id="pmHistoryDepartment" onchange="fillHistoryMachines();renderHistory()"></select></div>
 <div class="field"><label>מכונה</label><select id="pmHistoryMachine" onchange="renderHistory()"><option value="">מכונות</option></select></div>
@@ -2120,7 +2122,7 @@ function renderHistory(){
         ${!postponed&&(h.photo1Path||h.photo2Path)?`<div class="pm-history-photos">${h.photo1Path?`<button type="button" onclick="openMaintenancePhoto('${esc(h.photo1Path)}')">📷 תמונה 1</button>`:''}${h.photo2Path?`<button type="button" onclick="openMaintenancePhoto('${esc(h.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:''}
       </div>
       <div class="history-user">${esc(h.reportedBy||'—')}</div>
-      ${canManage&&!postponed?`<div class="pm-history-actions"><button class="pm-undo" type="button" onclick="undoCompletion('${esc(String(h.id??''))}','${esc(String(h.taskId??''))}','${esc(String(h.date??''))}')">↩ Undo</button></div>`:''}
+      ${!postponed?`<div class="pm-history-actions">${pmCan('report')?`<button class="secondary-btn" type="button" onclick="openHistoryEdit('${esc(String(h.id??''))}')">✏️ עריכת תיעוד</button>`:''}${canManage?`<button class="pm-undo" type="button" onclick="undoCompletion('${esc(String(h.id??''))}','${esc(String(h.taskId??''))}','${esc(String(h.date??''))}')">↩ החזר לתוכנית</button>`:''}</div>`:''}
     </div>`;
   }).join('')
 }
@@ -5168,4 +5170,98 @@ renderPlanner=function(){
 })();
 </script>
 
+
+<div class="pm-modal-backdrop" id="pmHistoryEditModal" onclick="if(event.target===this)closeHistoryEdit()">
+  <div class="pm-modal-card" role="dialog" aria-modal="true">
+    <div class="pm-modal-head"><h3>עריכת תיעוד טיפול</h3><button type="button" onclick="closeHistoryEdit()">✕</button></div>
+    <p id="pmHistoryEditTaskText"></p>
+    <label for="pmHistoryEditNotes">הערות על הטיפול</label>
+    <textarea id="pmHistoryEditNotes" rows="4" style="width:100%;box-sizing:border-box" placeholder="מה בוצע, ממצאים, המלצה להמשך..."></textarea>
+    <div class="pm-photo-grid">
+      <div class="pm-photo-box"><b>תמונה 1</b><div id="pmHistoryExisting1" class="pm-history-photos"></div><input id="pmHistoryPhoto1" type="file" accept="image/*" capture="environment" onchange="previewHistoryEditPhoto(1)"><img id="pmHistoryPreview1" class="pm-photo-preview"></div>
+      <div class="pm-photo-box"><b>תמונה 2</b><div id="pmHistoryExisting2" class="pm-history-photos"></div><input id="pmHistoryPhoto2" type="file" accept="image/*" capture="environment" onchange="previewHistoryEditPhoto(2)"><img id="pmHistoryPreview2" class="pm-photo-preview"></div>
+    </div>
+    <small>בחירת תמונה חדשה מחליפה את התמונה הקיימת באותו מקום. אם אין תמונה — היא תתווסף.</small>
+    <div class="pm-modal-actions"><button class="cancel" onclick="closeHistoryEdit()" type="button">ביטול</button><button class="create" id="pmHistoryEditSave" onclick="saveHistoryEdit()" type="button">שמור שינויים</button></div>
+    <div class="pm-modal-status" id="pmHistoryEditStatus"></div>
+  </div>
+</div>
+
+<script id="fop-v36b-history-edit">
+let pmHistoryEditId='';
+
+function openHistoryEdit(id){
+  if(!pmCan('report'))return statusLine('אין הרשאה לערוך תיעוד טיפול.','error');
+  const h=history.find(x=>String(x.id??'')===String(id));
+  if(!h)return statusLine('רשומת הטיפול לא נמצאה.','error');
+  pmHistoryEditId=String(id);
+  document.getElementById('pmHistoryEditTaskText').textContent=`${h.machine||''} — ${h.task||''} · ${fDate(h.date)}`;
+  document.getElementById('pmHistoryEditNotes').value=h.completionNotes||'';
+  [1,2].forEach(n=>{
+    const path=n===1?h.photo1Path:h.photo2Path;
+    const box=document.getElementById('pmHistoryExisting'+n);
+    box.innerHTML=path?`<button type="button" onclick="openMaintenancePhoto('${esc(path)}')">📷 הצג תמונה קיימת</button>`:'<small>אין תמונה קיימת</small>';
+    const input=document.getElementById('pmHistoryPhoto'+n); input.value='';
+    const img=document.getElementById('pmHistoryPreview'+n); img.removeAttribute('src'); img.style.display='none';
+  });
+  const st=document.getElementById('pmHistoryEditStatus');st.textContent='';st.className='pm-modal-status';
+  document.getElementById('pmHistoryEditModal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+
+function closeHistoryEdit(){
+  document.getElementById('pmHistoryEditModal')?.classList.remove('open');
+  document.body.style.overflow='';
+  pmHistoryEditId='';
+}
+
+function previewHistoryEditPhoto(n){
+  const f=document.getElementById('pmHistoryPhoto'+n)?.files?.[0];
+  const img=document.getElementById('pmHistoryPreview'+n);
+  if(!f){img.style.display='none';return}
+  const u=URL.createObjectURL(f);img.src=u;img.style.display='block';img.onload=()=>URL.revokeObjectURL(u);
+}
+
+async function saveHistoryEdit(){
+  const h=history.find(x=>String(x.id??'')===String(pmHistoryEditId));
+  if(!h)return;
+  const btn=document.getElementById('pmHistoryEditSave'),st=document.getElementById('pmHistoryEditStatus');
+  btn.disabled=true;st.textContent='שומר שינויים…';st.className='pm-modal-status';
+  let new1='',new2='';
+  try{
+    const task=tasks.find(t=>String(t.id)===String(h.taskId))||{id:h.taskId||'history'};
+    const f1=document.getElementById('pmHistoryPhoto1').files?.[0];
+    const f2=document.getElementById('pmHistoryPhoto2').files?.[0];
+    if(f1)new1=await uploadMaintenancePhoto(f1,task,h.date,1);
+    if(f2)new2=await uploadMaintenancePhoto(f2,task,h.date,2);
+
+    const payload={completion_notes:document.getElementById('pmHistoryEditNotes').value.trim()||null};
+    if(f1)payload.photo_1_path=new1;
+    if(f2)payload.photo_2_path=new2;
+
+    const res=await supabaseClient.from('pm_history').update(payload).eq('id',h.id);
+    if(res.error)throw res.error;
+
+    // Delete replaced storage objects only after the DB row was updated successfully.
+    const old=[];
+    if(f1&&h.photo1Path&&h.photo1Path!==new1)old.push(h.photo1Path);
+    if(f2&&h.photo2Path&&h.photo2Path!==new2)old.push(h.photo2Path);
+    if(old.length){
+      const rr=await supabaseClient.storage.from('maintenance-photos').remove(old);
+      if(rr.error)console.warn('Old photo cleanup:',rr.error);
+    }
+
+    await reloadCloudData();
+    renderHistory();
+    st.textContent='התיעוד עודכן בהצלחה.';st.className='pm-modal-status success';
+    statusLine('תיעוד הטיפול עודכן.','success');
+    setTimeout(closeHistoryEdit,500);
+  }catch(e){
+    // Roll back newly uploaded files if DB update failed.
+    const fresh=[new1,new2].filter(Boolean);
+    if(fresh.length)try{await supabaseClient.storage.from('maintenance-photos').remove(fresh)}catch(_){}
+    st.textContent='שמירת השינויים נכשלה: '+(e?.message||e);st.className='pm-modal-status error';
+  }finally{btn.disabled=false}
+}
+</script>
 </body></html>
