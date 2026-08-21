@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v32-unified-task-management"/>
+<meta name="fop-build" content="20260821-v33-task-management-rebuilt"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -399,7 +399,30 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 .pm-lang-switch.pm-login-lang{position:static;display:flex;justify-content:center;width:max-content;margin:0 auto 14px;direction:ltr;background:#fff;padding:5px;border-radius:12px;box-shadow:0 2px 12px #0002;border:1px solid #ddd;z-index:auto}
 #pmAuthOverlay[style*="display: none"] .pm-login-lang,#pmAuthOverlay[style*="display:none"] .pm-login-lang{display:none!important}
 </style>
-<style id="fop-qa-release-polish">html{scroll-behavior:smooth}body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}button,input,select,textarea{-webkit-tap-highlight-color:transparent}button{touch-action:manipulation}.card,.panel-box,.pm-v3-health,.pm-workload-box{box-shadow:0 10px 30px rgba(12,38,78,.07)}input:focus,select:focus,textarea:focus{outline:none!important;border-color:#8fb8ef!important;box-shadow:0 0 0 4px rgba(22,109,213,.10)!important}button:active{transform:translateY(1px)}@media(max-width:680px){button,.btn,input,select{min-height:44px}.pm-plan-row{gap:10px!important}.pm-plan-main strong{line-height:1.35}.pm-plan-main small{line-height:1.45}.task-card,.open-task{overflow-wrap:anywhere}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}</style></head>
+<style id="fop-qa-release-polish">html{scroll-behavior:smooth}body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}button,input,select,textarea{-webkit-tap-highlight-color:transparent}button{touch-action:manipulation}.card,.panel-box,.pm-v3-health,.pm-workload-box{box-shadow:0 10px 30px rgba(12,38,78,.07)}input:focus,select:focus,textarea:focus{outline:none!important;border-color:#8fb8ef!important;box-shadow:0 0 0 4px rgba(22,109,213,.10)!important}button:active{transform:translateY(1px)}@media(max-width:680px){button,.btn,input,select{min-height:44px}.pm-plan-row{gap:10px!important}.pm-plan-main strong{line-height:1.35}.pm-plan-main small{line-height:1.45}.task-card,.open-task{overflow-wrap:anywhere}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}</style>
+<style id="fop-v33-task-management-css">
+.tm-toolbar{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:10px;background:#fff;border:1px solid #e7e7e7;border-radius:16px;padding:14px;margin-bottom:12px}
+.tm-search{grid-column:span 1}.tm-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:12px 0}
+.tm-summary>div{background:#fff;border:1px solid #e7e7e7;border-radius:14px;padding:12px 14px;display:flex;align-items:baseline;gap:8px}
+.tm-summary strong{font-size:24px}.tm-summary span{font-size:12px;color:#667085;font-weight:700}
+.tm-actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.tm-layout{display:grid;grid-template-columns:minmax(310px,38%) 1fr;gap:14px;align-items:start}
+.tm-list-panel,.tm-editor-panel{background:#fff;border:1px solid #e7e7e7;border-radius:16px;overflow:hidden}
+.tm-list-head{padding:12px 14px;border-bottom:1px solid #eee;display:flex;justify-content:space-between}.tm-list-head span{color:#667085;font-size:12px}
+.tm-task-list{max-height:68vh;overflow:auto}.tm-row{padding:12px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;display:grid;grid-template-columns:1fr auto;gap:8px}
+.tm-row:hover,.tm-row.selected{background:#fff5f6}.tm-row-title{font-weight:900}.tm-row-task{font-size:13px;margin-top:3px}.tm-row-meta{font-size:11px;color:#667085;margin-top:5px}
+.tm-pill{font-size:10px;font-weight:900;padding:4px 7px;border-radius:999px;background:#f2f4f7;white-space:nowrap;height:max-content}
+.tm-pill.off{opacity:.55}.tm-editor-panel{padding:16px;position:sticky;top:8px}.tm-empty-editor{min-height:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#667085;gap:6px}
+.tm-editor-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:14px}.tm-editor-head h3{margin:0 0 3px}
+.tm-kind-badge{font-size:11px;font-weight:900;background:#f2f4f7;border-radius:999px;padding:6px 9px}
+.tm-source-box{background:#f8f9fb;border:1px solid #e4e7ec;border-radius:14px;padding:12px;margin-bottom:14px}.tm-source-box>label{font-weight:900}
+.tm-source-buttons{display:flex;gap:8px;margin:9px 0 12px}.tm-source-buttons button{border:1px solid #ddd;background:#fff;border-radius:10px;padding:9px 11px;font-weight:800}.tm-source-buttons button.active{border-color:#d50022;color:#d50022;background:#fff5f6}
+.tm-logic-note{background:#f8f9fb;border-radius:10px;padding:10px 12px;font-size:12px;color:#475467;margin-top:12px}.tm-editor-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+@media(max-width:900px){.tm-toolbar{grid-template-columns:repeat(2,1fr)}.tm-summary{grid-template-columns:repeat(2,1fr)}.tm-layout{grid-template-columns:1fr}.tm-editor-panel{position:static}.tm-task-list{max-height:46vh}}
+@media(max-width:520px){.tm-toolbar{grid-template-columns:1fr}.tm-summary{grid-template-columns:repeat(2,1fr)}.tm-layout{display:flex;flex-direction:column}.tm-list-panel,.tm-editor-panel{width:100%}.tm-source-buttons{flex-direction:column}}
+</style>
+
+</head>
 <body>
 <div aria-hidden="true" id="pmAuthOverlay">
 <div class="pm-auth-card">
@@ -444,8 +467,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <button class="pm-tab" data-pm="reports" onclick="showTab('reports')">דוחות</button>
 <button class="pm-tab" data-pm="operatorChecks" onclick="showTab('operatorChecks')">בדיקות מפעיל</button>
 <button class="pm-tab" data-pm="maintenanceChecks" onclick="showTab('maintenanceChecks')">בדיקות אחזקה</button>
-<button class="pm-tab" data-pm="editTasks" onclick="showTab('editTasks')">עריכת משימות</button>
-<button class="pm-tab" data-pm="addTask" onclick="showTab('addTask')">הוספת משימה חדשה</button>
+<button class="pm-tab" data-pm="editTasks" onclick="showTab('editTasks')">ניהול משימות</button>
 <button class="pm-tab" data-pm="initialization" id="pmInitializationTabButton" onclick="showTab('initialization')" style="display:none">אתחול מערכת</button>
 <button class="pm-tab" data-pm="users" id="pmUsersTabButton" onclick="showTab('users')" style="display:none">ניהול משתמשים</button>
 </div>
@@ -758,56 +780,92 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div id="pmHistoryList"></div>
 </section>
 <section class="pm-panel" id="pmEditTasks">
-<div class="section-title"><h3>ניהול משימות</h3><small>הוספה ועריכה של PM, בדיקות אחזקה ובדיקות מפעיל</small></div>
-<div class="pm-v3-periods" style="margin-bottom:14px"><button type="button" id="pmTaskModeEdit" class="active" onclick="pmV32TaskMode('edit')">עריכת משימה</button><button type="button" id="pmTaskModeAdd" onclick="pmV32TaskMode('add')">+ משימה חדשה</button></div>
-<div id="pmV32AddArea" class="panel-box" style="display:none"><div class="edit-grid">
-<div class="field full"><label>סוג משימה</label><select id="v32Type" onchange="pmV32TypeChanged()"><option value="PM">טיפול אחזקה פיזי (PM)</option><option value="maintenance_check">בדיקת אחזקה</option><option value="operator_check">בדיקת מפעיל</option></select></div>
-<div class="field full"><label>מקור</label><select id="v32Source" onchange="pmV32SourceChanged()"><option value="master">בחירה ממאגר ברירת המחדל</option><option value="manual">הזנה חופשית — לא קיים במאגר</option></select></div>
-<div class="field"><label>מחלקה</label><select id="v32Department" onchange="pmV32FillMachines()"></select></div>
-<div class="field"><label>מכונה / תשתית</label><select id="v32Machine" onchange="pmV32FillTasks()"></select></div>
-<div class="field full" id="v32MasterTaskWrap"><label>משימה מהמאגר</label><select id="v32MasterTask" onchange="pmV32AdoptMaster()"></select></div>
-<div class="field full" id="v32ManualDepartmentWrap" style="display:none"><label>מחלקה חדשה / חופשית</label><input id="v32ManualDepartment"/></div>
-<div class="field full" id="v32ManualMachineWrap" style="display:none"><label>מכונה / תשתית חדשה</label><input id="v32ManualMachine"/></div>
-<div class="field full"><label>תיאור המשימה</label><input id="v32TaskText"/></div>
-<div class="field"><label>מקצוע / מבצע</label><select id="v32Trade"><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option><option value="מפעיל">מפעיל</option></select></div>
-<div class="field" id="v32FrequencyWrap"><label>תדירות</label><select id="v32Frequency"></select></div>
-<div class="field"><label>משך בדקות</label><input id="v32Duration" type="number" min="0"/></div>
-<div class="field" id="v32DueWrap"><label>מועד ראשון</label><input id="v32Due" type="date"/></div>
-<div class="field full"><label>הערות</label><textarea id="v32Notes" class="textarea"></textarea></div>
-</div><div id="v32LogicNote" class="sub" style="margin:10px 0"></div><button class="btn" type="button" onclick="pmV32CreateTask()">+ שמירת משימה חדשה</button></div>
-<div id="pmV32EditArea">
-<div class="panel-box">
-  <div class="settings-grid" style="display:flex;flex-direction:column;gap:12px">
-    <div class="field"><label>1. מחלקה</label><select id="pmSettingsDepartment" onchange="refreshEditTaskFilters('department')"></select></div>
-    <div class="field"><label>2. מכונה</label><select id="pmSettingsMachine" onchange="refreshEditTaskFilters('machine')"><option value="">כל המכונות</option></select></div>
-    <div class="field"><label>3. תדירות טיפול</label><select id="pmSettingsFrequency" onchange="refreshEditTaskFilters('frequency')"><option value="">כל התדירויות</option></select></div>
-    <div class="field"><label>4. משך טיפול</label><select id="pmSettingsDuration" onchange="refreshEditTaskFilters('duration')"><option value="">כל משכי הטיפול</option></select></div>
-    <div class="field"><label>5. משימת טיפול</label><select id="pmSettingsTask" onchange="renderEditor()"></select></div>
+  <div class="section-title">
+    <h3>ניהול משימות</h3>
+    <small>מאגר מרכזי אחד — חיפוש, עריכה והוספת משימות</small>
   </div>
-</div>
-<div class="settings-actions">
-<button class="secondary-btn" onclick="duplicateCurrentTask()">שכפול משימה</button>
-<button class="danger-btn" onclick="toggleCurrentTask()">הפעלה / ביטול משימה</button>
-</div>
-<div class="editor" id="pmSettingsEditor"></div>
-<div style="margin-top:12px"><button class="back" id="pmResetDataBtn" onclick="resetData()">טעינה מחדש מהענן</button></div></div>
-</section>
 
-<section class="pm-panel" id="pmAddTask" style="display:none!important">
-<div class="section-title"><h3>הוספת משימה חדשה</h3><small>יצירת משימת אחזקה חדשה</small></div>
-<div class="add-box">
-<div class="edit-grid">
-<div class="field"><label>מחלקה</label><input id="newDepartment" placeholder="שם המחלקה" type="text"/></div>
-<div class="field"><label>מכונה</label><input id="newMachine" placeholder="שם המכונה" type="text"/></div>
-<div class="field full"><label>משימת טיפול</label><input id="newTask" placeholder="מה נדרש לבצע" type="text"/></div>
-<div class="field"><label>תדירות</label><select id="newFrequency"></select></div>
-<div class="field"><label>מבצע</label><select id="newPerformer"><option>מפעיל</option><option selected="">טכנאי אחזקה</option></select></div>
-<div class="field"><label>משך טיפול (דקות)</label><input id="newDuration" min="0" type="number"/></div>
-<div class="field"><label>מועד טיפול ראשון</label><input id="newDue" type="date"/></div>
-<div class="field full"><label>הערות</label><textarea class="textarea" id="newNotes"></textarea></div>
-</div>
-<div style="margin-top:14px"><button class="btn" onclick="addTask()">+ הוספת משימה</button></div>
-</div>
+  <div class="tm-toolbar">
+    <div class="field"><label>מחלקה</label><select id="tmDepartment" onchange="tmFilterChanged('department')"><option value="">כל המחלקות</option></select></div>
+    <div class="field"><label>מכונה / תשתית</label><select id="tmMachine" onchange="tmFilterChanged('machine')"><option value="">כל המכונות</option></select></div>
+    <div class="field"><label>סוג משימה</label><select id="tmKind" onchange="tmRenderList()">
+      <option value="">כל הסוגים</option><option value="physical">אחזקה פיזית</option><option value="inspection">בדיקת אחזקה</option><option value="operator">בדיקת מפעיל</option>
+    </select></div>
+    <div class="field"><label>תדירות</label><select id="tmFrequency" onchange="tmRenderList()"><option value="">כל התדירויות</option></select></div>
+    <div class="field"><label>סטטוס</label><select id="tmStatus" onchange="tmRenderList()"><option value="">הכול</option><option value="active">פעילות</option><option value="inactive">לא פעילות</option></select></div>
+    <div class="field tm-search"><label>חיפוש</label><input id="tmSearch" oninput="tmRenderList()" placeholder="מכונה / משימה / הערה"/></div>
+  </div>
+
+  <div class="tm-summary">
+    <div><strong id="tmCountAll">0</strong><span>במאגר</span></div>
+    <div><strong id="tmCountPhysical">0</strong><span>אחזקה פיזית</span></div>
+    <div><strong id="tmCountInspection">0</strong><span>בדיקות אחזקה</span></div>
+    <div><strong id="tmCountOperator">0</strong><span>בדיקות מפעיל</span></div>
+  </div>
+
+  <div class="tm-actions">
+    <button class="btn" type="button" onclick="tmOpenNew()">+ הוספת משימה חדשה</button>
+    <button class="secondary-btn" type="button" onclick="tmClearFilters()">ניקוי סינון</button>
+    <button class="back" type="button" onclick="resetData()">↻ טעינה מחדש מהענן</button>
+  </div>
+
+  <div class="tm-layout">
+    <div class="tm-list-panel">
+      <div class="tm-list-head"><b>משימות</b><span id="tmVisibleCount"></span></div>
+      <div id="tmTaskList" class="tm-task-list"></div>
+    </div>
+
+    <div class="tm-editor-panel">
+      <div id="tmEmptyEditor" class="tm-empty-editor">
+        <b>בחר משימה לעריכה</b>
+        <span>או לחץ על “הוספת משימה חדשה”.</span>
+      </div>
+
+      <div id="tmEditor" style="display:none">
+        <div class="tm-editor-head">
+          <div><h3 id="tmEditorTitle">משימה</h3><div id="tmEditorSub" class="sub"></div></div>
+          <span id="tmKindBadge" class="tm-kind-badge"></span>
+        </div>
+
+        <div id="tmNewSourceBox" class="tm-source-box" style="display:none">
+          <label>איך להוסיף?</label>
+          <div class="tm-source-buttons">
+            <button id="tmSourceMasterBtn" class="active" type="button" onclick="tmSetSource('master')">מתוך מאגר ברירת המחדל</button>
+            <button id="tmSourceManualBtn" type="button" onclick="tmSetSource('manual')">משימה חדשה שאינה במאגר</button>
+          </div>
+          <div id="tmMasterPicker" class="edit-grid">
+            <div class="field"><label>מחלקה במאגר</label><select id="tmMasterDepartment" onchange="tmFillMasterMachines()"></select></div>
+            <div class="field"><label>מכונה במאגר</label><select id="tmMasterMachine" onchange="tmFillMasterTasks()"></select></div>
+            <div class="field full"><label>משימה במאגר</label><select id="tmMasterTask" onchange="tmAdoptMasterTask()"></select></div>
+          </div>
+        </div>
+
+        <div class="edit-grid">
+          <div class="field full"><label>סוג משימה</label><select id="tmEditKind" onchange="tmKindChanged()">
+            <option value="physical">אחזקה פיזית</option><option value="inspection">בדיקת אחזקה</option><option value="operator">בדיקת מפעיל</option>
+          </select></div>
+          <div class="field"><label>מחלקה</label><input id="tmEditDepartment"/></div>
+          <div class="field"><label>מכונה / תשתית</label><input id="tmEditMachine"/></div>
+          <div class="field full"><label>תיאור המשימה</label><input id="tmEditTask"/></div>
+          <div class="field"><label>תדירות</label><select id="tmEditFrequency"></select></div>
+          <div class="field"><label>משך (דקות)</label><input id="tmEditDuration" type="number" min="0"/></div>
+          <div class="field" id="tmTradeField"><label>מקצוע</label><select id="tmEditTrade"><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
+          <div class="field"><label>מועד הבא</label><input id="tmEditDue" type="date"/></div>
+          <div class="field"><label>טיפול אחרון</label><input id="tmEditLast" type="date"/></div>
+          <div class="field full"><label>חלקים נדרשים</label><input id="tmEditParts"/></div>
+          <div class="field full"><label>הערות</label><textarea id="tmEditNotes" class="textarea"></textarea></div>
+          <div class="field full"><label class="active-line"><input id="tmEditActive" type="checkbox" checked/> משימה פעילה</label></div>
+        </div>
+
+        <div id="tmLogicNote" class="tm-logic-note"></div>
+        <div class="tm-editor-actions">
+          <button class="btn" type="button" onclick="tmSave()">שמירה</button>
+          <button id="tmDuplicateBtn" class="secondary-btn" type="button" onclick="tmDuplicate()">שכפול</button>
+          <button id="tmCancelBtn" class="back" type="button" onclick="tmCloseEditor()">ביטול</button>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 <section class="pm-panel" id="pmInitialization">
 <div class="section-title"><h3>אתחול מערכת</h3><small>Admin בלבד</small></div>
@@ -4970,25 +5028,109 @@ renderPlanner=function(){
   setTimeout(()=>{try{renderDashboard()}catch(e){}},0);
 })();
 </script>
-<script id="fop-v32-unified-task-management">
+
+
+<script id="fop-v33-task-management">
 (function(){
- const $=id=>document.getElementById(id), uniq=a=>[...new Set(a.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'));
- const rows=()=>window.pmTasks||[];
- const typ=t=>{const x=String(t.task_type||t.type||t.category||'').toLowerCase();return x.includes('operator')||x.includes('מפעיל')?'operator_check':(x.includes('check')||x.includes('בדיק'))?'maintenance_check':'PM'};
- window.pmV32TaskMode=m=>{$('pmV32AddArea').style.display=m==='add'?'block':'none';$('pmV32EditArea').style.display=m==='edit'?'block':'none';$('pmTaskModeAdd').classList.toggle('active',m==='add');$('pmTaskModeEdit').classList.toggle('active',m==='edit');if(m==='add')pmV32Refresh()};
- window.pmV32Refresh=()=>{let a=rows();$('v32Department').innerHTML='<option value="">בחר מחלקה</option>'+uniq(a.map(x=>x.department)).map(x=>`<option>${esc(x)}</option>`).join('');$('v32Frequency').innerHTML=uniq(a.map(x=>x.frequency)).map(x=>`<option>${esc(x)}</option>`).join('');pmV32FillMachines();pmV32TypeChanged();pmV32SourceChanged()};
- window.pmV32FillMachines=()=>{let d=$('v32Department').value,a=rows().filter(x=>!d||x.department===d);$('v32Machine').innerHTML='<option value="">בחר מכונה / תשתית</option>'+uniq(a.map(x=>x.machine)).map(x=>`<option>${esc(x)}</option>`).join('');pmV32FillTasks()};
- window.pmV32FillTasks=()=>{let d=$('v32Department').value,m=$('v32Machine').value,t=$('v32Type').value,a=rows().filter(x=>(!d||x.department===d)&&(!m||x.machine===m)&&typ(x)===t);$('v32MasterTask').innerHTML='<option value="">בחר משימה</option>'+a.map(x=>`<option value="${esc(String(x.id))}">${esc(x.task||x.description||'')}</option>`).join('')};
- window.pmV32AdoptMaster=()=>{let t=rows().find(x=>String(x.id)===$('v32MasterTask').value);if(!t)return;$('v32TaskText').value=t.task||t.description||'';$('v32Duration').value=t.duration??'';let p=t.performer||t.trade||'';if([...$('v32Trade').options].some(o=>o.value===p))$('v32Trade').value=p;if(t.frequency&&[...$('v32Frequency').options].some(o=>o.value===t.frequency))$('v32Frequency').value=t.frequency};
- window.pmV32SourceChanged=()=>{let x=$('v32Source').value==='manual';$('v32ManualDepartmentWrap').style.display=x?'block':'none';$('v32ManualMachineWrap').style.display=x?'block':'none';$('v32MasterTaskWrap').style.display=x?'none':'block';$('v32Department').disabled=x;$('v32Machine').disabled=x};
- window.pmV32TypeChanged=()=>{let t=$('v32Type').value,p=t==='PM';$('v32FrequencyWrap').style.display=p?'block':'none';$('v32DueWrap').style.display=p?'block':'none';$('v32LogicNote').textContent=p?'PM נכנס לניהול המחזורי, לתכנון, לדשבורד ולדוחות.':t==='maintenance_check'?'בדיקת אחזקה נשמרת בכרטיסיית בדיקות אחזקה ואינה נכנסת לתכנון המחזורי.':'בדיקת מפעיל נשמרת בכרטיסיית בדיקות מפעיל ואינה נכנסת לתכנון המחזורי.';if(t==='operator_check')$('v32Trade').value='מפעיל';pmV32FillTasks()};
- window.pmV32CreateTask=async()=>{let t=$('v32Type').value,man=$('v32Source').value==='manual',d=(man?$('v32ManualDepartment').value:$('v32Department').value).trim(),m=(man?$('v32ManualMachine').value:$('v32Machine').value).trim(),task=$('v32TaskText').value.trim();if(!d||!m||!task){statusLine('יש למלא מחלקה, מכונה/תשתית ותיאור משימה.','error');return}
-   newDepartment.value=d;newMachine.value=m;newTask.value=task;newPerformer.value=$('v32Trade').value;newDuration.value=$('v32Duration').value;newNotes.value=$('v32Notes').value;
-   if(t==='PM'){newFrequency.value=$('v32Frequency').value;newDue.value=$('v32Due').value;await addTask()}
-   else {newFrequency.value='';newDue.value='';await addTask();let created=(window.pmTasks||[]).slice().reverse().find(x=>x.department===d&&x.machine===m&&(x.task||'')===task);if(created){created.task_type=t;created.category=t;created.is_cyclic=false;created.is_plannable=false;if(typeof saveTask==='function')await saveTask(created)}}
-   pmV32Refresh();if(typeof renderDashboard==='function')renderDashboard();if(typeof renderPlanner==='function')renderPlanner();if(typeof renderReports==='function')renderReports();if(typeof renderMaintenanceChecks==='function')renderMaintenanceChecks();if(typeof renderOperatorChecks==='function')renderOperatorChecks();
+ const $=id=>document.getElementById(id);
+ const KINDS={physical:'אחזקה פיזית',inspection:'בדיקת אחזקה',operator:'בדיקת מפעיל'};
+ let tmSelectedId=null,tmMode='view',tmSource='master',tmSyncing=false;
+ const uniq=a=>[...new Set(a.filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'));
+ const tagKind=t=>{const m=String(t?.notes||'').match(/\[TASK_KIND:(physical|inspection|operator)\]/);return m?m[1]:null};
+ const cleanMeta=n=>String(n||'').split(/\r?\n/).filter(x=>!(/^\[(TASK_KIND|TRADE):/.test(x.trim()))).join('\n').trim();
+ const taggedNotes=(visible,kind,trade)=>{
+   const lines=[String(visible||'').trim(),`[TASK_KIND:${kind}]`];
+   if(kind!=='operator'&&trade)lines.push(`[TRADE:${trade}]`);
+   return lines.filter(Boolean).join('\n');
  };
- const old=window.showTab||showTab;window.showTab=showTab=function(n){if(n==='addTask'){n='editTasks';setTimeout(()=>pmV32TaskMode('add'),0)}let r=old(n);if(n==='editTasks')setTimeout(pmV32Refresh,0);return r};
+ const inferredKind=t=>tagKind(t)||(isOperatorPerformer(t.performer)?'operator':(typeof isMaintenanceInspection==='function'&&isMaintenanceInspection(t)?'inspection':'physical'));
+ window.tmTaskKind=inferredKind;
+
+ // Explicit tags override text heuristics, while preserving backward compatibility.
+ const oldInspection=window.isMaintenanceInspection||isMaintenanceInspection;
+ window.isMaintenanceInspection=isMaintenanceInspection=function(t){const k=tagKind(t);if(k)return t?.active!==false&&k==='inspection';return oldInspection(t)};
+ const oldMaint=window.isMaintenanceTask||isMaintenanceTask;
+ window.isMaintenanceTask=isMaintenanceTask=function(t){const k=tagKind(t);if(k)return t?.active!==false&&k==='physical';return oldMaint(t)};
+ const oldOperator=window.isOperatorTask||isOperatorTask;
+ window.isOperatorTask=isOperatorTask=function(t){const k=tagKind(t);if(k)return t?.active!==false&&k==='operator';return oldOperator(t)};
+
+ function options(sel,vals,first){
+   if(!sel)return;const old=sel.value;sel.innerHTML=`<option value="">${first}</option>`+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(vals.includes(old))sel.value=old;
+ }
+ function tmRows(){
+   const d=$('tmDepartment')?.value||'',m=$('tmMachine')?.value||'',k=$('tmKind')?.value||'',f=$('tmFrequency')?.value||'',st=$('tmStatus')?.value||'',q=($('tmSearch')?.value||'').trim().toLowerCase();
+   return tasks.filter(t=>(!d||t.department===d)&&(!m||t.machine===m)&&(!k||inferredKind(t)===k)&&(!f||t.frequency===f)&&(!st||(st==='active'?(t.active!==false):(t.active===false)))&&(!q||`${t.department} ${t.machine} ${t.task} ${cleanMeta(t.notes)}`.toLowerCase().includes(q)));
+ }
+ window.tmRefreshFilters=function(){
+   if(!$('tmDepartment'))return;
+   options($('tmDepartment'),uniq(tasks.map(t=>t.department)),'כל המחלקות');
+   const d=$('tmDepartment').value;
+   options($('tmMachine'),uniq(tasks.filter(t=>!d||t.department===d).map(t=>t.machine)),'כל המכונות');
+   options($('tmFrequency'),uniq(tasks.map(t=>t.frequency)),'כל התדירויות');
+   ['tmEditFrequency'].forEach(id=>{const el=$(id);if(el){const old=el.value;el.innerHTML=uniq([...Object.keys(FREQ_DAYS),...tasks.map(t=>t.frequency)]).map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(old)el.value=old}});
+   tmRenderList();tmFillMasterDepartments();
+ };
+ window.tmRenderList=function(){
+   if(!$('tmTaskList'))return;const rows=tmRows();
+   $('tmVisibleCount').textContent=`${rows.length} מוצגות`;
+   $('tmCountAll').textContent=tasks.length;$('tmCountPhysical').textContent=tasks.filter(t=>inferredKind(t)==='physical').length;$('tmCountInspection').textContent=tasks.filter(t=>inferredKind(t)==='inspection').length;$('tmCountOperator').textContent=tasks.filter(t=>inferredKind(t)==='operator').length;
+   $('tmTaskList').innerHTML=rows.length?rows.map(t=>`<div class="tm-row ${String(t.id)===String(tmSelectedId)?'selected':''}" onclick="tmOpenEdit('${esc(String(t.id))}')"><div><div class="tm-row-title">${esc(t.machine)}</div><div class="tm-row-task">${esc(t.task)}</div><div class="tm-row-meta">${esc(t.department)} · ${esc(t.frequency||'—')} · ${Number(t.duration||0)} דק׳</div></div><span class="tm-pill ${t.active===false?'off':''}">${t.active===false?'לא פעילה':KINDS[inferredKind(t)]}</span></div>`).join(''):'<div class="empty">אין משימות לפי הסינון שנבחר.</div>';
+ };
+ window.tmFilterChanged=function(level){
+   if(level==='department'){const d=$('tmDepartment').value;options($('tmMachine'),uniq(tasks.filter(t=>!d||t.department===d).map(t=>t.machine)),'כל המכונות')}
+   tmRenderList();tmSyncGlobalFilters();
+ };
+ window.tmClearFilters=function(){['tmDepartment','tmMachine','tmKind','tmFrequency','tmStatus','tmSearch'].forEach(id=>{if($(id))$(id).value=''});tmRefreshFilters();tmSyncGlobalFilters()};
+ function fillForm(t){
+   $('tmEditKind').value=inferredKind(t);$('tmEditDepartment').value=t.department||'';$('tmEditMachine').value=t.machine||'';$('tmEditTask').value=t.task||'';$('tmEditFrequency').value=t.frequency||Object.keys(FREQ_DAYS)[0];$('tmEditDuration').value=t.duration??'';$('tmEditDue').value=t.nextDue||'';$('tmEditLast').value=t.lastDone||'';$('tmEditParts').value=t.parts||'';$('tmEditNotes').value=cleanMeta(t.notes);$('tmEditActive').checked=t.active!==false;const tr=maintenanceTrade(t);if([...$('tmEditTrade').options].some(o=>o.value===tr))$('tmEditTrade').value=tr;tmKindChanged();
+ }
+ window.tmOpenEdit=function(id){const t=tasks.find(x=>String(x.id)===String(id));if(!t)return;tmSelectedId=id;tmMode='edit';$('tmEmptyEditor').style.display='none';$('tmEditor').style.display='block';$('tmNewSourceBox').style.display='none';$('tmDuplicateBtn').style.display='inline-block';$('tmEditorTitle').textContent='עריכת משימה';$('tmEditorSub').textContent=`${t.department} · ${t.machine} · ${t.id}`;fillForm(t);tmRenderList();if(innerWidth<901)$('tmEditor').scrollIntoView({behavior:'smooth',block:'start'})};
+ window.tmOpenNew=function(){tmSelectedId=null;tmMode='new';$('tmEmptyEditor').style.display='none';$('tmEditor').style.display='block';$('tmNewSourceBox').style.display='block';$('tmDuplicateBtn').style.display='none';$('tmEditorTitle').textContent='משימה חדשה';$('tmEditorSub').textContent='ניתן לבחור מהמאגר הקיים או להזין פריט חדש';$('tmEditKind').value='physical';$('tmEditDepartment').value='';$('tmEditMachine').value='';$('tmEditTask').value='';$('tmEditDuration').value='';$('tmEditDue').value=today();$('tmEditLast').value='';$('tmEditParts').value='';$('tmEditNotes').value='';$('tmEditActive').checked=true;tmSetSource('master');tmKindChanged();if(innerWidth<901)$('tmEditor').scrollIntoView({behavior:'smooth',block:'start'})};
+ window.tmCloseEditor=function(){tmSelectedId=null;tmMode='view';$('tmEditor').style.display='none';$('tmEmptyEditor').style.display='flex';tmRenderList()};
+ window.tmSetSource=function(src){tmSource=src;$('tmSourceMasterBtn').classList.toggle('active',src==='master');$('tmSourceManualBtn').classList.toggle('active',src==='manual');$('tmMasterPicker').style.display=src==='master'?'grid':'none';if(src==='master')tmFillMasterDepartments()};
+ window.tmFillMasterDepartments=function(){if(!$('tmMasterDepartment'))return;options($('tmMasterDepartment'),uniq(tasks.map(t=>t.department)),'בחר מחלקה');tmFillMasterMachines()};
+ window.tmFillMasterMachines=function(){const d=$('tmMasterDepartment').value;options($('tmMasterMachine'),uniq(tasks.filter(t=>!d||t.department===d).map(t=>t.machine)),'בחר מכונה');tmFillMasterTasks()};
+ window.tmFillMasterTasks=function(){const d=$('tmMasterDepartment').value,m=$('tmMasterMachine').value,k=$('tmEditKind').value;const a=tasks.filter(t=>(!d||t.department===d)&&(!m||t.machine===m)&&inferredKind(t)===k);const el=$('tmMasterTask');el.innerHTML='<option value="">בחר משימה</option>'+a.map(t=>`<option value="${esc(String(t.id))}">${esc(t.task)}</option>`).join('')};
+ window.tmAdoptMasterTask=function(){const t=tasks.find(x=>String(x.id)===String($('tmMasterTask').value));if(!t)return;fillForm(t);$('tmEditDepartment').value=t.department||'';$('tmEditMachine').value=t.machine||''};
+ window.tmKindChanged=function(){const k=$('tmEditKind').value;$('tmKindBadge').textContent=KINDS[k];$('tmTradeField').style.display=k==='operator'?'none':'block';$('tmLogicNote').textContent=k==='physical'?'משימת אחזקה פיזית: נכנסת לתוכנית האחזקה המחזורית ול-KPI המתוכננות.':k==='inspection'?'בדיקת אחזקה: מופיעה בכרטיסיית בדיקות אחזקה ואינה נכנסת לתכנון ה-PM המחזורי.':'בדיקת מפעיל: מופיעה בכרטיסיית בדיקות מפעיל ואינה נכנסת לתכנון האחזקה.';if(tmMode==='new'&&tmSource==='master')tmFillMasterTasks()};
+ window.tmSave=async function(){
+   if(!requirePM('writeTasks','אין הרשאה לשמור משימות.'))return;
+   const kind=$('tmEditKind').value,department=$('tmEditDepartment').value.trim(),machine=$('tmEditMachine').value.trim(),task=$('tmEditTask').value.trim();
+   if(!department||!machine||!task){statusLine('יש למלא מחלקה, מכונה / תשתית ותיאור משימה.','error');return}
+   const performer=kind==='operator'?'מפעיל':'טכנאי אחזקה',trade=kind==='operator'?null:$('tmEditTrade').value;
+   const base={department,machine,task,frequency:$('tmEditFrequency').value,performer,duration:$('tmEditDuration').value===''?null:Number($('tmEditDuration').value),parts:$('tmEditParts').value.trim()||null,notes:taggedNotes($('tmEditNotes').value,kind,trade),nextDue:$('tmEditDue').value||null,lastDone:$('tmEditLast').value||null,active:$('tmEditActive').checked};
+   statusLine('שומר משימה בענן…','');
+   let res;
+   if(tmMode==='new')res=await supabaseClient.from('pm_tasks').insert(taskDbPayload(base)).select('*').single();
+   else {const old=tasks.find(x=>String(x.id)===String(tmSelectedId));res=await supabaseClient.from('pm_tasks').update(taskDbPayload({...old,...base})).eq('id',old.id).select('*').single()}
+   if(res.error){statusLine('שמירת המשימה נכשלה: '+res.error.message,'error');return}
+   await reloadCloudData();tmRefreshFilters();tmSelectedId=String(res.data?.id||tmSelectedId||'');if(tmSelectedId)tmOpenEdit(tmSelectedId);tmRefreshDependentTabs();statusLine(tmMode==='new'?'המשימה נוספה למאגר בהצלחה.':'המשימה עודכנה בהצלחה.','success');
+ };
+ window.tmDuplicate=async function(){const t=tasks.find(x=>String(x.id)===String(tmSelectedId));if(!t)return;tmOpenNew();fillForm(t);$('tmEditTask').value=(t.task||'')+' - עותק';tmSource='manual';tmSetSource('manual')};
+ window.tmRefreshDependentTabs=function(){try{fillOperatorFilters();renderOperatorChecks();fillMaintenanceCheckFilters();renderMaintenanceChecks();fillDashboardMachines();renderDashboard();fillPlanningMachines();renderPlanner();fillReportMachinesV4();renderReports()}catch(e){console.warn('Task management refresh',e)}};
+
+ // Shared department/machine filter synchronization.
+ const maps=[
+   ['tmDepartment','tmMachine'],['pmDashboardDepartment','pmDashboardMachine'],['pmPlannerDepartment','pmPlannerMachine'],['pmReportDepartment','pmReportMachine'],['pmReportsDepartment','pmReportsMachine'],['pmOperatorDepartment','pmOperatorMachine'],['pmMaintenanceCheckDepartment','pmMaintenanceCheckMachine']
+ ];
+ window.tmSyncGlobalFilters=function(source='tm'){
+   if(tmSyncing)return;tmSyncing=true;
+   try{
+     let dep=$('tmDepartment')?.value||'',mach=$('tmMachine')?.value||'';
+     if(source!=='tm'){const pair=maps.find(p=>p[0]===source||p[1]===source);if(pair){dep=$(pair[0])?.value||'';mach=$(pair[1])?.value||''}}
+     maps.forEach(([d,m])=>{const de=$(d),me=$(m);if(de&&[...de.options].some(o=>o.value===dep))de.value=dep;if(me&&[...me.options].some(o=>o.value===mach))me.value=mach});
+     if(source!=='tm'){tmRefreshFilters();if([...$('tmDepartment').options].some(o=>o.value===dep))$('tmDepartment').value=dep;const d=$('tmDepartment').value;options($('tmMachine'),uniq(tasks.filter(t=>!d||t.department===d).map(t=>t.machine)),'כל המכונות');if([...$('tmMachine').options].some(o=>o.value===mach))$('tmMachine').value=mach;tmRenderList()}
+   }finally{tmSyncing=false}
+ };
+ function attachSync(){
+   maps.slice(1).forEach(([d,m])=>{[$(d),$(m)].forEach(el=>{if(el&&!el.dataset.tmSync){el.dataset.tmSync='1';el.addEventListener('change',()=>setTimeout(()=>tmSyncGlobalFilters(el.id),0))}})});
+ }
+ const oldShow=window.showTab||showTab;
+ window.showTab=showTab=function(name){if(name==='addTask')name='editTasks';const r=oldShow(name);if(name==='editTasks')setTimeout(()=>{tmRefreshFilters();attachSync()},0);return r};
+ const oldReload=window.reloadCloudData||reloadCloudData;
+ window.reloadCloudData=reloadCloudData=async function(){const r=await oldReload();setTimeout(()=>{try{tmRefreshFilters();attachSync()}catch(e){}},0);return r};
+ setTimeout(()=>{try{tmRefreshFilters();attachSync()}catch(e){}},0);
 })();
 </script>
+
 </body></html>
