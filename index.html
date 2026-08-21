@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v39-tech-report-filters"/>
+<meta name="fop-build" content="20260821-v40-load-fix"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -1262,7 +1262,6 @@ async function loadCloudData(){
     refillAll();
     refreshAll();
     fillDashboardMachines();
-    fillReportPerformers();
     const tc=maintenanceTradeCounts(); statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב: ${maintenanceTasks().length} עבודות אחזקה, ${maintenanceInspectionTasks().length} בדיקות אחזקה, ${operatorTasks().length} מפעיל · מקצוע: ${tc['מכונאי']} מכונאי / ${tc['חשמלאי']} חשמלאי / ${tc['משולב']} משולב · ${history.length} דיווחים.`,'success');
     return true;
   }catch(err){
@@ -2596,7 +2595,6 @@ function refillAll(){
   fillDashboardMachines();
   fillDashboardPerformers();
   fillReportMachines();
-  fillReportPerformers();
   fillHistoryMachines();
 }
 function refreshAll(){
