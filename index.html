@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v38-role-permissions"/>
+<meta name="fop-build" content="20260821-v39-tech-report-filters"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -639,11 +639,12 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 <div id="pmTechnicianScopeNote" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#475569">מכונאים וחשמלאים רואים את כלל טיפולי האחזקה ויכולים לדווח ביצוע, הערה ועד שתי תמונות.</div>
 <div class="toolbar">
 <div class="field report-date"><label>תאריך ביצוע</label><input id="pmReportDate" type="date"/></div>
-<div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();fillReportPerformers();renderReport()"></select></div>
+<div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();renderReport()"></select></div>
 <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
-<div class="field"><label>מבצע</label><select id="pmReportPerformer" onchange="renderReport()"><option value="">מבצעים</option></select></div>
+
 <div class="field"><label>מקצוע</label><select id="pmReportTrade" onchange="renderReport()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
 </div>
+<div id="pmReportFilterIndicator" style="font-size:12px;font-weight:800;color:#475569;margin:4px 0 10px">מציג: כל המקצועות</div>
 <label class="pm-report-mode"><input id="pmReportIncludeUnplanned" type="checkbox" onchange="renderReport()"/> הצג גם טיפולים פתוחים שלא שובצו לתוכנית העבודה</label>
 <div class="panel-box" style="margin:12px 0"><h3>עבודות לא מתוכננות לביצוע</h3><div id="pmWOReportList"></div></div>
 <div class="report-summary">
@@ -1939,18 +1940,19 @@ function fillReportMachines(){
 }
 function renderReport(){
   const dep=pmReportDepartment.value, machine=pmReportMachine.value;
-  const performer=document.getElementById('pmReportPerformer')?.value||'';
   const trade=document.getElementById('pmReportTrade')?.value||'';
+  const fi=document.getElementById('pmReportFilterIndicator');
+  if(fi)fi.textContent='מציג: '+(trade||'כל המקצועות');
   const reportDate=pmReportDate.value||today();
   const includeUnplanned=document.getElementById('pmReportIncludeUnplanned')?.checked===true;
   const planned=plannedItemsForDate(reportDate)
     .filter(x=>!isPlanItemDone(x))
-    .filter(x=>(!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer)&&(!trade||maintenanceTrade(x.t)===trade))
+    .filter(x=>(!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&(!trade||maintenanceTrade(x.t)===trade))
     .map(x=>({t:x.t,s:stateOf({...x.t,nextDue:x.due}),plan:x.plan,plannedDue:x.due}));
   const plannedIds=new Set(planned.map(x=>String(x.t.id)));
   const extras=includeUnplanned?openTasks(dep)
     .filter(x=>!plannedIds.has(String(x.t.id)))
-    .filter(x=>(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer)&&(!trade||maintenanceTrade(x.t)===trade)):[];
+    .filter(x=>(!machine||x.t.machine===machine)&&(!trade||maintenanceTrade(x.t)===trade)):[];
   const list=[...planned,...extras]
     .sort((a,b)=>(a.plan?0:1)-(b.plan?0:1)||a.s.n-b.s.n||a.t.machine.localeCompare(b.t.machine,'he'));
 
@@ -2639,17 +2641,6 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 
-function fillReportPerformers(){
-  const dep=document.getElementById('pmReportDepartment')?.value||'';
-  const machine=document.getElementById('pmReportMachine')?.value||'';
-  const sel=document.getElementById('pmReportPerformer');
-  if(!sel)return;
-  const old=sel.value;
-  const vals=[...new Set(maintenanceTasks().filter(t=>t.active!==false&&(!dep||t.department===dep)&&(!machine||t.machine===machine)).map(t=>t.performer).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
-  sel.innerHTML='<option value="">מבצעים</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
-  if(vals.includes(old))sel.value=old;
-}
-document.addEventListener('DOMContentLoaded',()=>{try{fillReportPerformers()}catch(e){}});
 
 
 const PM_INIT_KEY="pm_plan_initialized";
