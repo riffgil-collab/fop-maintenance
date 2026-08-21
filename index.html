@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v28-reports-aligned-fixed"/>
+<meta name="fop-build" content="20260821-v29-final-sync"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -696,9 +696,9 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
     </div>
     <div class="field"><label>סטטוס</label>
       <select id="pmReportsStatus" onchange="renderReports()">
-        <option value="planned">מתוכננת</option>
-        <option value="" selected>כל הסטטוסים</option>
+        <option value="open" selected>פתוחות — כמו בדשבורד</option>
         <option value="waiting">ממתינה לתכנון</option>
+        <option value="planned">מתוכננת</option>
         <option value="postponed">נדחתה</option>
         <option value="overdue">באיחור</option>
         <option value="cancelled">בוטלה</option>
@@ -725,13 +725,13 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
         </div>
         <div id="pmReportLogoRight"></div>
       </div>
-      <h2>תוכנית עבודה — טיפולי אחזקה PM</h2>
+      <h2>תוכנית עבודה — PM + WO</h2>
       <div id="pmReportsMeta" class="pm-report-meta"></div>
     </div>
     <div class="pm-report-table-wrap">
       <table class="pm-report-table">
         <thead><tr>
-          <th>תאריך</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>תדירות</th><th>משך</th><th>מבצע</th><th>סטטוס</th><th>הערות / חתימה</th>
+          <th>תאריך</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>סוג / תדירות</th><th>משך</th><th>מבצע</th><th>סטטוס</th><th>הערות / חתימה</th>
         </tr></thead>
         <tbody id="pmReportsBody"></tbody>
       </table>
@@ -4396,4 +4396,517 @@ renderPlanner=function(){
 };
 </script>
 
+<script id="fop-v29-unified-work-source">
+/* ================================================================
+   V29 — ONE SOURCE OF TRUTH
+   Dashboard / Planning / Reports use the same PM and WO populations.
+   Maintenance inspections + operator inspections are NEVER report rows.
+   ================================================================ */
+(function(){
+  const $ = id => document.getElementById(id);
+  const STATUS_LABELS = {
+    open:'פתוחות — כמו בדשבורד',
+    waiting:'ממתינה לתכנון',
+    planned:'מתוכננת',
+    completed:'בוצעה',
+    postponed:'נדחתה',
+    cancelled:'בוטלה',
+    overdue:'באיחור'
+  };
+
+  function periodBounds(period, anchor){
+    return v3PeriodBounds(period || 'week', anchor || today());
+  }
+
+  function pmState(item, anchor){
+    return v3OccurrenceState(item, anchor || today());
+  }
+
+  function woState(w, anchor){
+    const s=String(w?.status||'').trim().toLowerCase();
+    if(['completed','done','בוצע'].includes(s)) return 'completed';
+    if(['cancelled','canceled','בוטל'].includes(s)) return 'cancelled';
+    if(['postponed','deferred','נדחה','נדחתה'].includes(s)) return 'postponed';
+    if(['planned','מתוכנן','מתוכננת'].includes(s)) {
+      const pd=String(w.plannedDate||'');
+      return pd && pd < String(anchor||today()) ? 'overdue' : 'planned';
+    }
+    const due=String(w?.dueDate||'');
+    return due && due < String(anchor||today()) ? 'overdue' : 'waiting';
+  }
+
+  function stateMatches(state, wanted){
+    if(!wanted || wanted==='open') return !['completed','cancelled'].includes(state);
+    return state===wanted;
+  }
+
+  function tradeMatches(actual, wanted){
+    if(!wanted) return true;
+    return String(actual||'')===String(wanted);
+  }
+
+  // PM source = exactly the physical maintenance tasks managed cyclically.
+  function getPM({period='week',anchor=today(),department='',machine='',trade='',status='open'}={}){
+    const {start,end}=periodBounds(period,anchor);
+    return v3RequirementItems(start,end).map(item=>{
+      const state=pmState(item,anchor);
+      return {
+        kind:'PM',
+        key:`PM:${item.t.id}:${item.due}`,
+        item,
+        task:item.t,
+        plan:item.plan||null,
+        state,
+        due:String(item.due||''),
+        date:String((state==='completed'&&item.plan?.completedDate) ? item.plan.completedDate :
+                    (item.plan?.plannedDate && state!=='waiting' ? item.plan.plannedDate : item.due)||''),
+        department:item.t.department||'',
+        machine:item.t.machine||'',
+        trade:maintenanceTrade(item.t),
+        description:item.t.task||'',
+        frequency:item.t.frequency||'',
+        duration:Number(item.t.duration||0),
+        assignee:item.plan?.assignedTo||item.t.performer||'',
+        priority:item.plan?.priority||'',
+        note:item.plan?.postponedReason||''
+      };
+    }).filter(r=>
+      isMaintenanceTask(r.task) &&
+      (!department||r.department===department) &&
+      (!machine||r.machine===machine) &&
+      tradeMatches(r.trade,trade) &&
+      stateMatches(r.state,status)
+    );
+  }
+
+  // WO source. Open WO backlog remains visible until it is closed, exactly like PM backlog.
+  function getWO({period='week',anchor=today(),department='',machine='',trade='',status='open'}={}){
+    const {start,end}=periodBounds(period,anchor);
+    return (Array.isArray(window.pmWorkOrders)?window.pmWorkOrders:
+           (typeof pmWorkOrders!=='undefined'&&Array.isArray(pmWorkOrders)?pmWorkOrders:[]))
+      .map(w=>{
+        const state=woState(w,anchor);
+        const due=String(w.dueDate||'');
+        const planned=String(w.plannedDate||'');
+        const displayDate=planned||due;
+        return {
+          kind:'WO',
+          key:`WO:${w.id}`,
+          wo:w,
+          state,
+          due,
+          date:displayDate,
+          department:w.department||'',
+          machine:w.machine||'',
+          trade:w.trade||'מכונאי',
+          description:w.description||'',
+          frequency:'WO',
+          duration:Number(w.duration||0),
+          assignee:w.assignee||w.trade||'',
+          priority:w.priority||'רגילה',
+          note:w.completionNotes||w.notes||''
+        };
+      }).filter(r=>{
+        if(!r.date && !r.due) return false;
+        // Open backlog: due before start is still work in this period.
+        // Future WO: due/planned must fall inside the selected period.
+        const belongs = stateMatches(r.state,'open')
+          ? (!!r.due && r.due<=end) || (!!r.date && r.date>=start&&r.date<=end)
+          : (!!r.date && r.date>=start&&r.date<=end) || (!!r.due && r.due>=start&&r.due<=end);
+        return belongs &&
+          (!department||r.department===department) &&
+          (!machine||r.machine===machine) &&
+          tradeMatches(r.trade,trade) &&
+          stateMatches(r.state,status);
+      });
+  }
+
+  function getWork(opts={}){
+    const wt=opts.workType||'';
+    const rows=[
+      ...(wt==='WO'?[]:getPM(opts)),
+      ...(wt==='PM'?[]:getWO(opts))
+    ];
+    return rows.sort((a,b)=>
+      String(a.date||a.due).localeCompare(String(b.date||b.due)) ||
+      String(a.department).localeCompare(String(b.department),'he') ||
+      String(a.machine).localeCompare(String(b.machine),'he') ||
+      String(a.kind).localeCompare(String(b.kind))
+    );
+  }
+
+  window.fopUnifiedWorkSource={periodBounds,getPM,getWO,getWork,woState,pmState};
+
+  /* ---------------- Dashboard ---------------- */
+  pmV17DashboardRender=function(){
+    const period=(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week';
+    const anchor=$('pmDashboardAnchor')?.value||today();
+    const filters={
+      period,anchor,
+      department:$('pmDashboardDepartment')?.value||'',
+      machine:$('pmDashboardMachine')?.value||'',
+      trade:$('pmDashboardTrade')?.value||'',
+      workType:$('pmDashboardWorkType')?.value||'',
+      status:'open'
+    };
+    const rows=getWork(filters);
+    const {start,end}=periodBounds(period,anchor);
+    const overdue=rows.filter(r=>r.state==='overdue');
+    const weekEnd=addDays(anchor,7);
+    const near=rows.filter(r=>{
+      const d=r.due||r.date;
+      return d && d>=anchor && d<=weekEnd && d>=start && d<=end;
+    });
+    const wo=rows.filter(r=>r.kind==='WO');
+    const urgent=wo.filter(r=>['דחופה','משביתה'].includes(String(r.priority||'')));
+
+    pmV17Set('pmV17Open',rows.length);
+    pmV17Set('pmV17Overdue',overdue.length);
+    pmV17Set('pmV17Week',near.length);
+    pmV17Set('pmV17WO',wo.length);
+    pmV17Set('pmV17WOUrgent',`מתוכן ${urgent.length} דחופות / משביתות`);
+
+    const trades={'מכונאי':0,'חשמלאי':0,'משולב':0};
+    rows.forEach(r=>{trades[r.trade]=(trades[r.trade]||0)+1});
+    const maxT=Math.max(1,...Object.values(trades));
+    const tb=$('pmV17Trade');
+    if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>
+      `<div class="pm-v17-bar"><span>${esc(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/maxT*100)}%"></div></div><strong>${v}</strong></div>`
+    ).join('');
+
+    const typeCounts={PM:rows.filter(r=>r.kind==='PM').length,WO:wo.length};
+    const maxY=Math.max(1,typeCounts.PM,typeCounts.WO);
+    const ty=$('pmV17Type');
+    if(ty)ty.innerHTML=Object.entries(typeCounts).map(([k,v])=>
+      `<div class="pm-v17-bar"><span>${k}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/maxY*100)}%"></div></div><strong>${v}</strong></div>`
+    ).join('');
+
+    const attention=[...overdue,...urgent,...near]
+      .filter((r,i,a)=>a.findIndex(x=>x.key===r.key)===i)
+      .slice(0,10);
+    const at=$('pmV17Attention');
+    if(at)at.innerHTML=attention.length?attention.map(r=>
+      `<div class="pm-v3-mini" onclick="pmV17OpenPlanner('${r.kind==='WO'?'wo':(r.state==='overdue'?'overdue':'open')}')">
+         <div><strong>${esc(r.machine)} — ${esc(r.description)}</strong>
+         <small>${r.kind} · ${esc(r.trade)} · יעד ${esc(fDate(r.due||r.date))}</small></div>
+         <span class="tag ${r.state==='overdue'?'red':''}">${esc(r.state==='overdue'?'באיחור':(r.priority||r.kind))}</span>
+       </div>`
+    ).join(''):'<div class="empty">אין כרגע פריטים חריגים או דחופים בתקופה שנבחרה.</div>';
+  };
+
+  pmV25CancelledItems=function(){
+    const period=(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week';
+    return getWork({
+      period,
+      anchor:$('pmDashboardAnchor')?.value||today(),
+      department:$('pmDashboardDepartment')?.value||'',
+      machine:$('pmDashboardMachine')?.value||'',
+      trade:$('pmDashboardTrade')?.value||'',
+      workType:$('pmDashboardWorkType')?.value||'',
+      status:'cancelled'
+    });
+  };
+
+  /* ---------------- Planning ---------------- */
+  // PM list in planner comes from the exact same PM source.
+  filteredPlanningItems=function(){
+    const period=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week';
+    const anchor=$('pmPlannerStart')?.value||today();
+    const wt=$('pmPlannerWorkType')?.value||'';
+    if(wt==='WO') return [];
+    const status=$('pmPlannerStatus')?.value||'open';
+    return getPM({
+      period,anchor,
+      department:$('pmPlannerDepartment')?.value||'',
+      machine:$('pmPlannerMachine')?.value||'',
+      trade:$('pmPlannerTrade')?.value||'',
+      status:status||'open'
+    }).map(r=>r.item);
+  };
+
+  renderUnplannedPlanner=function(){
+    const el=$('pmWOPlannerList');if(!el)return;
+    const period=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week';
+    const anchor=$('pmPlannerStart')?.value||today();
+    const wt=$('pmPlannerWorkType')?.value||'';
+    if(wt==='PM'){el.innerHTML='<div class="empty">מסונן ל‑PM.</div>';return;}
+    const status=$('pmPlannerStatus')?.value||'open';
+    const rows=getWO({
+      period,anchor,
+      department:$('pmPlannerDepartment')?.value||'',
+      machine:$('pmPlannerMachine')?.value||'',
+      trade:$('pmPlannerTrade')?.value||'',
+      status:status||'open'
+    });
+    el.innerHTML=rows.length?rows.map(r=>woCard(r.wo,'planner')).join(''):
+      '<div class="empty">אין WO המתאימות לתקופה ולפילטרים שנבחרו.</div>';
+  };
+
+  // The old CSS hid the WO planner section. Re-enable it.
+  const style=document.createElement('style');
+  style.textContent='#pmPlanner .panel-box:has(#pmWOPlannerList){display:block!important}';
+  document.head.appendChild(style);
+
+  // Keep work-type/status filter changes synchronized across the whole planner.
+  const plannerType=$('pmPlannerWorkType');
+  if(plannerType)plannerType.onchange=function(){pmPlanPage=0;renderPlanner();renderUnplannedPlanner();};
+  const plannerStatus=$('pmPlannerStatus');
+  if(plannerStatus)plannerStatus.onchange=function(){pmPlanPage=0;renderPlanner();renderUnplannedPlanner();};
+
+  /* ---------------- Reports ---------------- */
+  let reportRowsCache=[];
+
+  function reportOptions(){
+    return {
+      period:$('pmReportsPeriod')?.value||'week',
+      anchor:$('pmReportsAnchor')?.value||today(),
+      department:$('pmReportsDepartment')?.value||'',
+      machine:$('pmReportsMachine')?.value||'',
+      trade:$('pmReportsTrade')?.value||'',
+      workType:$('pmReportsWorkType')?.value||'',
+      status:$('pmReportsStatus')?.value||'open'
+    };
+  }
+
+  function fillReportDepartments(){
+    const sel=$('pmReportsDepartment');if(!sel)return;
+    const old=sel.value;
+    const deps=[...new Set([
+      ...maintenanceTasks().map(t=>t.department),
+      ...((typeof pmWorkOrders!=='undefined'&&Array.isArray(pmWorkOrders))?pmWorkOrders.map(w=>w.department):[])
+    ].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+    sel.innerHTML='<option value="">כל המחלקות</option>'+deps.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+    if(deps.includes(old))sel.value=old;
+  }
+
+  window.fillReportMachinesV4=function(){
+    const sel=$('pmReportsMachine');if(!sel)return;
+    const old=sel.value,dep=$('pmReportsDepartment')?.value||'';
+    const machines=[...new Set([
+      ...maintenanceTasks().filter(t=>!dep||t.department===dep).map(t=>t.machine),
+      ...((typeof pmWorkOrders!=='undefined'&&Array.isArray(pmWorkOrders))?
+          pmWorkOrders.filter(w=>!dep||w.department===dep).map(w=>w.machine):[])
+    ].filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+    sel.innerHTML='<option value="">כל המכונות</option>'+machines.map(x=>`<option value="${esc(x)}">${esc(x)}</option>`).join('');
+    if(machines.includes(old))sel.value=old;
+  };
+
+  window.fillReportsDepartments=function(){
+    fillReportDepartments();
+    window.fillReportMachinesV4();
+  };
+
+  function copyLogos(){
+    const logos=[...document.querySelectorAll('.pm-brand-header .pm-brand-logo img')];
+    const left=$('pmReportLogoLeft'),right=$('pmReportLogoRight');
+    if(left&&!left.children.length&&logos[0])left.appendChild(logos[0].cloneNode(true));
+    if(right&&!right.children.length&&logos[1])right.appendChild(logos[1].cloneNode(true));
+  }
+
+  function reportMeta(opts,count){
+    const b=periodBounds(opts.period,opts.anchor);
+    const f=[
+      opts.department&&`מחלקה: ${opts.department}`,
+      opts.machine&&`מכונה: ${opts.machine}`,
+      opts.trade&&`מקצוע: ${opts.trade}`,
+      opts.workType&&`סוג: ${opts.workType}`,
+      opts.status&&`סטטוס: ${STATUS_LABELS[opts.status]||opts.status}`
+    ].filter(Boolean).join(' · ');
+    return `${b.label}${f?' · '+f:''} · ${count} משימות · הופק: ${new Date().toLocaleString('he-IL')}`;
+  }
+
+  function rowHTML(r){
+    const typeFreq=r.kind==='PM'?`PM · ${r.frequency||'—'}`:'WO';
+    const note=r.note||'';
+    return `<tr>
+      <td>${esc(fDate(r.date||r.due))}</td>
+      <td>${esc(r.department)}</td>
+      <td><strong>${esc(r.machine)}</strong></td>
+      <td>${esc(r.description)}</td>
+      <td>${esc(typeFreq)}</td>
+      <td>${Number(r.duration||0)} דק׳</td>
+      <td>${esc(r.assignee||r.trade||'')}</td>
+      <td class="status-cell">${esc(STATUS_LABELS[r.state]||r.state)}</td>
+      <td>${note?esc(note):'________________'}</td>
+    </tr>`;
+  }
+
+  window.renderReports=function(){
+    const body=$('pmReportsBody');if(!body)return;
+    if(!$('pmReportsAnchor').value)$('pmReportsAnchor').value=$('pmDashboardAnchor')?.value||today();
+    fillReportDepartments();
+    window.fillReportMachinesV4();
+    copyLogos();
+
+    const opts=reportOptions();
+    reportRowsCache=getWork(opts);
+    window.pmUnifiedReportRows=reportRowsCache;
+
+    const mins=reportRowsCache.reduce((a,r)=>a+Number(r.duration||0),0);
+    $('pmReportsCount').textContent=reportRowsCache.length;
+    $('pmReportsHours').textContent=hours(mins)+' שעות';
+    $('pmReportsFooterCount').textContent=reportRowsCache.length;
+    $('pmReportsFooterHours').textContent=hours(mins);
+    $('pmReportsMeta').textContent=reportMeta(opts,reportRowsCache.length);
+
+    body.innerHTML=reportRowsCache.length?reportRowsCache.map(rowHTML).join(''):
+      '<tr><td colspan="9" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לתקופה ולפילטרים שנבחרו.</td></tr>';
+
+    const st=$('pmReportsStatusLine');
+    if(st){
+      st.className='status-line success';
+      st.textContent=opts.status==='open'
+        ? `מסונכרן עם הדשבורד ותכנון העבודה: ${reportRowsCache.length} עבודות פתוחות.`
+        : `${reportRowsCache.length} עבודות בסטטוס ${STATUS_LABELS[opts.status]||opts.status}.`;
+    }
+  };
+
+  // Department changes must update machine choices and then the report.
+  const dep=$('pmReportsDepartment');
+  if(dep)dep.onchange=function(){window.fillReportMachinesV4();window.renderReports();};
+  ['pmReportsPeriod','pmReportsAnchor','pmReportsMachine','pmReportsTrade','pmReportsWorkType','pmReportsStatus'].forEach(id=>{
+    const e=$(id); if(e)e.onchange=window.renderReports;
+  });
+
+  window.printWorkPlanReport=function(){
+    window.renderReports();
+    document.body.classList.add('pm-report-printing');
+    setTimeout(()=>window.print(),80);
+    setTimeout(()=>document.body.classList.remove('pm-report-printing'),1500);
+  };
+  window.pdfWorkPlanReport=function(){
+    if(window.pmToast)pmToast('במסך ההדפסה בחר שיתוף / שמירה כ‑PDF');
+    window.printWorkPlanReport();
+  };
+
+  function xlsEsc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+  window.exportWorkPlanExcel=function(){
+    window.renderReports();
+    const rows=window.pmUnifiedReportRows||[];
+    if(!rows.length){if(window.pmToast)pmToast('אין משימות לייצוא','error');return}
+    const opts=reportOptions(),b=periodBounds(opts.period,opts.anchor);
+    const head=['תאריך','מחלקה','מכונה','משימה','סוג','תדירות','משך (דקות)','מקצוע','מבצע','סטטוס','הערות'];
+    const data=rows.map(r=>[
+      fDate(r.date||r.due),r.department,r.machine,r.description,r.kind,
+      r.kind==='PM'?r.frequency:'—',Number(r.duration||0),r.trade,r.assignee,
+      STATUS_LABELS[r.state]||r.state,r.note||''
+    ]);
+    const html=`<!doctype html><html dir="rtl"><head><meta charset="utf-8"></head><body>
+      <h2>תוכנית עבודה — PM + WO</h2><p>${xlsEsc(b.label)}</p>
+      <table border="1"><thead><tr>${head.map(x=>`<th>${xlsEsc(x)}</th>`).join('')}</tr></thead>
+      <tbody>${data.map(row=>`<tr>${row.map(x=>`<td>${xlsEsc(x)}</td>`).join('')}</tr>`).join('')}</tbody></table>
+      </body></html>`;
+    const blob=new Blob(['\ufeff',html],{type:'application/vnd.ms-excel;charset=utf-8'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=`FOP_Work_Plan_${b.start}_${b.end}.xls`;
+    document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+    if(window.pmToast)pmToast('קובץ Excel הופק','success');
+  };
+
+  // When Reports opens, inherit the dashboard anchor and period so the first view already matches.
+  const previousShowTab=window.showTab;
+  window.showTab=function(name){
+    const result=previousShowTab(name);
+    if(name==='reports'){
+      const a=$('pmReportsAnchor');
+      if(a&&!a.value)a.value=$('pmDashboardAnchor')?.value||today();
+      const p=$('pmReportsPeriod');
+      if(p && typeof pmV3DashboardPeriod!=='undefined')p.value=pmV3DashboardPeriod||'week';
+      if($('pmReportsStatus'))$('pmReportsStatus').value='open';
+      window.renderReports();
+    }
+    return result;
+  };
+
+  document.addEventListener('DOMContentLoaded',()=>{
+    if($('pmReportsStatus'))$('pmReportsStatus').value='open';
+    if($('pmReportsWorkType'))$('pmReportsWorkType').value='';
+    if($('pmReportsPeriod'))$('pmReportsPeriod').value='week';
+    fillReportDepartments();window.fillReportMachinesV4();
+  });
+})();
+</script>
+
+<script id="fop-v29-final-sync">
+/* V29 final synchronization checks for Planning navigation/counts */
+(function(){
+  const $=id=>document.getElementById(id);
+
+  function plannerOpts(statusOverride=null){
+    return {
+      period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',
+      anchor:$('pmPlannerStart')?.value||today(),
+      department:$('pmPlannerDepartment')?.value||'',
+      machine:$('pmPlannerMachine')?.value||'',
+      trade:$('pmPlannerTrade')?.value||'',
+      workType:$('pmPlannerWorkType')?.value||'',
+      status:statusOverride || $('pmPlannerStatus')?.value || 'open'
+    };
+  }
+
+  // Dashboard click carries the same period, anchor and filters to Planning.
+  pmV17OpenPlanner=function(kind){
+    const dashPeriod=(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week';
+    const a=$('pmDashboardAnchor')?.value||today();
+    if($('pmPlannerStart'))$('pmPlannerStart').value=a;
+    if(typeof setPlanningPeriod==='function')setPlanningPeriod(dashPeriod);
+
+    const dep=$('pmDashboardDepartment')?.value||'';
+    if($('pmPlannerDepartment'))$('pmPlannerDepartment').value=dep;
+    if(typeof fillPlanningMachines==='function')fillPlanningMachines();
+    if($('pmPlannerMachine'))$('pmPlannerMachine').value=$('pmDashboardMachine')?.value||'';
+    if($('pmPlannerTrade'))$('pmPlannerTrade').value=$('pmDashboardTrade')?.value||'';
+
+    const dashType=$('pmDashboardWorkType')?.value||'';
+    if($('pmPlannerWorkType'))$('pmPlannerWorkType').value=(kind==='wo'?'WO':dashType);
+    if($('pmPlannerStatus'))$('pmPlannerStatus').value=(kind==='overdue'?'overdue':'');
+
+    pmPlanPage=0;
+    showTab('planner');
+    renderPlanner();
+  };
+
+  // After the existing planner renderer finishes, reconcile the visible totals
+  // with the same unified source used by Dashboard and Reports.
+  const previousPlanner=window.renderPlanner || renderPlanner;
+  window.renderPlanner=renderPlanner=function(){
+    const result=previousPlanner();
+    try{
+      const opts=plannerOpts();
+      const rows=window.fopUnifiedWorkSource.getWork(opts);
+      const pmRows=rows.filter(r=>r.kind==='PM');
+      const woRows=rows.filter(r=>r.kind==='WO');
+      const totalMin=rows.reduce((a,r)=>a+Number(r.duration||0),0);
+      const scheduled=rows.filter(r=>
+        r.kind==='PM' ? !!r.plan && ['planned','postponed'].includes(r.state)
+                      : !!r.wo?.plannedDate && !['completed','cancelled'].includes(r.state)
+      );
+      const unplanned=rows.filter(r=>!scheduled.includes(r));
+
+      if($('pmPlanRequired'))$('pmPlanRequired').textContent=rows.length;
+      if($('pmWorkRequiredHours'))$('pmWorkRequiredHours').textContent=(totalMin/60).toFixed(1);
+      if($('pmWorkScheduledHours'))$('pmWorkScheduledHours').textContent=(scheduled.reduce((a,r)=>a+Number(r.duration||0),0)/60).toFixed(1);
+      if($('pmWorkUnplannedHours'))$('pmWorkUnplannedHours').textContent=(unplanned.reduce((a,r)=>a+Number(r.duration||0),0)/60).toFixed(1);
+
+      const info=$('pmPlanPageInfo');
+      if(info && (woRows.length || opts.workType==='WO')){
+        const original=info.textContent||'';
+        const pagePart=original.split('·')[0].trim();
+        info.textContent=`${pagePart} · PM ${pmRows.length} · WO ${woRows.length} · סה״כ ${rows.length}`;
+      }
+      if(typeof renderUnplannedPlanner==='function')renderUnplannedPlanner();
+    }catch(err){console.warn('V29 planner sync:',err)}
+    return result;
+  };
+
+  // Use the final wrapper for direct onchange events too.
+  ['pmPlannerStart','pmPlannerMachine','pmPlannerTrade'].forEach(id=>{
+    const e=$(id);
+    if(e)e.onchange=function(){pmPlanPage=0;renderPlanner();};
+  });
+  const dep=$('pmPlannerDepartment');
+  if(dep)dep.onchange=function(){fillPlanningMachines();pmPlanPage=0;renderPlanner();};
+})();
+</script>
 </body></html>
