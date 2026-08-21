@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v45-final-audited"/>
+<meta name="fop-build" content="20260821-v46-db-classification"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -696,7 +696,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="field"><label>מחלקה</label><select id="pmMaintenanceCheckDepartment" onchange="fillMaintenanceCheckMachines();renderMaintenanceChecks()"><option value="">כל המחלקות</option></select></div>
     <div class="field"><label>מכונה</label><select id="pmMaintenanceCheckMachine" onchange="renderMaintenanceChecks()"><option value="">כל המכונות</option></select></div>
     <div class="field"><label>תדירות</label><select id="pmMaintenanceCheckFrequency" onchange="renderMaintenanceChecks()"><option value="">כל התדירויות</option></select></div>
-    <div class="field"><label>מקצוע</label><select id="pmMaintenanceCheckTrade" onchange="renderMaintenanceChecks()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
+    <div class="field"><label>מקצוע</label><select id="pmMaintenanceCheckTrade" onchange="renderMaintenanceChecks()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
   </div>
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin:12px 0">
     <button type="button" class="primary-btn" onclick="printMaintenanceChecklist()">הדפס Checklist לאחזקה</button>
@@ -820,7 +820,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
       <option value="">כל הסוגים</option><option value="physical">PM</option><option value="inspection">בדיקת אחזקה</option><option value="operator">בדיקת מפעיל</option>
     </select></div>
     <div class="field"><label>מקצוע מבצע</label><select id="tmTrade" onchange="tmFilterChanged('trade')">
-      <option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option><option value="מפעיל">מפעיל</option>
+      <option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="מפעיל">מפעיל</option>
     </select></div>
     <div class="field"><label>תדירות</label><select id="tmFrequency" onchange="tmFilterChanged('frequency')"><option value="">כל התדירויות</option></select></div>
     <div class="field"><label>סטטוס</label><select id="tmStatus" onchange="tmFilterChanged('status')"><option value="">הכול</option><option value="active">פעילות</option><option value="inactive">לא פעילות</option></select></div>
@@ -883,7 +883,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
           <div class="field full"><label>תיאור המשימה</label><input id="tmEditTask"/></div>
           <div class="field"><label>תדירות</label><select id="tmEditFrequency"></select></div>
           <div class="field"><label>משך (דקות)</label><input id="tmEditDuration" type="number" min="0"/></div>
-          <div class="field" id="tmTradeField"><label>מקצוע</label><select id="tmEditTrade"><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option><option value="משולב">משולב</option></select></div>
+          <div class="field" id="tmTradeField"><label>מקצוע</label><select id="tmEditTrade"><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
           <div class="field"><label>מועד הבא</label><input id="tmEditDue" type="date"/></div>
           <div class="field"><label>טיפול אחרון</label><input id="tmEditLast" type="date"/></div>
           <div class="field full"><label>חלקים נדרשים</label><input id="tmEditParts"/></div>
@@ -1248,6 +1248,13 @@ async function loadCloudData(){
       if(rows.length<pageSize) break;
     }
     tasks=allTaskRows.map(normalize);
+    // V46 integrity guard: active master data must match the three-category business model.
+    const classificationIssues=tasks.filter(t=>t.active!==false).filter(t=>{
+      if(isOperatorPerformer(t.performer))return taskTypeValue(t)!=='inspection'||!!t.trade;
+      if(isMaintenancePerformer(t.performer))return !['inspection','maintenance'].includes(taskTypeValue(t))||!['מכונאי','חשמלאי'].includes(String(t.trade||''));
+      return true;
+    });
+    if(classificationIssues.length)console.warn(`V46 classification integrity: ${classificationIssues.length} active task(s) need task_type/trade correction.`,classificationIssues.slice(0,20));
 
     let historyRows=[];
     for(let from=0;;from+=1000){
@@ -1279,7 +1286,7 @@ async function loadCloudData(){
     refillAll();
     refreshAll();
     fillDashboardMachines();
-    const tc=maintenanceTradeCounts(); statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב: ${maintenanceTasks().length} עבודות אחזקה, ${maintenanceInspectionTasks().length} בדיקות אחזקה, ${operatorTasks().length} מפעיל · מקצוע: ${tc['מכונאי']} מכונאי / ${tc['חשמלאי']} חשמלאי / ${tc['משולב']} משולב · ${history.length} דיווחים.`,'success');
+    const tc=maintenanceTradeCounts(); statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב: ${maintenanceTasks().length} עבודות אחזקה, ${maintenanceInspectionTasks().length} בדיקות אחזקה, ${operatorTasks().length} מפעיל · מקצוע: ${tc['מכונאי']} מכונאי / ${tc['חשמלאי']} חשמלאי · ${history.length} דיווחים.`,'success');
     return true;
   }catch(err){
     pmCloudReady=false;
@@ -1297,18 +1304,30 @@ async function reloadCloudData(){
 function validateTaskDefinition(t){const e=[];if(!String(t?.department||'').trim())e.push('מחלקה חסרה');if(!String(t?.machine||'').trim())e.push('מכונה חסרה');if(!String(t?.task||'').trim())e.push('תיאור טיפול חסר');if(!Object.prototype.hasOwnProperty.call(FREQ_DAYS,String(t?.frequency||'')))e.push('תדירות לא מוכרת');if(!['מפעיל','טכנאי אחזקה'].includes(String(t?.performer||'')))e.push('מבצע טיפול לא מוכר');if(t?.duration!==null&&t?.duration!==''&&t?.duration!==undefined&&(!Number.isFinite(Number(t.duration))||Number(t.duration)<0))e.push('משך טיפול לא תקין');return e}
 function taskDbPayload(t){
   const definitionErrors=validateTaskDefinition(t);if(definitionErrors.length)throw new Error('הגדרת טיפול לא תקינה: '+definitionErrors.join(', '));
+  const performer=t.performer||null;
+  // V46: task_type + trade in pm_tasks are the authoritative business classification.
+  // Operator work is ALWAYS an operator inspection and never carries a maintenance trade.
+  const rawType=String(t.taskType??t.task_type??'').trim().toLowerCase();
+  const taskType=performer==='מפעיל'?'inspection':(['inspection','maintenance'].includes(rawType)?rawType:(typeof isMaintenanceInspection==='function'&&isMaintenanceInspection(t)?'inspection':'maintenance'));
+  let trade=performer==='מפעיל'?null:String(t.trade||'').trim();
+  if(performer==='טכנאי אחזקה'&&!['מכונאי','חשמלאי'].includes(trade)){
+    const fallback=typeof maintenanceTrade==='function'?maintenanceTrade(t):'';
+    trade=['מכונאי','חשמלאי'].includes(fallback)?fallback:'מכונאי';
+  }
   return {
     department:String(t.department||'').trim(),
     machine:String(t.machine||'').trim(),
     task:String(t.task||'').trim(),
     frequency:t.frequency,
-    performer:t.performer||null,
+    performer,
     duration:t.duration===null||t.duration===''||t.duration===undefined?null:Number(t.duration),
     parts:t.parts||null,
     notes:t.notes||null,
     next_due:t.nextDue||null,
     last_done:t.lastDone||null,
-    active:t.active!==false
+    active:t.active!==false,
+    task_type:taskType,
+    trade
   };
 }
 
@@ -1744,10 +1763,28 @@ const PM_INSPECTION_TERMS=['בדיק','בדוק','וודא','ודא','ויזוא
 const PM_ELECTRICAL_TERMS=['חשמל','כבל','ארון חשמל','לוח חש','מפסק','לחצן','חירום','חרום','חייש','גשש','סנסור','מגע','קונטקט','ממסר','פחת','פיוז','נתיך','הארקה','גוף חימום','גופי חימום','תרמוקפל','טרמוסטט','בקר','plc','אנקודר','סוללה','סוללות','אינברטר','ווסת תדר','אלקטר','פנל הפעלה'];
 const PM_MECHANICAL_TERMS=['מיסב','שרשרת','גיר','ממסרה','הידראול','פנאומ','צילינדר','בוכנה','רצוע','גלגל','בורג','אום','מסילה','מוביל','דיזה','אקדח','מזין','שסתום','ברז','משאבה','מסוע','כננת','אונקל','הרמה','בלם','מצמד','ציר','פילטר','שמן','גריז','גרז','גירוז','שימון','קפיץ','רולר','גליל','צינור','וואקום','מפוח','מכבש','מערגל','מניפולטור','ספירלה'];
 function pmHasTerm(text,terms){const x=String(text||'').toLowerCase();return terms.some(k=>x.includes(String(k).toLowerCase()));}
-function isMaintenanceInspection(t){if(!t||t.active===false||!isMaintenancePerformer(t.performer))return false;const x=t.task||'';return !pmHasTerm(x,PM_PHYSICAL_TERMS)&&pmHasTerm(x,PM_INSPECTION_TERMS);}
-function isMaintenanceTask(t){return !!t&&t.active!==false&&isMaintenancePerformer(t.performer)&&!isMaintenanceInspection(t);}
-function maintenanceTrade(t){const note=String(t?.notes||'');const tagged=note.match(/\[TRADE:(מכונאי|חשמלאי|משולב)\]/);if(tagged)return tagged[1];const x=`${t?.task||''} ${t?.machine||''}`;const e=pmHasTerm(x,PM_ELECTRICAL_TERMS),m=pmHasTerm(x,PM_MECHANICAL_TERMS);if(e&&m)return 'משולב';if(e)return 'חשמלאי';return 'מכונאי';}
-function maintenanceTradeCounts(list=maintenanceTasks()){return list.reduce((a,t)=>{const k=maintenanceTrade(t);a[k]=(a[k]||0)+1;return a;},{'מכונאי':0,'חשמלאי':0,'משולב':0});}
+function taskTypeValue(t){return String(t?.taskType??t?.task_type??'').trim().toLowerCase();}
+function isMaintenanceInspection(t){
+  if(!t||t.active===false||!isMaintenancePerformer(t.performer))return false;
+  const type=taskTypeValue(t);
+  if(type)return type==='inspection';
+  // Legacy fallback only for old rows that predate task_type.
+  const x=t.task||'';return !pmHasTerm(x,PM_PHYSICAL_TERMS)&&pmHasTerm(x,PM_INSPECTION_TERMS);
+}
+function isMaintenanceTask(t){
+  if(!t||t.active===false||!isMaintenancePerformer(t.performer))return false;
+  const type=taskTypeValue(t);
+  if(type)return type==='maintenance';
+  return !isMaintenanceInspection(t);
+}
+function maintenanceTrade(t){
+  // V46: pm_tasks.trade is authoritative. Text/tag inference is legacy fallback only.
+  const dbTrade=String(t?.trade||'').trim();
+  if(['מכונאי','חשמלאי'].includes(dbTrade))return dbTrade;
+  const note=String(t?.notes||'');const tagged=note.match(/\[TRADE:(מכונאי|חשמלאי|משולב)\]/);if(tagged&&tagged[1]!=='משולב')return tagged[1];
+  const x=`${t?.task||''} ${t?.machine||''}`;const e=pmHasTerm(x,PM_ELECTRICAL_TERMS);return e?'חשמלאי':'מכונאי';
+}
+function maintenanceTradeCounts(list=maintenanceTasks()){return list.reduce((a,t)=>{const k=maintenanceTrade(t);a[k]=(a[k]||0)+1;return a;},{'מכונאי':0,'חשמלאי':0});}
 function maintenanceTasks(){return tasks.filter(isMaintenanceTask);}
 function maintenanceInspectionTasks(){return tasks.filter(isMaintenanceInspection);}
 function operatorTasks(){return tasks.filter(isOperatorTask);}
@@ -1816,6 +1853,8 @@ function normalize(t){
     ...t,
     lastDone:t.lastDone??t.last_done??null,
     nextDue:t.nextDue??t.next_due??null,
+    taskType:t.taskType??t.task_type??null,
+    trade:t.trade??null,
     active:t.active!==false
   }
 }
@@ -2459,7 +2498,9 @@ function renderEditor(){
   <div class="field"><label>מכונה</label><input id="editMachine" type="text" value="${esc(t.machine)}"></div>
   <div class="field full"><label>משימת טיפול</label><input id="editTaskDesc" type="text" value="${esc(t.task)}"></div>
   <div class="field"><label>תדירות</label><select id="editFreq">${Object.keys(FREQ_DAYS).map(f=>`<option ${f===t.frequency?'selected':''}>${esc(f)}</option>`).join('')}</select></div>
-  <div class="field"><label>מבצע טיפול</label><select id="editPerf"><option ${t.performer==='מפעיל'?'selected':''}>מפעיל</option><option ${t.performer==='טכנאי אחזקה'?'selected':''}>טכנאי אחזקה</option></select></div>
+  <div class="field"><label>מבצע טיפול</label><select id="editPerf" onchange="legacyEditPerformerChanged()"><option ${t.performer==='מפעיל'?'selected':''}>מפעיל</option><option ${t.performer==='טכנאי אחזקה'?'selected':''}>טכנאי אחזקה</option></select></div>
+  <div class="field"><label>סוג משימה</label><select id="editTaskType"><option value="maintenance" ${taskTypeValue(t)==='maintenance'?'selected':''}>PM</option><option value="inspection" ${taskTypeValue(t)==='inspection'?'selected':''}>בדיקה</option></select></div>
+  <div class="field" id="legacyEditTradeField"><label>מקצוע</label><select id="editTrade"><option value="מכונאי" ${maintenanceTrade(t)==='מכונאי'?'selected':''}>מכונאי</option><option value="חשמלאי" ${maintenanceTrade(t)==='חשמלאי'?'selected':''}>חשמלאי</option></select></div>
   <div class="field"><label>מועד טיפול הבא</label><input id="editDue" type="date" value="${esc(t.nextDue||today())}"></div>
   <div class="field"><label>טיפול אחרון</label><input id="editLastDone" type="date" value="${esc(t.lastDone||'')}"></div>
   <div class="field"><label>משך טיפול (דקות)</label><input id="editDuration" type="number" min="0" value="${t.duration??''}"></div>
@@ -2467,6 +2508,13 @@ function renderEditor(){
   <div class="field full"><label>הערות</label><textarea id="editNotes" class="textarea">${esc(visibleTaskNotes(t.notes))}</textarea></div>
   <div class="full"><label class="active-line"><input id="editActive" type="checkbox" ${t.active!==false?'checked':''}> משימה פעילה בתוכנית</label></div>
   </div><div style="margin-top:12px"><button class="btn" onclick="saveSettings('${t.id}')">שמירת הגדרות המשימה</button></div>`
+}
+function legacyEditPerformerChanged(){
+  const operator=document.getElementById('editPerf')?.value==='מפעיל';
+  const type=document.getElementById('editTaskType');
+  const tradeField=document.getElementById('legacyEditTradeField');
+  if(type){if(operator)type.value='inspection';type.disabled=operator;}
+  if(tradeField)tradeField.style.display=operator?'none':'block';
 }
 async function saveSettings(id){
   if(!requirePM('writeTasks','אין הרשאה לערוך משימות.'))return;
@@ -2478,6 +2526,8 @@ async function saveSettings(id){
     task:editTaskDesc.value.trim()||t.task,
     frequency:editFreq.value,
     performer:editPerf.value,
+    taskType:editPerf.value==='מפעיל'?'inspection':editTaskType.value,
+    trade:editPerf.value==='מפעיל'?null:editTrade.value,
     nextDue:editDue.value||null,
     lastDone:editLastDone.value||null,
     duration:editDuration.value===''?null:Number(editDuration.value),
@@ -2508,6 +2558,8 @@ async function addTask(){
     department,machine,task,
     frequency:newFrequency.value,
     performer:newPerformer.value,
+    task_type:newPerformer.value==='מפעיל'?'inspection':'maintenance',
+    trade:newPerformer.value==='מפעיל'?null:'מכונאי',
     duration:newDuration.value===''?null:Number(newDuration.value),
     parts:null,
     notes:newNotes.value.trim()||null,
@@ -5200,21 +5252,24 @@ renderPlanner=function(){
    return legacy?legacy[1]:null;
  };
  const cleanMeta=n=>String(n||'').split(/\r?\n/).filter(x=>!(/^\[(TASK_KIND|TRADE):/.test(x.trim()))).join('\n').trim();
- const taggedNotes=(visible,kind,trade)=>{
-   const lines=[String(visible||'').trim(),`[TASK_KIND:${kind}]`];
-   if(kind!=='operator'&&trade)lines.push(`[TRADE:${trade}]`);
-   return lines.filter(Boolean).join('\n');
+ const taggedNotes=(visible)=>String(visible||'').trim();
+ const inferredKind=t=>{
+   // Business rule: performer wins for operator tasks; task_type wins for maintenance technician tasks.
+   if(isOperatorPerformer(t?.performer))return 'operator';
+   const type=String(t?.taskType??t?.task_type??'').trim().toLowerCase();
+   if(type==='inspection')return 'inspection';
+   if(type==='maintenance')return 'physical';
+   return tagKind(t)||(typeof isMaintenanceInspection==='function'&&isMaintenanceInspection(t)?'inspection':'physical');
  };
- const inferredKind=t=>tagKind(t)||(isOperatorPerformer(t.performer)?'operator':(typeof isMaintenanceInspection==='function'&&isMaintenanceInspection(t)?'inspection':'physical'));
  window.tmTaskKind=inferredKind;
 
- // Explicit tags override text heuristics, while preserving backward compatibility.
+ // V46: database columns are authoritative; legacy note tags are only a fallback for old rows.
  const oldInspection=window.isMaintenanceInspection||isMaintenanceInspection;
- window.isMaintenanceInspection=isMaintenanceInspection=function(t){const k=tagKind(t);if(k)return t?.active!==false&&k==='inspection';return oldInspection(t)};
+ window.isMaintenanceInspection=isMaintenanceInspection=function(t){const type=String(t?.taskType??t?.task_type??'').trim().toLowerCase();if(type)return t?.active!==false&&isMaintenancePerformer(t?.performer)&&type==='inspection';return oldInspection(t)};
  const oldMaint=window.isMaintenanceTask||isMaintenanceTask;
- window.isMaintenanceTask=isMaintenanceTask=function(t){const k=tagKind(t);if(k)return t?.active!==false&&k==='physical';return oldMaint(t)};
+ window.isMaintenanceTask=isMaintenanceTask=function(t){const type=String(t?.taskType??t?.task_type??'').trim().toLowerCase();if(type)return t?.active!==false&&isMaintenancePerformer(t?.performer)&&type==='maintenance';return oldMaint(t)};
  const oldOperator=window.isOperatorTask||isOperatorTask;
- window.isOperatorTask=isOperatorTask=function(t){const k=tagKind(t);if(k)return t?.active!==false&&k==='operator';return oldOperator(t)};
+ window.isOperatorTask=isOperatorTask=function(t){return !!t&&t.active!==false&&isOperatorPerformer(t?.performer)};
 
  function options(sel,vals,first){
    if(!sel)return;const old=sel.value;sel.innerHTML=`<option value="">${first}</option>`+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(vals.includes(old))sel.value=old;
@@ -5275,7 +5330,7 @@ renderPlanner=function(){
    $('tmEditKind').value=inferredKind(t);$('tmEditDepartment').value=t.department||'';$('tmEditMachine').value=t.machine||'';$('tmEditTask').value=t.task||'';$('tmEditFrequency').value=t.frequency||Object.keys(FREQ_DAYS)[0];$('tmEditDuration').value=t.duration??'';$('tmEditDue').value=t.nextDue||'';$('tmEditLast').value=t.lastDone||'';$('tmEditParts').value=t.parts||'';$('tmEditNotes').value=cleanMeta(t.notes);$('tmEditActive').checked=t.active!==false;const tr=maintenanceTrade(t);if([...$('tmEditTrade').options].some(o=>o.value===tr))$('tmEditTrade').value=tr;tmKindChanged();
  }
  window.tmOpenEdit=function(id){const t=tasks.find(x=>String(x.id)===String(id));if(!t)return;tmSelectedId=id;tmMode='edit';$('tmEmptyEditor').style.display='none';$('tmEditor').style.display='block';$('tmNewSourceBox').style.display='none';$('tmDuplicateBtn').style.display='inline-block';$('tmEditorTitle').textContent='עריכת משימה';const wom=String(t.notes||'').match(/\[WO_SOURCE:([^\]]+)\]/);$('tmEditorSub').textContent=`${t.department} · ${t.machine} · ${t.id}${wom?' · נוצר מ-WO '+wom[1]:''}`;fillForm(t);tmRenderList();if(innerWidth<901)$('tmEditor').scrollIntoView({behavior:'smooth',block:'start'})};
- window.tmOpenNew=function(){tmSelectedId=null;tmMode='new';$('tmEmptyEditor').style.display='none';$('tmEditor').style.display='block';$('tmNewSourceBox').style.display='block';$('tmDuplicateBtn').style.display='none';$('tmEditorTitle').textContent='משימה חדשה';$('tmEditorSub').textContent='ניתן לבחור מהמאגר הקיים או להזין פריט חדש';$('tmEditKind').value='physical';$('tmEditDepartment').value='';$('tmEditMachine').value='';$('tmEditTask').value='';$('tmEditDuration').value='';$('tmEditDue').value=today();$('tmEditLast').value='';$('tmEditParts').value='';$('tmEditNotes').value='';$('tmEditActive').checked=true;tmSetSource('master');tmKindChanged();if(innerWidth<901)$('tmEditor').scrollIntoView({behavior:'smooth',block:'start'})};
+ window.tmOpenNew=function(){tmSelectedId=null;tmMode='new';$('tmEmptyEditor').style.display='none';$('tmEditor').style.display='block';$('tmNewSourceBox').style.display='block';$('tmDuplicateBtn').style.display='none';$('tmEditorTitle').textContent='משימה חדשה';$('tmEditorSub').textContent='ניתן לבחור מהמאגר הקיים או להזין פריט חדש';$('tmEditKind').value='physical';$('tmEditDepartment').value='';$('tmEditMachine').value='';$('tmEditTask').value='';$('tmEditDuration').value='';$('tmEditDue').value=today();$('tmEditLast').value='';$('tmEditParts').value='';$('tmEditNotes').value='';$('tmEditTrade').value='מכונאי';$('tmEditActive').checked=true;tmSetSource('master');tmKindChanged();if(innerWidth<901)$('tmEditor').scrollIntoView({behavior:'smooth',block:'start'})};
  window.tmCloseEditor=function(){tmSelectedId=null;tmMode='view';$('tmEditor').style.display='none';$('tmEmptyEditor').style.display='flex';tmRenderList()};
  window.tmSetSource=function(src){tmSource=src;$('tmSourceMasterBtn').classList.toggle('active',src==='master');$('tmSourceManualBtn').classList.toggle('active',src==='manual');$('tmMasterPicker').style.display=src==='master'?'grid':'none';if(src==='master')tmFillMasterDepartments()};
  window.tmFillMasterDepartments=function(){if(!$('tmMasterDepartment'))return;options($('tmMasterDepartment'),uniq(tasks.map(t=>t.department)),'בחר מחלקה');tmFillMasterMachines()};
@@ -5289,7 +5344,8 @@ renderPlanner=function(){
    const kind=$('tmEditKind').value,department=$('tmEditDepartment').value.trim(),machine=$('tmEditMachine').value.trim(),task=$('tmEditTask').value.trim();
    if(!department||!machine||!task){statusLine('יש למלא מחלקה, מכונה / תשתית ותיאור משימה.','error');return}
    const performer=kind==='operator'?'מפעיל':'טכנאי אחזקה',trade=kind==='operator'?null:$('tmEditTrade').value;
-   const base={department,machine,task,frequency:$('tmEditFrequency').value,performer,duration:$('tmEditDuration').value===''?null:Number($('tmEditDuration').value),parts:$('tmEditParts').value.trim()||null,notes:taggedNotes($('tmEditNotes').value,kind,trade),nextDue:$('tmEditDue').value||null,lastDone:$('tmEditLast').value||null,active:$('tmEditActive').checked};
+   const taskType=kind==='physical'?'maintenance':'inspection';
+   const base={department,machine,task,frequency:$('tmEditFrequency').value,performer,taskType,trade,duration:$('tmEditDuration').value===''?null:Number($('tmEditDuration').value),parts:$('tmEditParts').value.trim()||null,notes:taggedNotes($('tmEditNotes').value),nextDue:$('tmEditDue').value||null,lastDone:$('tmEditLast').value||null,active:$('tmEditActive').checked};
    statusLine('שומר משימה בענן…','');
    let res;
    if(tmMode==='new')res=await supabaseClient.from('pm_tasks').insert(taskDbPayload(base)).select('*').single();
