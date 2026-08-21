@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v17-clean-dashboard-planning"/>
+<meta name="fop-build" content="20260821-v18-period-kpi-fixed"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -4039,35 +4039,64 @@ function pmV17DashboardRender(){
   const dep=document.getElementById('pmDashboardDepartment')?.value||'';
   const machine=document.getElementById('pmDashboardMachine')?.value||'';
   const trade=document.getElementById('pmDashboardTrade')?.value||'';
-  const pmOpen=v3OpenWorkThrough(today(),dep,machine,'').filter(x=>!trade||maintenanceTrade(x.t)===trade);
-  const overdue=pmOpen.filter(x=>x.due<today());
-  const weekEnd=addDays(today(),7);
-  const weekPM=v3OpenWorkThrough(weekEnd,dep,machine,'').filter(x=>x.due>=today()&&x.due<=weekEnd&&(!trade||maintenanceTrade(x.t)===trade));
-  const wo=pmV17WOOpenRows().filter(w=>(!dep||w.department===dep)&&(!machine||w.machine===machine)&&(!trade||String(w.trade||'')===trade));
+  const anchor=document.getElementById('pmDashboardDate')?.value||today();
+  const range=periodRange(anchor,pmDashboardPeriod||'day');
+  const rangeStart=range.start, rangeEnd=range.end;
+
+  // PM: use exactly the selected dashboard period, not a fixed backlog horizon.
+  const pmPeriod=v3RequirementItems(rangeStart,rangeEnd)
+    .filter(x=>v3FilterTask(x.t,dep,machine,trade,x.plan))
+    .filter(x=>!['completed','cancelled'].includes(v3OccurrenceState(x,anchor)));
+
+  // "Open" = work belonging to the selected period that is still actionable.
+  const pmOpen=pmPeriod.filter(x=>!['completed','cancelled'].includes(v3OccurrenceState(x,anchor)));
+  const overdue=pmOpen.filter(x=>x.due<anchor);
+
+  // "Coming week" is relative to the selected anchor, but clipped to the active period.
+  const weekEnd=addDays(anchor,7);
+  const pmWeek=pmOpen.filter(x=>x.due>=anchor && x.due<=weekEnd && x.due>=rangeStart && x.due<=rangeEnd);
+
+  // WO: same department/machine/trade filters and same active period.
+  const wo=pmV17WOOpenRows().filter(w=>{
+    const due=String(w.due_date||w.planned_date||'');
+    return (!dep||w.department===dep) &&
+      (!machine||w.machine===machine) &&
+      (!trade||String(w.trade||'')===trade) &&
+      due && due>=rangeStart && due<=rangeEnd;
+  });
   const urgent=wo.filter(w=>['דחופה','משביתה'].includes(String(w.priority||'')));
-  const weekWO=wo.filter(w=>w.due_date&&String(w.due_date)>=today()&&String(w.due_date)<=weekEnd);
+  const woOverdue=wo.filter(w=>String(w.due_date||w.planned_date||'')<anchor);
+  const weekWO=wo.filter(w=>{
+    const due=String(w.due_date||w.planned_date||'');
+    return due>=anchor && due<=weekEnd;
+  });
+
   pmV17Set('pmV17Open',pmOpen.length+wo.length);
-  pmV17Set('pmV17Overdue',overdue.length+wo.filter(w=>w.due_date&&String(w.due_date)<today()).length);
-  pmV17Set('pmV17Week',weekPM.length+weekWO.length);
-  pmV17Set('pmV17WO',wo.length);pmV17Set('pmV17WOUrgent',`מתוכן ${urgent.length} דחופות / משביתות`);
+  pmV17Set('pmV17Overdue',overdue.length+woOverdue.length);
+  pmV17Set('pmV17Week',pmWeek.length+weekWO.length);
+  pmV17Set('pmV17WO',wo.length);
+  pmV17Set('pmV17WOUrgent',`מתוכן ${urgent.length} דחופות / משביתות`);
 
   const trades={'מכונאי':0,'חשמלאי':0,'משולב':0};
   pmOpen.forEach(x=>{const k=maintenanceTrade(x.t)||'מכונאי';trades[k]=(trades[k]||0)+1});
   wo.forEach(w=>{const k=w.trade||'מכונאי';trades[k]=(trades[k]||0)+1});
   const maxT=Math.max(1,...Object.values(trades));
-  const tb=document.getElementById('pmV17Trade');if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${esc(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/maxT*100)}%"></div></div><strong>${v}</strong></div>`).join('');
-  const pmN=pmOpen.length,woN=wo.length,maxY=Math.max(1,pmN,woN);
-  const ty=document.getElementById('pmV17Type');if(ty)ty.innerHTML=[['PM',pmN],['WO',woN]].map(([k,v])=>`<div class="pm-v17-bar"><span>${k}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/maxY*100)}%"></div></div><strong>${v}</strong></div>`).join('');
+  const tb=document.getElementById('pmV17Trade');
+  if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${esc(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/maxT*100)}%"></div></div><strong>${v}</strong></div>`).join('');
 
-  const attPM=[...overdue,...weekPM].sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5);
-  const attWO=[...urgent,...wo.filter(w=>w.due_date&&String(w.due_date)<today())].filter((w,i,a)=>a.findIndex(z=>z.id===w.id)===i).slice(0,5);
+  const pmN=pmOpen.length,woN=wo.length,maxY=Math.max(1,pmN,woN);
+  const ty=document.getElementById('pmV17Type');
+  if(ty)ty.innerHTML=[['PM',pmN],['WO',woN]].map(([k,v])=>`<div class="pm-v17-bar"><span>${k}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/maxY*100)}%"></div></div><strong>${v}</strong></div>`).join('');
+
+  const attPM=[...overdue,...pmWeek].sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5);
+  const attWO=[...urgent,...woOverdue].filter((w,i,a)=>a.findIndex(z=>z.id===w.id)===i).slice(0,5);
   const at=document.getElementById('pmV17Attention');
   if(at){
     const rows=[
-      ...attWO.map(w=>`<div class="pm-v3-mini" onclick="pmV17OpenPlanner('wo')"><div><strong>${esc(w.machine||'מכונה / תשתית')} — ${esc(w.description||'WO')}</strong><small>WO · ${esc(w.trade||'')} · יעד ${esc(fDate(w.due_date))}</small></div><span class="tag red">${esc(w.priority||'פתוחה')}</span></div>`),
-      ...attPM.map(x=>v3MiniHtml(x,x.due<today()?'overdue':'waiting'))
+      ...attWO.map(w=>`<div class="pm-v3-mini" onclick="pmV17OpenPlanner('wo')"><div><strong>${esc(w.machine||'מכונה / תשתית')} — ${esc(w.description||'WO')}</strong><small>WO · ${esc(w.trade||'')} · יעד ${esc(fDate(w.due_date||w.planned_date))}</small></div><span class="tag red">${esc(w.priority||'פתוחה')}</span></div>`),
+      ...attPM.map(x=>v3MiniHtml(x,x.due<anchor?'overdue':'waiting'))
     ];
-    at.innerHTML=rows.length?rows.join(''):'<div class="empty">אין כרגע פריטים חריגים או דחופים.</div>';
+    at.innerHTML=rows.length?rows.join(''):'<div class="empty">אין כרגע פריטים חריגים או דחופים בתקופה שנבחרה.</div>';
   }
 }
 function pmV17OpenPlanner(kind){
