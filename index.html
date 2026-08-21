@@ -1013,7 +1013,7 @@ let pmCurrentProfile=null;
 let pmCurrentRole='viewer';
 
 const PM_ROLES={
-  admin:{label:'Admin',tabs:['dashboard','planner','report','reports','history','operatorChecks','maintenanceChecks','editTasks','initialization','users'],dashboardReadOnly:false,report:true,users:true,initialize:true,importPlan:true,writeTasks:true,manageExceptions:true},
+  admin:{label:'Admin',tabs:['dashboard','planner','report','reports','history','operatorChecks','maintenanceChecks','editTasks','initialization','users'],dashboardReadOnly:false,report:true,users:true,initialize:true,importPlan:true,writeTasks:true,manageExceptions:true,settings:true},
   maintenance_manager:{label:'Maintenance Manager',tabs:['dashboard','planner','report','reports','history','operatorChecks','maintenanceChecks'],dashboardReadOnly:false,report:true,users:false,initialize:false,importPlan:false,writeTasks:false,manageExceptions:true},
   technician:{label:'Technician',tabs:['dashboard','report'],dashboardReadOnly:true,report:true,users:false,initialize:false,importPlan:false,writeTasks:false,manageExceptions:false},
   viewer:{label:'Viewer',tabs:['dashboard'],dashboardReadOnly:true,report:false,users:false,initialize:false,importPlan:false,writeTasks:false,manageExceptions:false}
