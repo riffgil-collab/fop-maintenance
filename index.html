@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v20-weekly-minimum"/>
+<meta name="fop-build" content="20260821-v22-dashboard-no-day-actual"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -460,8 +460,8 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
 </div>
 
 <div class="pm-v3-periods" id="pmV3Periods">
-  <button type="button" data-v3period="day" class="active" onclick="setV3DashboardPeriod('day')">יום</button>
-  <button type="button" data-v3period="week" onclick="setV3DashboardPeriod('week')">שבוע</button>
+  
+  <button type="button" data-v3period="week" class="active" onclick="setV3DashboardPeriod('week')">שבוע</button>
   <button type="button" data-v3period="month" onclick="setV3DashboardPeriod('month')">חודש</button>
   <button type="button" data-v3period="half" onclick="setV3DashboardPeriod('half')">חצי שנה</button>
   <button type="button" data-v3period="year" onclick="setV3DashboardPeriod('year')">שנה</button>
@@ -539,7 +539,7 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   <div class="pm-plan-note">בחר תקופה, ראה את כל דרישות האחזקה, ושבץ אותן לתאריך ביצוע. תאריך היעד נשאר ללא שינוי; התאריך המתוכנן הוא החלטת מנהל האחזקה.</div>
 
   <div class="pm-plan-periods">
-    <button type="button" class="pm-plan-period" data-period="day" onclick="setPlanningPeriod('day')">יום</button>
+    
     <button type="button" class="pm-plan-period active" data-period="week" onclick="setPlanningPeriod('week')">שבוע</button>
     <button type="button" class="pm-plan-period" data-period="month" onclick="setPlanningPeriod('month')">חודש</button>
     <button type="button" class="pm-plan-period" data-period="half" onclick="setPlanningPeriod('half')">חצי שנה</button>
@@ -3269,7 +3269,7 @@ document.addEventListener('DOMContentLoaded',()=>{
    FOP MAINTENANCE V3 — MANAGEMENT STATUS ENGINE
    Uses existing pm_tasks + pm_history + pm_work_plan schema.
    ============================================================ */
-let pmV3DashboardPeriod='day';
+let pmV3DashboardPeriod='week';
 
 function v3StatusNorm(v){return String(v||'').trim().toLowerCase()}
 function v3RowStatus(p){
