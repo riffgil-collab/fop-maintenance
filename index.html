@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260821-v46-db-classification"/>
+<meta name="fop-build" content="20260822-v47-consolidated-checklists"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -392,6 +392,15 @@ select,input[type=date],input[type=text],input[type=number]{width:100%;height:46
   body.pm-report-printing .pm-report-sheet-logos img{max-height:28px!important}
   body.pm-report-printing .pm-report-notes{min-height:35px!important}
 }
+
+/* V47 — consolidated PM checklist UI */
+.pm-checklist-toggle{margin-top:10px;border:1px solid #cfd8e5;background:#f6f8fb;color:#17375e;border-radius:9px;padding:7px 10px;font-weight:800;cursor:pointer}
+.pm-checklist-box{margin-top:9px;border:1px solid #d9e2ee;background:#fbfcfe;border-radius:12px;padding:10px 12px}
+.pm-checklist-box[hidden]{display:none!important}.pm-checklist-title{font-weight:900;margin-bottom:7px;color:#17375e}
+.pm-checklist-items{display:grid;gap:7px}.pm-checklist-item{display:flex;align-items:flex-start;gap:8px;line-height:1.35;font-size:12px}
+.pm-checklist-item input{margin-top:2px;transform:scale(1.08)}.pm-checklist-readonly .pm-checklist-item{padding:4px 0;border-bottom:1px solid #edf1f6}.pm-checklist-readonly .pm-checklist-item:last-child{border-bottom:0}
+.pm-completion-checklist{margin:10px 0 14px;max-height:300px;overflow:auto}.pm-completion-checklist .pm-checklist-item{font-size:13px;padding:6px 0;border-bottom:1px solid #edf1f6}
+.pm-completion-checklist .pm-checklist-item:last-child{border-bottom:0}.pm-checklist-progress{font-size:11px;color:var(--muted);margin-top:7px;font-weight:800}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
@@ -940,6 +949,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div class="pm-modal-backdrop" id="pmCompleteModal" onclick="if(event.target===this)closeCompleteModal()">
 <div class="pm-modal-card" role="dialog" aria-modal="true">
 <h3>דיווח ביצוע טיפול</h3><p id="pmCompleteTaskText"></p>
+<div id="pmCompletionChecklist" class="pm-checklist-box pm-completion-checklist" hidden></div>
 <label for="pmCompletionNotes">הערות על הטיפול (לא חובה)</label>
 <textarea id="pmCompletionNotes" rows="4" placeholder="מה בוצע, ממצאים, המלצה להמשך..." style="width:100%;box-sizing:border-box"></textarea>
 <div class="pm-photo-grid">
@@ -1397,6 +1407,48 @@ function statusLine(msg,type=''){const e=document.getElementById('pmStatus');e.t
 function cleanAuditValue(v){return String(v??'').replace(/\|/g,'/').replace(/\r?\n/g,' ').trim()}
 function taskAuditLines(notes){return String(notes||'').split(/\r?\n/).filter(x=>/^\[PM_(POSTPONE|UNDO|PLAN|UNPLAN|INIT)\|/.test(x.trim()))}
 function visibleTaskNotes(notes){return String(notes||'').split(/\r?\n/).filter(x=>!/^\[PM_(POSTPONE|UNDO|PLAN|UNPLAN|INIT)\|/.test(x.trim())).join('\n').trim()}
+
+/* V47 — parse consolidated checklist data already stored in pm_tasks.notes. */
+function pmChecklistItems(taskOrNotes){
+  const notes=typeof taskOrNotes==='string'?taskOrNotes:String(taskOrNotes?.notes||'');
+  if(!notes)return [];
+  return notes.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{
+    const m=line.match(/^(?:☐|•|-\s*\[\s*\]|- )\s*(.+)$/);
+    return m?m[1].trim():'';
+  }).filter(Boolean);
+}
+function pmNonChecklistNotes(notes){
+  return String(notes||'').split(/\r?\n/).map(x=>x.trim()).filter(line=>{
+    if(!line)return false;
+    if(/^\[(?:CONSOLIDATED_|PM_)/.test(line))return false;
+    if(/^CHECKLIST\s*:?$/i.test(line))return false;
+    if(/^(?:☐|•|-\s*\[\s*\]|- )\s*/.test(line))return false;
+    if(/^\d+\s+פעולות\s+מקוריות\s*:?$/i.test(line))return false;
+    return true;
+  }).join('\n').trim();
+}
+function pmChecklistHtml(t,interactive=false){
+  const items=pmChecklistItems(t);if(!items.length)return '';
+  return `<div class="pm-checklist-title">פעולות לביצוע (${items.length})</div><div class="pm-checklist-items">${items.map((item,i)=>interactive?`<label class="pm-checklist-item"><input type="checkbox" class="pm-execution-check" data-index="${i}" onchange="pmUpdateChecklistProgress()"><span>${esc(item)}</span></label>`:`<div class="pm-checklist-item"><span>•</span><span>${esc(item)}</span></div>`).join('')}</div>${interactive?`<div id="pmChecklistProgress" class="pm-checklist-progress">0 מתוך ${items.length} אושרו</div>`:''}`;
+}
+function pmChecklistToggleHtml(t){
+  const items=pmChecklistItems(t);if(!items.length)return '';
+  const id='pcl-'+String(t.id).replace(/[^a-zA-Z0-9_-]/g,'_');
+  return `<button type="button" class="pm-checklist-toggle" onclick="event.stopPropagation();const e=document.getElementById('${id}');if(e)e.hidden=!e.hidden">פעולות הטיפול (${items.length})</button><div id="${id}" class="pm-checklist-box pm-checklist-readonly" hidden>${pmChecklistHtml(t,false)}</div>`;
+}
+function pmRenderCompletionChecklist(t){
+  const box=document.getElementById('pmCompletionChecklist');if(!box)return;
+  const items=pmChecklistItems(t);
+  if(!items.length){box.hidden=true;box.innerHTML='';return}
+  box.innerHTML=pmChecklistHtml(t,true);box.hidden=false;pmUpdateChecklistProgress();
+}
+function pmUpdateChecklistProgress(){
+  const checks=[...document.querySelectorAll('#pmCompletionChecklist .pm-execution-check')];
+  const done=checks.filter(c=>c.checked).length;const el=document.getElementById('pmChecklistProgress');if(el)el.textContent=`${done} מתוך ${checks.length} אושרו`;
+}
+function pmChecklistComplete(){const checks=[...document.querySelectorAll('#pmCompletionChecklist .pm-execution-check')];return !checks.length||checks.every(c=>c.checked)}
+window.pmUpdateChecklistProgress=pmUpdateChecklistProgress;
+
 function preserveAuditNotes(oldNotes,newVisible){
   const audits=taskAuditLines(oldNotes);
   const clean=String(newVisible||'').trim();
@@ -2107,6 +2159,7 @@ function openCompletionDocumentation(id,workPlanId='',occurrenceDue=''){
   pmCompletionReportDate=date;
   document.getElementById('pmCompleteTaskText').textContent=`${t.machine} — ${t.task} · ${fDate(date)}`;
   document.getElementById('pmCompletionNotes').value='';
+  pmRenderCompletionChecklist(t);
   for(const n of [1,2]){const inp=document.getElementById('pmPhoto'+n),img=document.getElementById('pmPhotoPreview'+n);inp.value='';img.removeAttribute('src');img.style.display='none';}
   const st=document.getElementById('pmCompleteStatus');st.textContent='';st.className='pm-modal-status';
   document.getElementById('pmCompleteModal').classList.add('open');
@@ -2121,6 +2174,7 @@ function pmOpenCompletionModal(id,workPlanId='',occurrenceDue=''){
     const t=tasks.find(x=>String(x.id)===String(id));
     document.getElementById('pmCompleteTaskText').textContent=t?`${t.machine} — ${t.task} · ${fDate(pmCompletionReportDate)}`:'דיווח ביצוע טיפול';
     document.getElementById('pmCompletionNotes').value='';
+    pmRenderCompletionChecklist(t);
     for(const n of [1,2]){const inp=document.getElementById('pmPhoto'+n),img=document.getElementById('pmPhotoPreview'+n);if(inp)inp.value='';if(img){img.removeAttribute('src');img.style.display='none';}}
     const st=document.getElementById('pmCompleteStatus');if(st){st.textContent='';st.className='pm-modal-status';}
     modal.classList.add('open');
@@ -2158,7 +2212,9 @@ async function saveCompletionWithDocumentation(){
   let p=pmCompletionWorkPlanId?pmWorkPlan.find(x=>String(x.id)===String(pmCompletionWorkPlanId)):null;
   const due=pmCompletionOccurrenceDue||wpDueFromNotes(p?.notes)||t.nextDue||date;
   if(!p&&typeof wpLatestForOccurrence==='function')p=wpLatestForOccurrence(t.id,due);
-  const btn=document.getElementById('pmCompleteSaveButton'),st=document.getElementById('pmCompleteStatus');btn.disabled=true;st.className='pm-modal-status';
+  const btn=document.getElementById('pmCompleteSaveButton'),st=document.getElementById('pmCompleteStatus');
+  if(!pmChecklistComplete()){st.textContent='יש לאשר את כל פעולות הטיפול לפני שמירה.';st.className='pm-modal-status error';return;}
+  btn.disabled=true;st.className='pm-modal-status';
   let photo1Path='',photo2Path='';
   const oldLast=t.lastDone||null,oldNext=t.nextDue||null;
   try{
@@ -3785,7 +3841,7 @@ renderPlanner=function(){
     const p=item.plan,st=v3OccurrenceState(item);const label={waiting:'ממתינה לתכנון',planned:'מתוכננת',completed:'בוצעה',postponed:'נדחתה',cancelled:'בוטלה',overdue:'באיחור'}[st];
     const badge={waiting:'open',planned:'planned',completed:'done',postponed:'postponed',cancelled:'cancelled',overdue:'risk'}[st];
     const cls=st==='completed'?'done-plan':st==='cancelled'?'cancelled-plan':st==='postponed'?'postponed-plan':st==='planned'?'planned':st==='overdue'?'late-plan':'';
-    return `<div class="pm-plan-row ${cls}"><input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · תדירות: ${esc(item.t.frequency||'—')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · צבר קודם':''}</small>${p?`<small>${p.plannedDate?'תאריך '+esc(fDate(p.plannedDate)):''}${p.assignedTo?' · '+esc(p.assignedTo):''}${p.priority?' · עדיפות '+esc(p.priority):''}${p.postponedReason?' · סיבה: '+esc(p.postponedReason):''}</small>`:''}</div><div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div><div class="pm-plan-meta">${esc(fDate(item.due))}</div><div class="pm-plan-meta pm-plan-hide-mobile">${p?.plannedDate?esc(fDate(p.plannedDate)):'—'}</div><span class="pm-plan-badge ${badge}">${label}</span></div>`;
+    return `<div class="pm-plan-row ${cls}"><input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · תדירות: ${esc(item.t.frequency||'—')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · צבר קודם':''}</small>${p?`<small>${p.plannedDate?'תאריך '+esc(fDate(p.plannedDate)):''}${p.assignedTo?' · '+esc(p.assignedTo):''}${p.priority?' · עדיפות '+esc(p.priority):''}${p.postponedReason?' · סיבה: '+esc(p.postponedReason):''}</small>`:''}${pmChecklistToggleHtml(item.t)}</div><div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div><div class="pm-plan-meta">${esc(fDate(item.due))}</div><div class="pm-plan-meta pm-plan-hide-mobile">${p?.plannedDate?esc(fDate(p.plannedDate)):'—'}</div><span class="pm-plan-badge ${badge}">${label}</span></div>`;
   }).join(''):'<div class="empty">אין דרישות אחזקה בתקופה ובסינון שנבחרו.</div>';
   updatePlanSelectionInfo();
 };
@@ -3881,7 +3937,7 @@ renderReport=function(){
 
   if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין משימות לביצוע בתאריך ובסינון שנבחרו.</div>';return}
   const canManage=pmCan('manageExceptions');
-  pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מקצוע: ${esc(maintenanceTrade(x.t))}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}</div><div class="pm-task-actions"><button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}','${p?.id||''}','${x.due}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
+  pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מקצוע: ${esc(maintenanceTrade(x.t))}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}${pmNonChecklistNotes(x.t.notes)?`<br><b>הערות:</b> ${esc(pmNonChecklistNotes(x.t.notes))}`:''}</div>${pmChecklistToggleHtml(x.t)}<div class="pm-task-actions"><button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}','${p?.id||''}','${x.due}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
 };
 
 // Completion accepts Planned or Postponed rows and closes them as Completed.
@@ -4418,7 +4474,7 @@ function renderUnplannedPlanner(){const el=document.getElementById('pmWOPlannerL
 async function planWO(id){const w=pmWorkOrders.find(x=>String(x.id)===String(id));if(!w)return;const d=prompt('תאריך מתוכנן (YYYY-MM-DD):',w.plannedDate||w.dueDate||today());if(!d)return;const a=prompt('שיבוץ לעובד:',w.assignee||'')??w.assignee;const r=await supabaseClient.from('pm_work_orders').update({planned_date:d,assigned_to:a||null,status:'Planned'}).eq('id',id);if(r.error)return statusLine('עדכון WO נכשל: '+r.error.message,'error');await loadWorkOrders();statusLine('ה-WO שובצה לתוכנית.','success');}
 function renderUnplannedDashboard(){const dep=document.getElementById('pmDashboardDepartment')?.value||'',machine=document.getElementById('pmDashboardMachine')?.value||'',trade=document.getElementById('pmDashboardTrade')?.value||'',wt=document.getElementById('pmDashboardWorkType')?.value||'';let a=pmWorkOrders.filter(w=>(!dep||w.department===dep)&&(!machine||w.machine===machine)&&(!trade||w.trade===trade));const open=a.filter(w=>!['Completed','Cancelled'].includes(w.status));const urgent=open.filter(w=>['דחופה','משביתה'].includes(w.priority));const planned=open.filter(w=>!!w.plannedDate);const done=a.filter(w=>w.status==='Completed');pmWOOpen.textContent=open.length;pmWOUrgent.textContent=urgent.length;pmWOPlanned.textContent=planned.length;pmWODone.textContent=done.length;const el=document.getElementById('pmWODashboardList');if(el)el.innerHTML=(wt==='PM')?'':open.slice(0,5).map(w=>woCard(w,'dashboard')).join('');}
 function renderUnplannedReport(){const el=document.getElementById('pmWOReportList');if(!el)return;const dep=pmReportDepartment.value||'',machine=pmReportMachine.value||'',trade=document.getElementById('pmReportTrade')?.value||'',date=pmReportDate.value||today();const a=pmWorkOrders.filter(w=>!['Completed','Cancelled'].includes(w.status)&&(!dep||w.department===dep)&&(!machine||w.machine===machine)&&(!trade||w.trade===trade)&&(!w.plannedDate||w.plannedDate<=date));el.innerHTML=a.length?a.map(w=>woCard(w,'report')).join(''):'<div class="empty">אין WO פתוחות בסינון.</div>'; }
-function pmOpenWOCompletion(id){const w=pmWorkOrders.find(x=>String(x.id)===String(id));if(!w)return false;pmCompletionIsWO=true;pmCompletionTaskId=id;pmCompletionWorkPlanId='';pmCompletionOccurrenceDue='';pmCompletionReportDate=pmReportDate?.value||today();pmCompleteTaskText.textContent=`WO · ${w.machine} — ${w.description}`;pmCompletionNotes.value='';for(const n of [1,2]){const inp=document.getElementById('pmPhoto'+n),img=document.getElementById('pmPhotoPreview'+n);if(inp)inp.value='';if(img){img.removeAttribute('src');img.style.display='none';}}pmCompleteStatus.textContent='';pmCompleteModal.classList.add('open');document.body.style.overflow='hidden';return false;}
+function pmOpenWOCompletion(id){const w=pmWorkOrders.find(x=>String(x.id)===String(id));if(!w)return false;pmCompletionIsWO=true;pmCompletionTaskId=id;pmCompletionWorkPlanId='';pmCompletionOccurrenceDue='';pmCompletionReportDate=pmReportDate?.value||today();pmCompleteTaskText.textContent=`WO · ${w.machine} — ${w.description}`;pmCompletionNotes.value='';if(document.getElementById('pmCompletionChecklist')){pmCompletionChecklist.hidden=true;pmCompletionChecklist.innerHTML='';}for(const n of [1,2]){const inp=document.getElementById('pmPhoto'+n),img=document.getElementById('pmPhotoPreview'+n);if(inp)inp.value='';if(img){img.removeAttribute('src');img.style.display='none';}}pmCompleteStatus.textContent='';pmCompleteModal.classList.add('open');document.body.style.overflow='hidden';return false;}
 const _closeCompleteModalV13=closeCompleteModal;closeCompleteModal=function(){pmCompletionIsWO=false;_closeCompleteModalV13();};
 const _saveCompletionV13=saveCompletionWithDocumentation;saveCompletionWithDocumentation=async function(){
  if(!pmCan('report'))return statusLine('אין הרשאה לדווח ביצוע טיפול.','error');
@@ -5318,7 +5374,7 @@ renderPlanner=function(){
    const ind=$('tmFilterIndicator');ind.classList.toggle('active',labels.length>0);
    ind.querySelector('b').textContent=labels.length?`סינון פעיל — ${rows.length} מתוך ${tasks.length}`:`מציג את כל המאגר — ${tasks.length}`;
    $('tmFilterIndicatorText').textContent=labels.length?labels.join(' · '):'ללא סינון פעיל';
-   $('tmTaskList').innerHTML=rows.length?rows.map(t=>`<div class="tm-row ${String(t.id)===String(tmSelectedId)?'selected':''}" onclick="tmOpenEdit('${esc(String(t.id))}')"><div><div class="tm-row-title">${esc(t.machine)}</div><div class="tm-row-task">${esc(t.task)}</div><div class="tm-row-meta">${esc(t.department)} · ${esc(t.frequency||'—')} · ${Number(t.duration||0)} דק׳</div></div><span class="tm-pill ${t.active===false?'off':''}">${t.active===false?'לא פעילה':(/\[WO_SOURCE:[^\]]+\]/.test(String(t.notes||''))?'PM · נוצר מ-WO':KINDS[inferredKind(t)])}</span></div>`).join(''):'<div class="empty">אין משימות לפי הסינון שנבחר.</div>';
+   $('tmTaskList').innerHTML=rows.length?rows.map(t=>`<div class="tm-row ${String(t.id)===String(tmSelectedId)?'selected':''}" onclick="tmOpenEdit('${esc(String(t.id))}')"><div><div class="tm-row-title">${esc(t.machine)}</div><div class="tm-row-task">${esc(t.task)}</div><div class="tm-row-meta">${esc(t.department)} · ${esc(t.frequency||'—')} · ${Number(t.duration||0)} דק׳</div>${pmChecklistToggleHtml(t)}</div><span class="tm-pill ${t.active===false?'off':''}">${t.active===false?'לא פעילה':(/\[WO_SOURCE:[^\]]+\]/.test(String(t.notes||''))?'PM · נוצר מ-WO':KINDS[inferredKind(t)])}</span></div>`).join(''):'<div class="empty">אין משימות לפי הסינון שנבחר.</div>';
  };
  window.tmFilterChanged=function(level){tmRebuildDependentOptions();
    if(level==='department'){const d=$('tmDepartment').value;options($('tmMachine'),uniq(tasks.filter(t=>!d||t.department===d).map(t=>t.machine)),'כל המכונות')}
@@ -5326,9 +5382,9 @@ renderPlanner=function(){
  };
  window.tmClearFilters=function(){['tmDepartment','tmMachine','tmKind','tmTrade','tmFrequency','tmStatus','tmOrigin','tmSearch'].forEach(id=>{if($(id))$(id).value=''});tmRefreshFilters();tmSyncGlobalFilters()};
  function fillForm(t){
-   $('tmEditKind').value=inferredKind(t);$('tmEditDepartment').value=t.department||'';$('tmEditMachine').value=t.machine||'';$('tmEditTask').value=t.task||'';$('tmEditFrequency').value=t.frequency||Object.keys(FREQ_DAYS)[0];$('tmEditDuration').value=t.duration??'';$('tmEditDue').value=t.nextDue||'';$('tmEditLast').value=t.lastDone||'';$('tmEditParts').value=t.parts||'';$('tmEditNotes').value=cleanMeta(t.notes);$('tmEditActive').checked=t.active!==false;const tr=maintenanceTrade(t);if([...$('tmEditTrade').options].some(o=>o.value===tr))$('tmEditTrade').value=tr;tmKindChanged();
+   $('tmEditKind').value=inferredKind(t);$('tmEditDepartment').value=t.department||'';$('tmEditMachine').value=t.machine||'';$('tmEditTask').value=t.task||'';$('tmEditFrequency').value=t.frequency||Object.keys(FREQ_DAYS)[0];$('tmEditDuration').value=t.duration??'';$('tmEditDue').value=t.nextDue||'';$('tmEditLast').value=t.lastDone||'';$('tmEditParts').value=t.parts||'';$('tmEditNotes').value=pmNonChecklistNotes(cleanMeta(t.notes));$('tmEditActive').checked=t.active!==false;const tr=maintenanceTrade(t);if([...$('tmEditTrade').options].some(o=>o.value===tr))$('tmEditTrade').value=tr;tmKindChanged();
  }
- window.tmOpenEdit=function(id){const t=tasks.find(x=>String(x.id)===String(id));if(!t)return;tmSelectedId=id;tmMode='edit';$('tmEmptyEditor').style.display='none';$('tmEditor').style.display='block';$('tmNewSourceBox').style.display='none';$('tmDuplicateBtn').style.display='inline-block';$('tmEditorTitle').textContent='עריכת משימה';const wom=String(t.notes||'').match(/\[WO_SOURCE:([^\]]+)\]/);$('tmEditorSub').textContent=`${t.department} · ${t.machine} · ${t.id}${wom?' · נוצר מ-WO '+wom[1]:''}`;fillForm(t);tmRenderList();if(innerWidth<901)$('tmEditor').scrollIntoView({behavior:'smooth',block:'start'})};
+ window.tmOpenEdit=function(id){const t=tasks.find(x=>String(x.id)===String(id));if(!t)return;tmSelectedId=id;tmMode='edit';$('tmEmptyEditor').style.display='none';$('tmEditor').style.display='block';$('tmNewSourceBox').style.display='none';$('tmDuplicateBtn').style.display='inline-block';$('tmEditorTitle').textContent='עריכת משימה';const wom=String(t.notes||'').match(/\[WO_SOURCE:([^\]]+)\]/);$('tmEditorSub').textContent=`${t.department} · ${t.machine} · ${t.id}${wom?' · נוצר מ-WO '+wom[1]:''}`;fillForm(t);document.querySelectorAll('#tmEditor .pm-checklist-readonly').forEach(e=>e.remove());const ed=document.getElementById('tmEditorSub');if(ed&&pmChecklistItems(t).length)ed.insertAdjacentHTML('afterend',`<div class="pm-checklist-box pm-checklist-readonly" style="margin-bottom:10px">${pmChecklistHtml(t,false)}</div>`);tmRenderList();if(innerWidth<901)$('tmEditor').scrollIntoView({behavior:'smooth',block:'start'})};
  window.tmOpenNew=function(){tmSelectedId=null;tmMode='new';$('tmEmptyEditor').style.display='none';$('tmEditor').style.display='block';$('tmNewSourceBox').style.display='block';$('tmDuplicateBtn').style.display='none';$('tmEditorTitle').textContent='משימה חדשה';$('tmEditorSub').textContent='ניתן לבחור מהמאגר הקיים או להזין פריט חדש';$('tmEditKind').value='physical';$('tmEditDepartment').value='';$('tmEditMachine').value='';$('tmEditTask').value='';$('tmEditDuration').value='';$('tmEditDue').value=today();$('tmEditLast').value='';$('tmEditParts').value='';$('tmEditNotes').value='';$('tmEditTrade').value='מכונאי';$('tmEditActive').checked=true;tmSetSource('master');tmKindChanged();if(innerWidth<901)$('tmEditor').scrollIntoView({behavior:'smooth',block:'start'})};
  window.tmCloseEditor=function(){tmSelectedId=null;tmMode='view';$('tmEditor').style.display='none';$('tmEmptyEditor').style.display='flex';tmRenderList()};
  window.tmSetSource=function(src){tmSource=src;$('tmSourceMasterBtn').classList.toggle('active',src==='master');$('tmSourceManualBtn').classList.toggle('active',src==='manual');$('tmMasterPicker').style.display=src==='master'?'grid':'none';if(src==='master')tmFillMasterDepartments()};
