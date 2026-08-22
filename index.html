@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260822-v52-print-snapshot-final"/>
+<meta name="fop-build" content="20260822-v53-print-clean-single-call"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -4130,18 +4130,8 @@ document.addEventListener('DOMContentLoaded',()=>{
       return `<tr><td>${esc(fDate(r.date))}</td><td>${esc(t.department)}</td><td><strong>${esc(t.machine)}</strong></td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${Number(t.duration||0)} דק׳</td><td>${esc(r.assigned)}</td><td class="status-cell">${esc(statusLabels[r.state]||r.state)}</td><td>${note?esc(note):'________________'}</td></tr>`;
     }).join(''):'<tr><td colspan="9" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לפילטרים שנבחרו.</td></tr>';
   };
-  function preparePrint(){
-    renderReports();
-    document.body.classList.add('pm-report-printing');
-    setTimeout(()=>window.print(),60);
-    setTimeout(()=>document.body.classList.remove('pm-report-printing'),1400);
-  }
-  window.printWorkPlanReport=function(){preparePrint()};
-  window.pdfWorkPlanReport=function(){
-    if(window.pmToast)pmToast('במסך ההדפסה של iPhone בחר שיתוף / שמירה כ‑PDF');
-    preparePrint();
-  };
-  /* V52: legacy afterprint rerender removed; final print snapshot owns cleanup. */
+  /* V53: legacy print path removed completely.
+     Printing is owned exclusively by the final snapshot controller below. */
   function xlsEscape(v){return clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
   window.exportWorkPlanExcel=function(){
     renderReports();
@@ -5291,16 +5281,14 @@ renderPlanner=function(){
     window.pmUpdateSelectedCount();
   };
 
-  function openPrintConfirm(mode){
+  function printSelectedReport(mode){
+    // IMPORTANT: keep this entire path synchronous from the user's original tap.
+    // No timeout, modal callback, Promise or re-render is allowed before print().
     const count=window.pmRefreshPrintSnapshot();
     if(!count){if(window.pmToast)pmToast('לא נבחרו טיפולים להדפסה','error');return;}
     document.body.classList.add('pm-print-ready');
-    const modal=ensurePrintConfirm();
-    const txt=$('pmReportsPrintConfirmText');
-    if(txt)txt.textContent=mode==='pdf'
-      ? `נבחרו ${count} טיפולים. במסך ההדפסה של iPhone בחר שיתוף / שמירה כ‑PDF.`
-      : `נבחרו ${count} טיפולים. ההדפסה תכלול רק את הטיפולים המסומנים.`;
-    modal.classList.add('open');
+    if(mode==='pdf' && window.pmToast)pmToast('במסך ההדפסה של iPhone בחר שיתוף / שמירה כ‑PDF');
+    window.print();
   }
 
   window.pmCancelPrintPreview=function(){
@@ -5308,14 +5296,11 @@ renderPlanner=function(){
     document.body.classList.remove('pm-print-ready');
   };
 
-  window.pmDoPrintNow=function(){
-    // Deliberately ONLY print here. This function is invoked by a fresh user tap,
-    // avoiding iOS Safari's automatic-print blocker.
-    window.print();
-  };
+  // Kept only for backward compatibility; no UI path uses the old confirmation modal.
+  window.pmDoPrintNow=function(){window.print()};
 
-  window.printWorkPlanReport=function(){openPrintConfirm('print')};
-  window.pdfWorkPlanReport=function(){openPrintConfirm('pdf')};
+  window.printWorkPlanReport=function(){printSelectedReport('print')};
+  window.pdfWorkPlanReport=function(){printSelectedReport('pdf')};
 
   window.addEventListener('afterprint',()=>{
     $('pmReportsPrintConfirm')?.classList.remove('open');
