@@ -6301,4 +6301,71 @@ async function saveHistoryEdit(){
 <style id="fop-v64-profession-style">
 .pm-v64-profession{direction:rtl}
 </style>
+
+<script id="fop-v65-workload-period-fix">
+(function(){
+  const $=id=>document.getElementById(id);
+  function set(id,v){const e=$(id);if(e)e.textContent=v}
+  function periodOpenRows(){
+    try{
+      const periodName=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week';
+      const anchor=$('pmPlannerStart')?.value||today();
+      const b=window.fopUnifiedWorkSource.periodBounds(periodName,anchor);
+      const dep=$('pmPlannerDepartment')?.value||'';
+      const machine=$('pmPlannerMachine')?.value||'';
+      const trade=$('pmPlannerTrade')?.value||'';
+      const wt=$('pmPlannerWorkType')?.value||'';
+      // Important: workload of the selected PERIOD is independent of the list status.
+      // "Overdue" remains a backlog list filter; it must not make month/half-year workload identical.
+      return window.fopUnifiedWorkSource.getWork({
+        period:periodName,anchor,department:dep,machine,trade,workType:wt,status:'open'
+      }).filter(r=>{
+        const d=String(r.due||r.date||'');
+        return d>=b.start && d<=b.end;
+      });
+    }catch(e){console.warn('V65 period workload source',e);return []}
+  }
+  function backlogRows(){
+    try{
+      return window.fopUnifiedWorkSource.getWork({
+        period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',
+        anchor:$('pmPlannerStart')?.value||today(),
+        department:$('pmPlannerDepartment')?.value||'',
+        machine:$('pmPlannerMachine')?.value||'',
+        trade:$('pmPlannerTrade')?.value||'',
+        workType:$('pmPlannerWorkType')?.value||'',
+        status:'overdue'
+      });
+    }catch(e){return []}
+  }
+  function reconcileWorkload(){
+    const rows=periodOpenRows();
+    const mins=rows.reduce((a,r)=>a+Number(r.duration||0),0);
+    const scheduled=rows.filter(r=>r.kind==='PM'
+      ? r.plan&&['planned','postponed'].includes(String(r.plan.status||'').toLowerCase())
+      : r.wo?.plannedDate&&!['completed','cancelled'].includes(r.state));
+    const schedMin=scheduled.reduce((a,r)=>a+Number(r.duration||0),0);
+    set('pmWorkRequiredHours',(mins/60).toFixed(1));
+    set('pmWorkTechnicianHours',(mins/60).toFixed(1));
+    set('pmWorkScheduledHours',(schedMin/60).toFixed(1));
+    set('pmWorkUnplannedHours',((mins-schedMin)/60).toFixed(1));
+
+    let note=document.querySelector('.pm-workload-note');
+    if(note){
+      const b=backlogRows(), bm=b.reduce((a,r)=>a+Number(r.duration||0),0);
+      const trade=$('pmPlannerTrade')?.value||'כל המקצועות';
+      note.textContent=`עומס התקופה: ${rows.length} דרישות (${(mins/60).toFixed(1)} שעות) · מקצוע: ${trade}. צבר באיחור עד תאריך העוגן: ${b.length} דרישות (${(bm/60).toFixed(1)} שעות). סטטוס הרשימה אינו משנה את חישוב עומס התקופה.`;
+    }
+  }
+  const prev=window.renderPlanner;
+  if(typeof prev==='function'){
+    window.renderPlanner=function(){
+      const r=prev.apply(this,arguments);
+      try{reconcileWorkload()}catch(e){console.warn('V65 workload reconcile',e)}
+      return r;
+    };
+  }
+  setTimeout(reconcileWorkload,0);
+})();
+</script>
 </body></html>
