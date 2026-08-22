@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260823-v72-final-rolling-pm-forecast"/>
+<meta name="fop-build" content="20260823-v73-final-single-source"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -6302,423 +6302,150 @@ async function saveHistoryEdit(){
 .pm-v64-profession{direction:rtl}
 </style>
 
-<script id="fop-v65-workload-period-fix">
-(function(){
-  const $=id=>document.getElementById(id);
-  function set(id,v){const e=$(id);if(e)e.textContent=v}
-  function periodOpenRows(){
-    try{
-      const periodName=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week';
-      const anchor=$('pmPlannerStart')?.value||today();
-      const b=window.fopUnifiedWorkSource.periodBounds(periodName,anchor);
-      const dep=$('pmPlannerDepartment')?.value||'';
-      const machine=$('pmPlannerMachine')?.value||'';
-      const trade=$('pmPlannerTrade')?.value||'';
-      const wt=$('pmPlannerWorkType')?.value||'';
-      // Important: workload of the selected PERIOD is independent of the list status.
-      // "Overdue" remains a backlog list filter; it must not make month/half-year workload identical.
-      return window.fopUnifiedWorkSource.getWork({
-        period:periodName,anchor,department:dep,machine,trade,workType:wt,status:'open'
-      }).filter(r=>{
-        const d=String(r.due||r.date||'');
-        return d>=b.start && d<=b.end;
-      });
-    }catch(e){console.warn('V65 period workload source',e);return []}
-  }
-  function backlogRows(){
-    try{
-      return window.fopUnifiedWorkSource.getWork({
-        period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',
-        anchor:$('pmPlannerStart')?.value||today(),
-        department:$('pmPlannerDepartment')?.value||'',
-        machine:$('pmPlannerMachine')?.value||'',
-        trade:$('pmPlannerTrade')?.value||'',
-        workType:$('pmPlannerWorkType')?.value||'',
-        status:'overdue'
-      });
-    }catch(e){return []}
-  }
-  function reconcileWorkload(){
-    const rows=periodOpenRows();
-    const mins=rows.reduce((a,r)=>a+Number(r.duration||0),0);
-    const scheduled=rows.filter(r=>r.kind==='PM'
-      ? r.plan&&['planned','postponed'].includes(String(r.plan.status||'').toLowerCase())
-      : r.wo?.plannedDate&&!['completed','cancelled'].includes(r.state));
-    const schedMin=scheduled.reduce((a,r)=>a+Number(r.duration||0),0);
-    set('pmWorkRequiredHours',(mins/60).toFixed(1));
-    set('pmWorkTechnicianHours',(mins/60).toFixed(1));
-    set('pmWorkScheduledHours',(schedMin/60).toFixed(1));
-    set('pmWorkUnplannedHours',((mins-schedMin)/60).toFixed(1));
 
-    let note=document.querySelector('.pm-workload-note');
-    if(note){
-      const b=backlogRows(), bm=b.reduce((a,r)=>a+Number(r.duration||0),0);
-      const trade=$('pmPlannerTrade')?.value||'כל המקצועות';
-      note.textContent=`עומס התקופה: ${rows.length} דרישות (${(mins/60).toFixed(1)} שעות) · מקצוע: ${trade}. צבר באיחור עד תאריך העוגן: ${b.length} דרישות (${(bm/60).toFixed(1)} שעות). סטטוס הרשימה אינו משנה את חישוב עומס התקופה.`;
-    }
-  }
-  const prev=window.renderPlanner;
-  if(typeof prev==='function'){
-    window.renderPlanner=function(){
-      const r=prev.apply(this,arguments);
-      try{reconcileWorkload()}catch(e){console.warn('V65 workload reconcile',e)}
-      return r;
-    };
-  }
-  setTimeout(reconcileWorkload,0);
-})();
-</script>
-
-<script id="fop-v66-recurrence-forecast-fix">
-(function(){
-  const $=id=>document.getElementById(id);
-  const DAY=86400000;
-  const iso=d=>{const x=new Date(d); return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')};
-  const parse=x=>{const [y,m,d]=String(x||'').slice(0,10).split('-').map(Number); return new Date(y,m-1,d)};
-  function addMonths(d,n){const x=new Date(d); const day=x.getDate(); x.setDate(1); x.setMonth(x.getMonth()+n); const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate(); x.setDate(Math.min(day,last)); return x}
-  function next(d,f){
-    const x=new Date(d);
-    const z=String(f||'').trim();
-    if(z==='יומי') return new Date(x.getTime()+DAY);
-    if(z==='שבועי') return new Date(x.getTime()+7*DAY);
-    if(z==='דו שבועי') return new Date(x.getTime()+14*DAY);
-    if(z==='חודשי') return addMonths(x,1);
-    if(z==='תלת חודשי') return addMonths(x,3);
-    if(z==='חצי שנתי') return addMonths(x,6);
-    if(z==='שנתי') return addMonths(x,12);
-    if(z==='5 שנתי') return addMonths(x,60);
-    return null;
-  }
-  function bounds(){
-    const p=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week';
-    const a=$('pmPlannerStart')?.value||today();
-    return window.fopUnifiedWorkSource.periodBounds(p,a);
-  }
-  function sourceTasks(){
-    const dep=$('pmPlannerDepartment')?.value||'', machine=$('pmPlannerMachine')?.value||'', trade=$('pmPlannerTrade')?.value||'', wt=$('pmPlannerWorkType')?.value||'';
-    return ((typeof tasks!=='undefined'&&Array.isArray(tasks))?tasks:[]).filter(t=>{
-      if(t.active===false) return false;
-      if(String(t.performer||'')!=='טכנאי אחזקה') return false;
-      if(dep && dep!=='כל המחלקות' && String(t.department||'')!==dep) return false;
-      if(machine && machine!=='כל המכונות' && String(t.machine||'')!==machine) return false;
-      if(trade && trade!=='כל המקצועות' && String(t.trade||'')!==trade) return false;
-      if(wt && wt!=='הכל' && String(t.task_type||'')!==wt) return false;
-      return !!t.next_due;
-    });
-  }
-  function occurrences(){
-    const b=bounds(), start=parse(b.start), end=parse(b.end);
-    const out=[];
-    sourceTasks().forEach(t=>{
-      let d=parse(t.next_due);
-      if(isNaN(d)) return;
-      // DB stores the next occurrence only. Generate every recurrence inside the selected horizon.
-      let guard=0;
-      while(d<start && guard++<5000){const n=next(d,t.frequency); if(!n)return; d=n}
-      while(d<=end && guard++<5000){
-        out.push({task:t,due:iso(d),duration:Number(t.duration||0)});
-        const n=next(d,t.frequency); if(!n)break; d=n;
-      }
-    });
-    return out;
-  }
-  function reconcile(){
-    try{
-      const occ=occurrences(), mins=occ.reduce((a,x)=>a+x.duration,0);
-      const hours=mins/60;
-      const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};
-      set('pmWorkRequiredHours',hours.toFixed(1));
-      set('pmWorkTechnicianHours',hours.toFixed(1));
-      // Scheduled hours remain based on actual work-plan records, not hypothetical future occurrences.
-      const note=document.querySelector('.pm-workload-note');
-      if(note){
-        const unique=new Set(occ.map(x=>String(x.task.id))).size;
-        const trade=$('pmPlannerTrade')?.value||'כל המקצועות';
-        note.textContent=`תחזית עומס מחזורית: ${occ.length} מופעי טיפול מ-${unique} דרישות PM · ${hours.toFixed(1)} שעות · מקצוע: ${trade}. התחזית מייצרת את כל המופעים העתידיים לפי התדירות ולא סופרת רק next_due יחיד.`;
-      }
-    }catch(e){console.error('V66 recurrence forecast',e)}
-  }
-  const prev=window.renderPlanner;
-  if(typeof prev==='function'){
-    window.renderPlanner=function(){const r=prev.apply(this,arguments);setTimeout(reconcile,0);return r}
-  }
-  setTimeout(reconcile,0);
-})();
-</script>
-
-<script id="fop-v67-bidirectional-recurrence-fix">
-(function(){
-  const DAY=86400000, $=id=>document.getElementById(id);
-  const parse=x=>{const [y,m,d]=String(x||'').slice(0,10).split('-').map(Number);return new Date(y,m-1,d)};
-  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  function addMonths(d,n){const x=new Date(d), day=x.getDate();x.setDate(1);x.setMonth(x.getMonth()+n);const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();x.setDate(Math.min(day,last));return x}
-  function shift(d,f,dir){
-    const z=String(f||'').trim(), x=new Date(d);
-    if(z==='יומי') return new Date(x.getTime()+dir*DAY);
-    if(z==='שבועי') return new Date(x.getTime()+dir*7*DAY);
-    if(z==='דו שבועי') return new Date(x.getTime()+dir*14*DAY);
-    if(z==='חודשי') return addMonths(x,dir);
-    if(z==='תלת חודשי') return addMonths(x,dir*3);
-    if(z==='חצי שנתי') return addMonths(x,dir*6);
-    if(z==='שנתי') return addMonths(x,dir*12);
-    if(z==='5 שנתי') return addMonths(x,dir*60);
-    return null;
-  }
-  function bounds(){
-    const p=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week';
-    const a=$('pmPlannerStart')?.value||today();
-    return window.fopUnifiedWorkSource.periodBounds(p,a);
-  }
-  function sourceTasks(){
-    const dep=$('pmPlannerDepartment')?.value||'', machine=$('pmPlannerMachine')?.value||'', trade=$('pmPlannerTrade')?.value||'', wt=$('pmPlannerWorkType')?.value||'';
-    return ((typeof tasks!=='undefined'&&Array.isArray(tasks))?tasks:[]).filter(t=>{
-      if(t.active===false || String(t.performer||'')!=='טכנאי אחזקה' || !t.next_due) return false;
-      if(dep && dep!=='כל המחלקות' && String(t.department||'')!==dep) return false;
-      if(machine && machine!=='כל המכונות' && String(t.machine||'')!==machine) return false;
-      if(trade && trade!=='כל המקצועות' && String(t.trade||'')!==trade) return false;
-      if(wt && wt!=='הכל' && String(t.task_type||'')!==wt) return false;
-      return true;
-    });
-  }
-  function occurrences(){
-    const b=bounds(), start=parse(b.start), end=parse(b.end), out=[];
-    sourceTasks().forEach(t=>{
-      let d=parse(t.next_due); if(isNaN(d)) return;
-      let guard=0;
-      // next_due is an anchor in the recurrence series, not the beginning of history.
-      // Walk backward until the occurrence immediately before the selected period.
-      while(d>start && guard++<5000){
-        const p=shift(d,t.frequency,-1); if(!p) break;
-        d=p;
-      }
-      // If we stepped before the period, advance once to the first occurrence >= start.
-      while(d<start && guard++<5000){
-        const n=shift(d,t.frequency,1); if(!n) return;
-        d=n;
-      }
-      while(d<=end && guard++<5000){
-        out.push({task:t,due:iso(d),duration:Number(t.duration||0)});
-        const n=shift(d,t.frequency,1); if(!n) break;
-        d=n;
-      }
-    });
-    return out;
-  }
-  function reconcile(){
-    try{
-      const occ=occurrences(), hours=occ.reduce((a,x)=>a+x.duration,0)/60;
-      const unique=new Set(occ.map(x=>String(x.task.id))).size;
-      const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};
-      set('pmWorkRequiredHours',hours.toFixed(1));
-      set('pmWorkTechnicianHours',hours.toFixed(1));
-      const note=document.querySelector('.pm-workload-note');
-      if(note) note.textContent=`תחזית עומס מחזורית דו-כיוונית: ${occ.length} מופעי טיפול מ-${unique} דרישות PM · ${hours.toFixed(1)} שעות. next_due משמש עוגן למחזוריות, והמנוע מחשב מופעים גם לפניו וגם אחריו בתוך התקופה הנבחרת.`;
-    }catch(e){console.error('V67 bidirectional recurrence',e)}
-  }
-  const prev=window.renderPlanner;
-  if(typeof prev==='function') window.renderPlanner=function(){const r=prev.apply(this,arguments);setTimeout(reconcile,0);return r};
-  setTimeout(reconcile,0);
-})();
-</script>
-<script id="fop-v68-authoritative-workload-fix">
-/* V68 — workload follows V60 authoritative contract: current actionable PM + backlog through period end.
-   Do NOT synthesize historical/future recurrences from next_due. next_due is the one current actionable occurrence. */
-(function(){
-  const $=id=>document.getElementById(id);
-  function set(id,v){const e=$(id);if(e)e.textContent=v}
-  function rows(){
-    try{
-      return window.fopUnifiedWorkSource.getWork({
-        period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',
-        anchor:$('pmPlannerStart')?.value||today(),
-        department:$('pmPlannerDepartment')?.value||'',
-        machine:$('pmPlannerMachine')?.value||'',
-        trade:$('pmPlannerTrade')?.value||'',
-        workType:$('pmPlannerWorkType')?.value||'',
-        status:'open'
-      }).filter(r=>r.kind==='PM');
-    }catch(e){console.warn('V68 authoritative workload source',e);return []}
-  }
-  function reconcile(){
-    try{
-      const r=rows();
-      const mins=r.reduce((a,x)=>a+Number(x.duration||0),0);
-      const scheduled=r.filter(x=>x.plan&&['planned','postponed'].includes(String(x.plan.status||'').toLowerCase()));
-      const schedMin=scheduled.reduce((a,x)=>a+Number(x.duration||0),0);
-      set('pmWorkRequiredHours',(mins/60).toFixed(1));
-      set('pmWorkTechnicianHours',(mins/60).toFixed(1));
-      set('pmWorkScheduledHours',(schedMin/60).toFixed(1));
-      set('pmWorkUnplannedHours',(Math.max(0,mins-schedMin)/60).toFixed(1));
-      const note=document.querySelector('.pm-workload-note');
-      if(note){
-        const overdue=r.filter(x=>x.state==='overdue');
-        const om=overdue.reduce((a,x)=>a+Number(x.duration||0),0);
-        const trade=$('pmPlannerTrade')?.value||'כל המקצועות';
-        note.textContent=`עומס לביצוע עד סוף התקופה: ${r.length} דרישות PM · ${(mins/60).toFixed(1)} שעות · מקצוע: ${trade}. מתוכן צבר באיחור: ${overdue.length} דרישות (${(om/60).toFixed(1)} שעות). החישוב משתמש ב-next_due הנוכחי בלבד לכל דרישת PM ואינו ממציא מופעים מחזוריים לפניו או אחריו.`;
-      }
-    }catch(e){console.error('V68 authoritative workload reconcile',e)}
-  }
-  const prev=window.renderPlanner;
-  if(typeof prev==='function') window.renderPlanner=function(){const out=prev.apply(this,arguments);setTimeout(reconcile,0);return out};
-  setTimeout(reconcile,0);
-})();
-</script>
-
-<script id="fop-v69-db-authoritative-planner">
-(function(){
- const $=id=>document.getElementById(id);
- function opts(statusOverride){return {period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||today(),department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:$('pmPlannerTrade')?.value||'',workType:'PM',status:statusOverride!==undefined?statusOverride:($('pmPlannerStatus')?.value||'open'),uniquePM:true};}
- window.filteredPlanningItems=function(){if(($('pmPlannerWorkType')?.value||'')==='WO')return [];return window.fopUnifiedWorkSource.getWork(opts()).filter(r=>r.kind==='PM').map(r=>r.item);};
- function reconcile(){try{const rows=(($('pmPlannerWorkType')?.value||'')==='WO')?[]:window.fopUnifiedWorkSource.getWork(opts('open')).filter(r=>r.kind==='PM');const mins=rows.reduce((a,r)=>a+Number(r.duration||0),0);const scheduled=rows.filter(r=>r.plan&&['planned','postponed'].includes(String(r.plan.status||'').toLowerCase()));const schedMin=scheduled.reduce((a,r)=>a+Number(r.duration||0),0);const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};set('pmWorkRequiredHours',(mins/60).toFixed(1));set('pmWorkTechnicianHours',(mins/60).toFixed(1));set('pmWorkScheduledHours',(schedMin/60).toFixed(1));set('pmWorkUnplannedHours',(Math.max(0,mins-schedMin)/60).toFixed(1));const note=document.querySelector('.pm-workload-note');if(note){const overdue=rows.filter(r=>r.state==='overdue');const om=overdue.reduce((a,r)=>a+Number(r.duration||0),0);note.textContent=`נתוני DB בפועל: ${rows.length} דרישות PM פתוחות עד סוף התקופה · ${(mins/60).toFixed(1)} שעות. מתוכן ${overdue.length} באיחור (${(om/60).toFixed(1)} שעות). כל רשומת pm_tasks נספרת פעם אחת לפי next_due; אין יצירת מופעים שלא קיימים ב-DB.`;}}catch(e){console.error('V69 DB-authoritative reconcile',e)}}
- const prev=window.renderPlanner;if(typeof prev==='function')window.renderPlanner=function(){const out=prev.apply(this,arguments);reconcile();return out};setTimeout(()=>{try{if(typeof renderPlanner==='function')renderPlanner();else reconcile()}catch(e){console.error(e)}},0);
-})();
-</script>
-
-
-<script id="fop-v72-final-rolling-pm-forecast">
-/* V72 FINAL
-   Official workload logic:
-   - rolling horizon from selected anchor date
-   - PM maintenance only (no inspections)
-   - next_due is the FIRST still-open occurrence
-   - generate recurrences FORWARD only
-   - completing PM advances next_due, therefore the completed occurrence disappears
-     from workload while later recurrences remain if they are still inside the horizon.
+<script id="fop-v73-final-single-source">
+/* V73 FINAL — one source of truth for PM workload, Dashboard and Reports.
+   Business rule:
+   1. PM = active maintenance-technician task_type=maintenance only.
+   2. Horizons are rolling from the selected anchor: 7 days / 1 / 6 / 12 months.
+   3. next_due is the first still-open occurrence. Overdue occurrence is carried at the
+      anchor, then recurrence continues forward according to frequency.
+   4. Completed PM advances next_due in the existing completion transaction; therefore
+      that occurrence immediately disappears from open workload/forecast.
+   5. Dashboard and Reports consume the exact same occurrence engine.
 */
 (function(){
-  const $=id=>document.getElementById(id), DAY=86400000;
-  const parse=x=>{const [y,m,d]=String(x||'').slice(0,10).split('-').map(Number);return new Date(y,m-1,d)};
-  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+ const $=id=>document.getElementById(id);
+ const ACTIVE=new Set(['planned','postponed']);
+ const CLOSED=new Set(['completed','done','בוצע','cancelled','canceled','בוטל']);
+ const norm=v=>String(v||'').trim().toLowerCase();
+ const parse=s=>{const a=String(s||'').slice(0,10).split('-').map(Number);return a.length===3?new Date(a[0],a[1]-1,a[2]):new Date(NaN)};
+ const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+ const dadd=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+ function madd(d,n){const x=new Date(d),day=x.getDate();x.setDate(1);x.setMonth(x.getMonth()+n);x.setDate(Math.min(day,new Date(x.getFullYear(),x.getMonth()+1,0).getDate()));return x}
+ function next(d,f){
+   f=String(f||'').trim();
+   if(f==='יומי')return dadd(d,1); if(f==='שבועי')return dadd(d,7); if(f==='דו שבועי')return dadd(d,14);
+   if(f==='חודשי')return madd(d,1); if(f==='תלת חודשי')return madd(d,3); if(f==='חצי שנתי')return madd(d,6);
+   if(f==='שנתי')return madd(d,12); if(f==='5 שנתי')return madd(d,60); return null;
+ }
+ function bounds(period,anchor){
+   const a=parse(anchor||today()); let e;
+   if(period==='month')e=madd(a,1); else if(period==='half')e=madd(a,6); else if(period==='year')e=madd(a,12); else e=dadd(a,6);
+   return {start:iso(a),end:iso(e),period:period||'week'};
+ }
+ function masters(){
+   return (Array.isArray(tasks)?tasks:[]).filter(t=>t&&t.active!==false&&String(t.performer||'').trim()==='טכנאי אחזקה'&&String(t.taskType??t.task_type??'').trim().toLowerCase()==='maintenance'&&t.nextDue);
+ }
+ function latestPlan(taskId,due){
+   return (Array.isArray(pmWorkPlan)?pmWorkPlan:[]).filter(p=>String(p.taskId)===String(taskId)&&String(wpDueFromNotes(p.notes)||'')===String(due))
+     .sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')))[0]||null;
+ }
+ function rows(opts={}){
+   const o={period:'week',anchor:today(),department:'',machine:'',trade:'',status:'open',...opts}, b=bounds(o.period,o.anchor);
+   const start=parse(b.start),end=parse(b.end),out=[];
+   masters().forEach(t=>{
+     const tr=String(t.trade||maintenanceTrade(t)||'').trim();
+     if(o.department&&t.department!==o.department)return;if(o.machine&&t.machine!==o.machine)return;if(o.trade&&tr!==o.trade)return;
+     let original=String(t.nextDue), d=parse(original); if(isNaN(d))return;
+     let overdue=d<start, guard=0;
+     // Carry one unresolved overdue occurrence into the anchor; do not fabricate historical recurrences.
+     if(overdue)d=new Date(start);
+     while(d<=end&&guard++<5000){
+       const due=iso(d), p=(due===original?latestPlan(t.id,original):null), ps=norm(p?.status);
+       let state=overdue&&due===b.start?'overdue':(ACTIVE.has(ps)?ps:'waiting');
+       if(CLOSED.has(ps))state=ps.startsWith('cancel')||ps==='בוטל'?'cancelled':'completed';
+       const r={kind:'PM',key:`PM:${t.id}:${due}`,task:t,item:{t,due,plan:p,backlog:overdue&&due===b.start},plan:p,state,due,
+         date:(p&&ACTIVE.has(ps)&&p.plannedDate)?String(p.plannedDate):due,department:t.department||'',machine:t.machine||'',trade:tr,
+         description:t.task||'',frequency:t.frequency||'',duration:Number(t.duration||0),assignee:p?.assignedTo||t.performer||'',priority:p?.priority||'',note:p?.postponedReason||''};
+       if(o.status==='open' || !o.status){if(!['completed','cancelled'].includes(state))out.push(r)}
+       else if(o.status==='overdue'){if(state==='overdue')out.push(r)}
+       else if(o.status==='waiting'){if(state==='waiting'||state==='overdue')out.push(r)}
+       else if(o.status==='planned'){if(state==='planned'||state==='postponed')out.push(r)}
+       else if(o.status==='postponed'){if(state==='postponed')out.push(r)}
+       // completed/cancelled are historical and remain handled by the existing audited source.
+       const nd=next(d,t.frequency);if(!nd)break;d=nd;overdue=false;
+     }
+   });
+   return out.sort((a,b)=>a.due.localeCompare(b.due)||a.department.localeCompare(b.department,'he')||a.machine.localeCompare(b.machine,'he'));
+ }
+ const oldSource=window.fopUnifiedWorkSource;
+ function getPM(opts={}){
+   if(['completed','cancelled'].includes(opts.status))return oldSource?.getPM?oldSource.getPM(opts):[];
+   return rows(opts);
+ }
+ function getWO(opts={}){return oldSource?.getWO?oldSource.getWO(opts):[]}
+ function getWork(opts={}){
+   const wt=opts.workType||'';
+   return [...(wt==='WO'?[]:getPM(opts)),...(wt==='PM'?[]:getWO(opts))]
+     .sort((a,b)=>String(a.date||a.due).localeCompare(String(b.date||b.due)));
+ }
+ window.fopUnifiedWorkSource={periodBounds:bounds,getPM,getWO,getWork,pmState:oldSource?.pmState};
+ window.pmV73Forecast={bounds,rows,getPM,getWork};
 
-  function addDays(d,n){return new Date(d.getFullYear(),d.getMonth(),d.getDate()+n)}
-  function addMonths(d,n){
-    const x=new Date(d),day=x.getDate();
-    x.setDate(1); x.setMonth(x.getMonth()+n);
-    const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();
-    x.setDate(Math.min(day,last));
-    return x;
-  }
-  function nextOccurrence(d,f){
-    const z=String(f||'').trim(),x=new Date(d);
-    if(z==='יומי') return addDays(x,1);
-    if(z==='שבועי') return addDays(x,7);
-    if(z==='דו שבועי') return addDays(x,14);
-    if(z==='חודשי') return addMonths(x,1);
-    if(z==='תלת חודשי') return addMonths(x,3);
-    if(z==='חצי שנתי') return addMonths(x,6);
-    if(z==='שנתי') return addMonths(x,12);
-    if(z==='5 שנתי') return addMonths(x,60);
-    return null;
-  }
+ function dashOpts(status='open'){
+   return {period:(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week',anchor:$('pmDashboardAnchor')?.value||today(),
+     department:$('pmDashboardDepartment')?.value||'',machine:$('pmDashboardMachine')?.value||'',trade:$('pmDashboardTrade')?.value||'',
+     workType:$('pmDashboardWorkType')?.value||'',status};
+ }
+ function set(id,v){const e=$(id);if(e)e.textContent=v}
+ const priorDash=window.renderDashboard;
+ window.renderDashboard=renderDashboard=function(){
+   try{priorDash?.()}catch(e){}
+   const o=dashOpts('open'),b=bounds(o.period,o.anchor),open=getWork(o),over=getWork({...o,status:'overdue'}),
+         planned=getWork({...o,status:'planned'}),done=getWork({...o,status:'completed'}),cancel=getWork({...o,status:'cancelled'});
+   const pm=open.filter(r=>r.kind==='PM'),wo=open.filter(r=>r.kind==='WO');
+   set('pmV17Open',open.length);set('pmV31Planned',planned.length);set('pmV17Overdue',over.length);
+   set('pmV17Week',getWork({...o,status:'open',period:'week'}).length);set('pmV17WO',wo.length);
+   set('pmV3Waiting',pm.length);set('pmV3Planned',planned.filter(r=>r.kind==='PM').length);set('pmV3Completed',done.filter(r=>r.kind==='PM').length);
+   set('pmV3Cancelled',cancel.filter(r=>r.kind==='PM').length);set('pmV3Overdue',over.filter(r=>r.kind==='PM').length);
+   set('pmV3BacklogTotal',pm.length);
+   const mins=pm.reduce((a,r)=>a+r.duration,0);
+   set('pmWeekHours',hours(getPM({...o,period:'week',workType:'PM'}).reduce((a,r)=>a+r.duration,0)));
+   const detail=$('pmV3BacklogDetail');if(detail)detail.textContent=`תחזית מתגלגלת ${b.start}–${b.end}: ${pm.length} טיפולי PM צפויים · ${hours(mins)} שעות`;
+   const wait=$('pmV3WaitingDetail');if(wait)wait.textContent=`${pm.length} מופעי PM פתוחים/צפויים בתקופה`;
+   const trades={'מכונאי':0,'חשמלאי':0};pm.forEach(r=>trades[r.trade==='חשמלאי'?'חשמלאי':'מכונאי']++);
+   const tb=$('pmV17Trade'),mx=Math.max(1,...Object.values(trades));if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${esc(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${v}</strong></div>`).join('');
+ }
 
-  function rollingBounds(){
-    const p=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week';
-    const a=parse($('pmPlannerStart')?.value||today());
-    let end;
-    if(p==='week') end=addDays(a,6);          // 7 calendar days incl. anchor
-    else if(p==='month') end=addMonths(a,1);  // anchor -> same date next month
-    else if(p==='half') end=addMonths(a,6);
-    else if(p==='year') end=addMonths(a,12);
-    else end=addDays(a,6);
-    return {start:iso(a),end:iso(end),period:p};
-  }
+ // Planner: list remains actionable master occurrences, but KPI workload is rolling forecast.
+ const priorPlanner=window.renderPlanner;
+ window.renderPlanner=renderPlanner=function(){
+   const z=priorPlanner?.();
+   try{
+     const o={period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||today(),
+       department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:$('pmPlannerTrade')?.value||'',workType:'PM',status:'open'};
+     const rr=getPM(o),mins=rr.reduce((a,r)=>a+r.duration,0),sched=rr.filter(r=>r.plan&&ACTIVE.has(norm(r.plan.status))),sm=sched.reduce((a,r)=>a+r.duration,0);
+     set('pmPlanRequired',rr.length);set('pmWorkRequiredHours',(mins/60).toFixed(1));set('pmWorkTechnicianHours',(mins/60).toFixed(1));
+     set('pmWorkScheduledHours',(sm/60).toFixed(1));set('pmWorkUnplannedHours',(Math.max(0,mins-sm)/60).toFixed(1));
+     const b=bounds(o.period,o.anchor),note=document.querySelector('.pm-workload-note');
+     if(note)note.textContent=`תחזית PM מתגלגלת ${b.start}–${b.end}: ${rr.length} טיפולים צפויים · ${(mins/60).toFixed(1)} שעות. סגירת טיפול מקדמת next_due ומעדכנת את העומס.`;
+     const range=$('pmV3RangeText');if(range)range.textContent=`${b.start} – ${b.end} · ${rr.length} טיפולי PM צפויים`;
+   }catch(e){console.error('V73 planner',e)}
+   return z;
+ }
 
-  function source(){
-    const dep=$('pmPlannerDepartment')?.value||'',
-          machine=$('pmPlannerMachine')?.value||'',
-          trade=$('pmPlannerTrade')?.value||'',
-          wt=$('pmPlannerWorkType')?.value||'';
-    if(wt==='WO') return [];
-    return ((typeof tasks!=='undefined'&&Array.isArray(tasks))?tasks:[]).filter(t=>
-      t.active!==false &&
-      String(t.performer||'')==='טכנאי אחזקה' &&
-      String(t.task_type||'')==='maintenance' &&
-      t.next_due &&
-      (!dep||dep==='כל המחלקות'||String(t.department||'')===dep) &&
-      (!machine||machine==='כל המכונות'||String(t.machine||'')===machine) &&
-      (!trade||trade==='כל המקצועות'||String(t.trade||'')===trade)
-    );
-  }
+ // Reports: same exact PM occurrence source as dashboard; WO remains existing source.
+ function reportOpts(){
+   return {period:$('pmReportsPeriod')?.value||'week',anchor:$('pmReportsAnchor')?.value||today(),department:$('pmReportsDepartment')?.value||'',
+     machine:$('pmReportsMachine')?.value||'',trade:$('pmReportsTrade')?.value||'',workType:$('pmReportsWorkType')?.value||'',status:$('pmReportsStatus')?.value||'open'};
+ }
+ const priorReports=window.renderReports;
+ window.renderReports=function(){
+   // Existing V4 renderer already calls fopUnifiedWorkSource.getWork; after replacing the source above
+   // it now consumes the same occurrence population as Dashboard.
+   const r=priorReports?.();
+   const o=reportOpts(),rr=getWork(o),mins=rr.reduce((a,x)=>a+Number(x.duration||0),0),b=bounds(o.period,o.anchor);
+   set('pmReportsCount',rr.length);set('pmReportsHours',hours(mins)+' שעות');set('pmReportsFooterCount',rr.length);set('pmReportsFooterHours',hours(mins));
+   const st=$('pmReportsStatusLine');if(st){st.className='status-line success';st.textContent=`מקור אחיד עם הדשבורד · ${b.start}–${b.end} · ${rr.length} עבודות · ${hours(mins)} שעות`;}
+   return r;
+ };
 
-  function occurrences(){
-    const b=rollingBounds(), start=parse(b.start), end=parse(b.end), out=[];
-    source().forEach(t=>{
-      let d=parse(t.next_due);
-      if(isNaN(d)) return;
-
-      // next_due is the first OPEN occurrence.
-      // If it is overdue, it is part of today's workload, then recurrence continues forward.
-      if(d<start) d=start;
-
-      let guard=0;
-      while(d<=end && guard++<5000){
-        out.push({task:t,due:iso(d),duration:Number(t.duration||0)});
-        const n=nextOccurrence(d,t.frequency);
-        if(!n) break;
-        d=n;
-      }
-    });
-    return out;
-  }
-
-  function reconcile(){
-    try{
-      const b=rollingBounds(), occ=occurrences();
-      const mins=occ.reduce((a,x)=>a+x.duration,0);
-      const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};
-
-      // Workload KPIs = forecast occurrences, not unique master rows.
-      set('pmWorkRequiredHours',(mins/60).toFixed(1));
-      set('pmWorkTechnicianHours',(mins/60).toFixed(1));
-      set('pmPlanRequired',String(occ.length));
-
-      const src=new Map(source().map(t=>[String(t.id),t]));
-      const scheduled=((typeof workPlan!=='undefined'&&Array.isArray(workPlan))?workPlan:[]).filter(p=>{
-        const st=String(p.status||'').toLowerCase();
-        const pd=String(p.planned_date||p.plannedDate||'').slice(0,10);
-        return ['planned','postponed'].includes(st) &&
-               pd>=b.start && pd<=b.end &&
-               src.has(String(p.task_id||p.taskId||''));
-      });
-      const schedMin=scheduled.reduce((a,p)=>{
-        const id=String(p.task_id||p.taskId||'');
-        return a+Number(src.get(id)?.duration||0);
-      },0);
-
-      set('pmWorkScheduledHours',(schedMin/60).toFixed(1));
-      set('pmWorkUnplannedHours',(Math.max(0,mins-schedMin)/60).toFixed(1));
-
-      const unique=new Set(occ.map(x=>String(x.task.id))).size;
-      const note=document.querySelector('.pm-workload-note');
-      if(note){
-        note.textContent=`תחזית PM מתגלגלת ${b.start}–${b.end}: ${occ.length} טיפולים צפויים מ-${unique} משימות בסיס · ${(mins/60).toFixed(1)} שעות. טיפול שהושלם אינו נספר עוד; next_due החדש ממשיך את התחזית קדימה.`;
-      }
-
-      // Keep the visible range explanation aligned with the same rolling logic.
-      const range=$('pmV3RangeText');
-      if(range){
-        const labels={week:'שבוע קדימה',month:'חודש קדימה',half:'חצי שנה קדימה',year:'שנה קדימה'};
-        range.textContent=`${labels[b.period]||'תחזית'} · ${b.start} – ${b.end} · ${occ.length} טיפולי PM צפויים`;
-      }
-    }catch(e){console.error('V72 final rolling PM forecast',e)}
-  }
-
-  const prev=window.renderPlanner;
-  if(typeof prev==='function'){
-    window.renderPlanner=function(){
-      const out=prev.apply(this,arguments);
-      setTimeout(reconcile,0);
-      return out;
-    };
-  }
-
-  // Reconcile after data refreshes / UI changes as well.
-  document.addEventListener('change',e=>{
-    if(e.target && ['pmPlannerStart','pmPlannerDepartment','pmPlannerMachine','pmPlannerTrade','pmPlannerProfession','pmPlannerWorkType','pmPlannerStatus'].includes(e.target.id)){
-      setTimeout(reconcile,0);
-    }
-  });
-  setTimeout(reconcile,0);
+ // Keep dashboard/report anchors synchronized on initial load; user may change either later.
+ setTimeout(()=>{
+   const a=$('pmDashboardAnchor')?.value||today();if($('pmReportsAnchor'))$('pmReportsAnchor').value=a;
+   try{renderDashboard()}catch(e){};try{renderPlanner()}catch(e){};try{window.renderReports()}catch(e){}
+ },0);
 })();
 </script>
 
