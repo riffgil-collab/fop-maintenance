@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260822-v53-print-clean-single-call"/>
+<meta name="fop-build" content="20260822-v69-db-authoritative-planner"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -6561,6 +6561,16 @@ async function saveHistoryEdit(){
   const prev=window.renderPlanner;
   if(typeof prev==='function') window.renderPlanner=function(){const out=prev.apply(this,arguments);setTimeout(reconcile,0);return out};
   setTimeout(reconcile,0);
+})();
+</script>
+
+<script id="fop-v69-db-authoritative-planner">
+(function(){
+ const $=id=>document.getElementById(id);
+ function opts(statusOverride){return {period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||today(),department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:$('pmPlannerTrade')?.value||'',workType:'PM',status:statusOverride!==undefined?statusOverride:($('pmPlannerStatus')?.value||'open'),uniquePM:true};}
+ window.filteredPlanningItems=function(){if(($('pmPlannerWorkType')?.value||'')==='WO')return [];return window.fopUnifiedWorkSource.getWork(opts()).filter(r=>r.kind==='PM').map(r=>r.item);};
+ function reconcile(){try{const rows=(($('pmPlannerWorkType')?.value||'')==='WO')?[]:window.fopUnifiedWorkSource.getWork(opts('open')).filter(r=>r.kind==='PM');const mins=rows.reduce((a,r)=>a+Number(r.duration||0),0);const scheduled=rows.filter(r=>r.plan&&['planned','postponed'].includes(String(r.plan.status||'').toLowerCase()));const schedMin=scheduled.reduce((a,r)=>a+Number(r.duration||0),0);const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};set('pmWorkRequiredHours',(mins/60).toFixed(1));set('pmWorkTechnicianHours',(mins/60).toFixed(1));set('pmWorkScheduledHours',(schedMin/60).toFixed(1));set('pmWorkUnplannedHours',(Math.max(0,mins-schedMin)/60).toFixed(1));const note=document.querySelector('.pm-workload-note');if(note){const overdue=rows.filter(r=>r.state==='overdue');const om=overdue.reduce((a,r)=>a+Number(r.duration||0),0);note.textContent=`נתוני DB בפועל: ${rows.length} דרישות PM פתוחות עד סוף התקופה · ${(mins/60).toFixed(1)} שעות. מתוכן ${overdue.length} באיחור (${(om/60).toFixed(1)} שעות). כל רשומת pm_tasks נספרת פעם אחת לפי next_due; אין יצירת מופעים שלא קיימים ב-DB.`;}}catch(e){console.error('V69 DB-authoritative reconcile',e)}}
+ const prev=window.renderPlanner;if(typeof prev==='function')window.renderPlanner=function(){const out=prev.apply(this,arguments);reconcile();return out};setTimeout(()=>{try{if(typeof renderPlanner==='function')renderPlanner();else reconcile()}catch(e){console.error(e)}},0);
 })();
 </script>
 </body></html>
