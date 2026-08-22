@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260822-v48-report-print-checklists"/>
+<meta name="fop-build" content="20260822-v49-ios-print-fix"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -5121,8 +5121,10 @@ renderPlanner=function(){
     const includeChecklist=$('pmReportsPrintChecklistDetails')?.checked!==false;
     document.body.classList.toggle('pm-print-checklists',includeChecklist);
     document.body.classList.add('pm-report-printing');
-    setTimeout(()=>window.print(),80);
-    setTimeout(()=>document.body.classList.remove('pm-report-printing','pm-print-checklists'),1500);
+    // iOS Safari requires window.print() to run synchronously inside the user's tap.
+    // A setTimeout here is treated as automatic printing and may be blocked.
+    void document.body.offsetHeight;
+    window.print();
   };
   window.pdfWorkPlanReport=function(){
     if(window.pmToast)pmToast('במסך ההדפסה בחר שיתוף / שמירה כ‑PDF');
