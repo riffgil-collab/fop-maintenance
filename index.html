@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260822-v51-selective-print-fix"/>
+<meta name="fop-build" content="20260822-v52-print-snapshot-final"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -404,6 +404,30 @@ body.pm-report-printing.pm-print-checklists .pm-report-checklist-detail{display:
 .pm-report-row-select{width:19px;height:19px;cursor:pointer}
 @media print{body.pm-report-printing .pm-report-select-col{display:none!important}}
 
+/* V52 — deterministic selective print snapshot (iOS Safari safe) */
+#pmReportsPrintSnapshot{display:none}
+.pm-print-confirm-backdrop{display:none;position:fixed;z-index:32000;inset:0;background:rgba(7,23,44,.58);backdrop-filter:blur(7px);align-items:center;justify-content:center;padding:18px}
+.pm-print-confirm-backdrop.open{display:flex}
+.pm-print-confirm{width:min(460px,100%);background:#fff;border:1px solid #dfe7f1;border-radius:22px;padding:20px;box-shadow:0 28px 80px rgba(0,0,0,.28);text-align:center}
+.pm-print-confirm h3{margin:0 0 8px;color:var(--navy2);font-size:20px}
+.pm-print-confirm p{margin:0 0 15px;color:var(--muted);font-size:11px;line-height:1.55}
+.pm-print-confirm-actions{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.pm-print-confirm-actions button{border:0;border-radius:12px;padding:13px;font-weight:900}
+.pm-print-confirm-go{background:var(--navy2);color:#fff}.pm-print-confirm-cancel{background:#edf2f8;color:var(--navy2)}
+@media print{
+  body.pm-print-ready > *{display:none!important}
+  body.pm-print-ready > #pmReportsPrintSnapshot{display:block!important;position:static!important;width:100%!important;margin:0!important;padding:0!important}
+  body.pm-print-ready #pmReportsPrintSnapshot *{visibility:visible!important}
+  body.pm-print-ready #pmReportsPrintSnapshot .pm-report-sheet{display:block!important;margin:0!important;border:0!important;border-radius:0!important;padding:0!important;overflow:visible!important}
+  body.pm-print-ready #pmReportsPrintSnapshot .pm-report-table-wrap{overflow:visible!important}
+  body.pm-print-ready #pmReportsPrintSnapshot .pm-report-table{min-width:0!important;width:100%!important;font-size:8pt!important}
+  body.pm-print-ready #pmReportsPrintSnapshot .pm-report-table th,
+  body.pm-print-ready #pmReportsPrintSnapshot .pm-report-table td{padding:5px 4px!important}
+  body.pm-print-ready #pmReportsPrintSnapshot .pm-report-sheet-logos img{max-height:28px!important}
+  body.pm-print-ready #pmReportsPrintSnapshot .pm-report-checklist-detail{display:block!important}
+  body.pm-print-ready #pmReportsPrintSnapshot .pm-report-notes{min-height:35px!important}
+}
+
 /* V47 — consolidated PM checklist UI */
 .pm-checklist-toggle{margin-top:10px;border:1px solid #cfd8e5;background:#f6f8fb;color:#17375e;border-radius:9px;padding:7px 10px;font-weight:800;cursor:pointer}
 .pm-checklist-box{margin-top:9px;border:1px solid #d9e2ee;background:#fbfcfe;border-radius:12px;padding:10px 12px}
@@ -783,7 +807,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <button type="button" class="export-btn" onclick="pdfWorkPlanReport()">📄 PDF</button>
     <button type="button" class="btn" onclick="exportWorkPlanExcel()">📊 Excel</button>
     <label style="display:flex;align-items:center;gap:7px;font-weight:800;cursor:pointer">
-      <input id="pmReportsPrintChecklistDetails" type="checkbox" checked/>
+      <input id="pmReportsPrintChecklistDetails" type="checkbox" checked onchange="pmRefreshPrintSnapshot()"/>
       הדפס פירוט פעולות בטיפול מרוכז
     </label>
     <div class="pm-report-select-tools">
@@ -4117,7 +4141,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(window.pmToast)pmToast('במסך ההדפסה של iPhone בחר שיתוף / שמירה כ‑PDF');
     preparePrint();
   };
-  window.addEventListener('afterprint',()=>{document.body.classList.remove('pm-report-printing','pm-print-checklists');document.querySelectorAll('#pmReportsBody tr[data-report-key]').forEach(tr=>tr.style.display='');if(typeof window.renderReports==='function'){const boxes=[...document.querySelectorAll('#pmReportsBody .pm-report-row-select')];const selectedKeys=new Set(boxes.filter(x=>x.checked).map(x=>x.dataset.key));window.renderReports();if($('pmReportsSelectivePrint')?.checked){document.querySelectorAll('#pmReportsBody .pm-report-row-select').forEach(x=>x.checked=selectedKeys.has(x.dataset.key));window.pmUpdateSelectedCount?.();}}});
+  /* V52: legacy afterprint rerender removed; final print snapshot owns cleanup. */
   function xlsEscape(v){return clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
   window.exportWorkPlanExcel=function(){
     renderReports();
@@ -5079,12 +5103,16 @@ renderPlanner=function(){
     return `${b.label}${f?' · '+f:''} · ${count} משימות · הופק: ${new Date().toLocaleString('he-IL')}`;
   }
 
+  function reportKey(r){
+    return String(r.kind||'')+'|'+String(r.id||r.task?.id||r.description||'')+'|'+String(r.date||r.due||'');
+  }
+
   function rowHTML(r){
     const typeFreq=r.kind==='PM'?`PM · ${r.frequency||'—'}`:'WO';
     const note=r.note||'';
     const checklist=(r.kind==='PM'&&r.task)?pmChecklistItems(r.task):[];
     const checklistHtml=checklist.length?`<div class="pm-report-checklist-detail"><strong>פעולות הטיפול (${checklist.length}):</strong>${checklist.map(x=>`<span class="pm-report-check-item">☐ ${esc(x)}</span>`).join('')}</div>`:'';
-    const key=String(r.kind||'')+'|'+String(r.id||r.task?.id||r.description||'')+'|'+String(r.date||r.due||'');
+    const key=reportKey(r);
     return `<tr data-report-key="${esc(key)}">
       <td class="pm-report-select-col" style="display:none"><input type="checkbox" class="pm-report-row-select" data-key="${esc(key)}" checked onchange="pmUpdateSelectedCount()"></td>
       <td>${esc(fDate(r.date||r.due))}</td>
@@ -5120,6 +5148,7 @@ renderPlanner=function(){
     body.innerHTML=reportRowsCache.length?reportRowsCache.map(rowHTML).join(''):
       '<tr><td colspan="10" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לתקופה ולפילטרים שנבחרו.</td></tr>';
     if(typeof window.pmApplySelectivePrintUI==='function')window.pmApplySelectivePrintUI();
+    if(typeof window.pmRefreshPrintSnapshot==='function')window.pmRefreshPrintSnapshot();
 
     const st=$('pmReportsStatusLine');
     if(st){
@@ -5137,12 +5166,113 @@ renderPlanner=function(){
     const e=$(id); if(e)e.onchange=window.renderReports;
   });
 
+  function selectedRowsForPrint(){
+    const all=Array.isArray(window.pmUnifiedReportRows)?window.pmUnifiedReportRows:[];
+    const selective=!!$('pmReportsSelectivePrint')?.checked;
+    if(!selective)return all.slice();
+    const selectedKeys=new Set(
+      [...document.querySelectorAll('#pmReportsBody .pm-report-row-select')]
+        .filter(x=>x.checked)
+        .map(x=>String(x.dataset.key||''))
+    );
+    return all.filter(r=>selectedKeys.has(reportKey(r)));
+  }
+
+  function snapshotChecklistHTML(r,includeChecklist){
+    if(!includeChecklist||r.kind!=='PM'||!r.task)return '';
+    const items=pmChecklistItems(r.task);
+    if(!items.length)return '';
+    return `<div class="pm-report-checklist-detail" style="display:block"><strong>פעולות הטיפול (${items.length}):</strong>${items.map(x=>`<span class="pm-report-check-item">☐ ${esc(x)}</span>`).join('')}</div>`;
+  }
+
+  function snapshotRowHTML(r,includeChecklist){
+    const typeFreq=r.kind==='PM'?`PM · ${r.frequency||'—'}`:'WO';
+    const note=r.note||'';
+    return `<tr>
+      <td>${esc(fDate(r.date||r.due))}</td>
+      <td>${esc(r.department)}</td>
+      <td><strong>${esc(r.machine)}</strong></td>
+      <td>${esc(r.description)}${snapshotChecklistHTML(r,includeChecklist)}</td>
+      <td>${esc(typeFreq)}</td>
+      <td>${Number(r.duration||0)} דק׳</td>
+      <td>${esc(r.assignee||r.trade||'')}</td>
+      <td class="status-cell">${esc(STATUS_LABELS[r.state]||r.state)}</td>
+      <td>${note?esc(note):'________________'}</td>
+    </tr>`;
+  }
+
+  function ensurePrintSnapshot(){
+    let snap=$('pmReportsPrintSnapshot');
+    if(!snap){
+      snap=document.createElement('div');
+      snap.id='pmReportsPrintSnapshot';
+      snap.setAttribute('aria-hidden','true');
+      document.body.appendChild(snap);
+    }
+    return snap;
+  }
+
+  function ensurePrintConfirm(){
+    let modal=$('pmReportsPrintConfirm');
+    if(modal)return modal;
+    modal=document.createElement('div');
+    modal.id='pmReportsPrintConfirm';
+    modal.className='pm-print-confirm-backdrop';
+    modal.innerHTML=`<div class="pm-print-confirm" role="dialog" aria-modal="true" aria-labelledby="pmReportsPrintConfirmTitle">
+      <h3 id="pmReportsPrintConfirmTitle">הדוח מוכן להדפסה</h3>
+      <p id="pmReportsPrintConfirmText"></p>
+      <div class="pm-print-confirm-actions">
+        <button type="button" class="pm-print-confirm-cancel" onclick="pmCancelPrintPreview()">ביטול</button>
+        <button type="button" class="pm-print-confirm-go" onclick="pmDoPrintNow()">🖨️ הדפס עכשיו</button>
+      </div>
+    </div>`;
+    document.body.appendChild(modal);
+    return modal;
+  }
+
+  window.pmRefreshPrintSnapshot=function(){
+    const rows=selectedRowsForPrint();
+    const includeChecklist=$('pmReportsPrintChecklistDetails')?.checked!==false;
+    const opts=reportOptions();
+    const mins=rows.reduce((a,r)=>a+Number(r.duration||0),0);
+    const snap=ensurePrintSnapshot();
+    const leftLogo=$('pmReportLogoLeft')?.innerHTML||'';
+    const rightLogo=$('pmReportLogoRight')?.innerHTML||'';
+    snap.innerHTML=`<div class="pm-report-sheet">
+      <div class="pm-report-sheet-head">
+        <div class="pm-report-sheet-logos">
+          <div>${leftLogo}</div>
+          <div class="pm-report-sheet-title"><strong>Factory Operations Platform</strong><span>Preventive Maintenance</span></div>
+          <div>${rightLogo}</div>
+        </div>
+        <h2>תוכנית עבודה — PM + WO</h2>
+        <div class="pm-report-meta">${esc(reportMeta(opts,rows.length))}</div>
+      </div>
+      <div class="pm-report-table-wrap">
+        <table class="pm-report-table">
+          <thead><tr><th>תאריך</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>סוג / תדירות</th><th>משך</th><th>מבצע</th><th>סטטוס</th><th>הערות / חתימה</th></tr></thead>
+          <tbody>${rows.length?rows.map(r=>snapshotRowHTML(r,includeChecklist)).join(''):'<tr><td colspan="9" style="text-align:center;padding:26px">לא נבחרו טיפולים להדפסה.</td></tr>'}</tbody>
+        </table>
+      </div>
+      <div class="pm-report-footer">
+        <div><strong>סה״כ משימות:</strong> ${rows.length}</div>
+        <div><strong>סה״כ שעות מתוכננות:</strong> ${hours(mins)}</div>
+        <div><strong>הערות:</strong><div class="pm-report-notes"></div></div>
+      </div>
+    </div>`;
+    window.pmPrintSnapshotCount=rows.length;
+    window.pmPrintSnapshotMinutes=mins;
+    return rows.length;
+  };
+
   window.pmUpdateSelectedCount=function(){
     const boxes=[...document.querySelectorAll('#pmReportsBody .pm-report-row-select')];
     const selected=boxes.filter(x=>x.checked).length;
     const el=$('pmReportsSelectedCount');
     if(el)el.textContent=`נבחרו ${selected} מתוך ${boxes.length}`;
+    window.pmRefreshPrintSnapshot();
   };
+
   window.pmApplySelectivePrintUI=function(){
     const active=!!$('pmReportsSelectivePrint')?.checked;
     const head=$('pmReportsSelectHead'); if(head)head.style.display=active?'table-cell':'none';
@@ -5150,55 +5280,47 @@ renderPlanner=function(){
     ['pmReportsSelectAllBtn','pmReportsClearAllBtn','pmReportsSelectedCount'].forEach(id=>{const e=$(id);if(e)e.style.display=active?'inline-flex':'none'});
     window.pmUpdateSelectedCount();
   };
-  window.pmToggleSelectivePrint=function(){window.pmApplySelectivePrintUI()};
+
+  window.pmToggleSelectivePrint=function(){
+    window.pmApplySelectivePrintUI();
+    window.pmRefreshPrintSnapshot();
+  };
+
   window.pmSetAllReportRows=function(v){
     document.querySelectorAll('#pmReportsBody .pm-report-row-select').forEach(x=>x.checked=!!v);
     window.pmUpdateSelectedCount();
   };
 
-  window.printWorkPlanReport=function(){
-    // IMPORTANT: do not call renderReports() here. Re-rendering rebuilds the rows
-    // with every checkbox checked and therefore destroys the user's selection.
-    const selective=!!$('pmReportsSelectivePrint')?.checked;
-    const rows=[...document.querySelectorAll('#pmReportsBody tr[data-report-key]')];
-    if(!rows.length){if(window.pmToast)pmToast('אין משימות להדפסה','error');return;}
+  function openPrintConfirm(mode){
+    const count=window.pmRefreshPrintSnapshot();
+    if(!count){if(window.pmToast)pmToast('לא נבחרו טיפולים להדפסה','error');return;}
+    document.body.classList.add('pm-print-ready');
+    const modal=ensurePrintConfirm();
+    const txt=$('pmReportsPrintConfirmText');
+    if(txt)txt.textContent=mode==='pdf'
+      ? `נבחרו ${count} טיפולים. במסך ההדפסה של iPhone בחר שיתוף / שמירה כ‑PDF.`
+      : `נבחרו ${count} טיפולים. ההדפסה תכלול רק את הטיפולים המסומנים.`;
+    modal.classList.add('open');
+  }
 
-    // Start from the current on-screen selection exactly as the user left it.
-    rows.forEach(tr=>tr.style.display='');
-    const chosen=selective
-      ? rows.filter(tr=>tr.querySelector('.pm-report-row-select')?.checked)
-      : rows;
-    if(!chosen.length){if(window.pmToast)pmToast('לא נבחרו טיפולים להדפסה','error');return;}
-    if(selective){
-      const chosenSet=new Set(chosen);
-      rows.forEach(tr=>{if(!chosenSet.has(tr))tr.style.display='none'});
-    }
+  window.pmCancelPrintPreview=function(){
+    $('pmReportsPrintConfirm')?.classList.remove('open');
+    document.body.classList.remove('pm-print-ready');
+  };
 
-    // Make the print summary reflect only the selected rows.
-    const chosenKeys=new Set(chosen.map(tr=>tr.dataset.reportKey));
-    const chosenData=(window.pmUnifiedReportRows||[]).filter(r=>{
-      const key=String(r.kind||'')+'|'+String(r.id||r.task?.id||r.description||'')+'|'+String(r.date||r.due||'');
-      return chosenKeys.has(key);
-    });
-    const mins=chosenData.reduce((a,r)=>a+Number(r.duration||0),0);
-    const opts=reportOptions();
-    if($('pmReportsCount'))$('pmReportsCount').textContent=chosen.length;
-    if($('pmReportsHours'))$('pmReportsHours').textContent=hours(mins)+' שעות';
-    if($('pmReportsFooterCount'))$('pmReportsFooterCount').textContent=chosen.length;
-    if($('pmReportsFooterHours'))$('pmReportsFooterHours').textContent=hours(mins);
-    if($('pmReportsMeta'))$('pmReportsMeta').textContent=reportMeta(opts,chosen.length);
-
-    const includeChecklist=$('pmReportsPrintChecklistDetails')?.checked!==false;
-    document.body.classList.toggle('pm-print-checklists',includeChecklist);
-    document.body.classList.add('pm-report-printing');
-    // Keep print() directly inside the user's tap for iOS Safari.
-    void document.body.offsetHeight;
+  window.pmDoPrintNow=function(){
+    // Deliberately ONLY print here. This function is invoked by a fresh user tap,
+    // avoiding iOS Safari's automatic-print blocker.
     window.print();
   };
-  window.pdfWorkPlanReport=function(){
-    if(window.pmToast)pmToast('במסך ההדפסה בחר שיתוף / שמירה כ‑PDF');
-    window.printWorkPlanReport();
-  };
+
+  window.printWorkPlanReport=function(){openPrintConfirm('print')};
+  window.pdfWorkPlanReport=function(){openPrintConfirm('pdf')};
+
+  window.addEventListener('afterprint',()=>{
+    $('pmReportsPrintConfirm')?.classList.remove('open');
+    document.body.classList.remove('pm-print-ready','pm-report-printing','pm-print-checklists');
+  });
 
   function xlsEsc(v){return String(v==null?'':v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
   window.exportWorkPlanExcel=function(){
