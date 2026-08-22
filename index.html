@@ -4899,10 +4899,44 @@ renderPlanner=function(){
       });
   }
 
+  // V54 — Dashboard/report period counts use one row per PM master task.
+  // The recurrence engine is still retained for planning, but KPI "open" must not
+  // multiply weekly/monthly tasks by every future occurrence in the selected period.
+  function uniquePMRowsForPeriod(opts={}){
+    const {period='week',anchor=today(),department='',machine='',trade='',status='open'}=opts;
+    const {start,end}=periodBounds(period,anchor);
+    const source=(Array.isArray(window.cloudDashboardTasks)&&window.cloudDashboardTasks.length)
+      ? window.cloudDashboardTasks
+      : (Array.isArray(window.tasks)?window.tasks:[]);
+    return source
+      .filter(t=>t&&t.active!==false&&isMaintenanceTask(t))
+      .filter(t=>!department||t.department===department)
+      .filter(t=>!machine||t.machine===machine)
+      .filter(t=>tradeMatches(maintenanceTrade(t),trade))
+      .map(t=>{
+        const due=String(t.nextDue||maintenancePlanningAnchor(t)||'');
+        const item={t,due,plan:due?wpLatestForOccurrence(t.id,due):null,backlog:!!due&&due<anchor};
+        const state=pmState(item,anchor);
+        return {
+          kind:'PM',key:`PM:${t.id}:${due}`,item,task:t,plan:item.plan||null,state,due,date:due,
+          department:t.department||'',machine:t.machine||'',trade:maintenanceTrade(t),
+          description:t.task||'',frequency:t.frequency||'',duration:Number(t.duration||0),
+          assignee:item.plan?.assignedTo||t.performer||'',priority:item.plan?.priority||'',
+          note:item.plan?.postponedReason||''
+        };
+      })
+      .filter(r=>{
+        if(!r.due)return false;
+        const belongs = stateMatches(r.state,'open') ? r.due<=end : (r.due>=start&&r.due<=end);
+        return belongs&&stateMatches(r.state,status);
+      });
+  }
+
   function getWork(opts={}){
     const wt=opts.workType||'';
+    const useUniquePM=!!opts.uniquePM;
     const rows=[
-      ...(wt==='WO'?[]:getPM(opts)),
+      ...(wt==='WO'?[]:(useUniquePM?uniquePMRowsForPeriod(opts):getPM(opts))),
       ...(wt==='PM'?[]:getWO(opts))
     ];
     return rows.sort((a,b)=>
@@ -4927,6 +4961,9 @@ renderPlanner=function(){
       workType:$('pmDashboardWorkType')?.value||'',
       status:'open'
     };
+    // V54: Dashboard KPIs count each PM master task once by its current next_due.
+    // Planning screens may still expand recurrences when creating an execution plan.
+    filters.uniquePM=true;
     const rows=getWork(filters);
     const {start,end}=periodBounds(period,anchor);
     const overdue=rows.filter(r=>r.state==='overdue');
@@ -5297,7 +5334,7 @@ renderPlanner=function(){
   };
 
   // Kept only for backward compatibility; no UI path uses the old confirmation modal.
-  window.pmDoPrintNow=function(){window.print()};
+  window.pmDoPrintNow=function(){return false;};
 
   window.printWorkPlanReport=function(){printSelectedReport('print')};
   window.pdfWorkPlanReport=function(){printSelectedReport('pdf')};
@@ -5468,7 +5505,8 @@ renderPlanner=function(){
   window.renderDashboard=renderDashboard=function(){
     const r=prev();
     try{
-      const rows=window.fopUnifiedWorkSource.getWork(opts());
+      const dashboardOpts=opts(); dashboardOpts.uniquePM=true;
+      const rows=window.fopUnifiedWorkSource.getWork(dashboardOpts);
       if($('pmV31Planned'))$('pmV31Planned').textContent=rows.length;
     }catch(e){console.warn('V31 planned KPI',e)}
     return r;
