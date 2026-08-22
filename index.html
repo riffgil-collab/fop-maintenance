@@ -6303,8 +6303,8 @@ async function saveHistoryEdit(){
 </style>
 
 
-<script id="fop-v73-final-single-source">
-/* V73 FINAL — one source of truth for PM workload, Dashboard and Reports.
+<script id="fop-v74-final-single-source">
+/* V74 FINAL — one source of truth for PM workload, Dashboard and Reports.
    Business rule:
    1. PM = active maintenance-technician task_type=maintenance only.
    2. Horizons are rolling from the selected anchor: 7 days / 1 / 6 / 12 months.
@@ -6396,7 +6396,13 @@ async function saveHistoryEdit(){
          planned=getWork({...o,status:'planned'}),done=getWork({...o,status:'completed'}),cancel=getWork({...o,status:'cancelled'});
    const pm=open.filter(r=>r.kind==='PM'),wo=open.filter(r=>r.kind==='WO');
    set('pmV17Open',open.length);set('pmV31Planned',planned.length);set('pmV17Overdue',over.length);
-   set('pmV17Week',getWork({...o,status:'open',period:'week'}).length);set('pmV17WO',wo.length);
+   const weekBounds=bounds('week',o.anchor);
+   const weekUpcoming=getWork({...o,status:'open',period:'week'}).filter(r=>{
+     if(r.kind!=='PM') return true;
+     const masterDue=String(r.task?.nextDue||r.task?.next_due||'').slice(0,10);
+     return masterDue>=weekBounds.start && masterDue<=weekBounds.end;
+   });
+   set('pmV17Week',weekUpcoming.length);set('pmV17WO',wo.length);
    set('pmV3Waiting',pm.length);set('pmV3Planned',planned.filter(r=>r.kind==='PM').length);set('pmV3Completed',done.filter(r=>r.kind==='PM').length);
    set('pmV3Cancelled',cancel.filter(r=>r.kind==='PM').length);set('pmV3Overdue',over.filter(r=>r.kind==='PM').length);
    set('pmV3BacklogTotal',pm.length);
