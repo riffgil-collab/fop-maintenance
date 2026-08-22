@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260822-v50-selective-print"/>
+<meta name="fop-build" content="20260822-v51-selective-print-fix"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -4117,7 +4117,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(window.pmToast)pmToast('במסך ההדפסה של iPhone בחר שיתוף / שמירה כ‑PDF');
     preparePrint();
   };
-  window.addEventListener('afterprint',()=>{document.body.classList.remove('pm-report-printing','pm-print-checklists');document.querySelectorAll('#pmReportsBody tr[data-report-key]').forEach(tr=>tr.style.display='');});
+  window.addEventListener('afterprint',()=>{document.body.classList.remove('pm-report-printing','pm-print-checklists');document.querySelectorAll('#pmReportsBody tr[data-report-key]').forEach(tr=>tr.style.display='');if(typeof window.renderReports==='function'){const boxes=[...document.querySelectorAll('#pmReportsBody .pm-report-row-select')];const selectedKeys=new Set(boxes.filter(x=>x.checked).map(x=>x.dataset.key));window.renderReports();if($('pmReportsSelectivePrint')?.checked){document.querySelectorAll('#pmReportsBody .pm-report-row-select').forEach(x=>x.checked=selectedKeys.has(x.dataset.key));window.pmUpdateSelectedCount?.();}}});
   function xlsEscape(v){return clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
   window.exportWorkPlanExcel=function(){
     renderReports();
@@ -5157,20 +5157,41 @@ renderPlanner=function(){
   };
 
   window.printWorkPlanReport=function(){
-    window.renderReports();
+    // IMPORTANT: do not call renderReports() here. Re-rendering rebuilds the rows
+    // with every checkbox checked and therefore destroys the user's selection.
     const selective=!!$('pmReportsSelectivePrint')?.checked;
     const rows=[...document.querySelectorAll('#pmReportsBody tr[data-report-key]')];
+    if(!rows.length){if(window.pmToast)pmToast('אין משימות להדפסה','error');return;}
+
+    // Start from the current on-screen selection exactly as the user left it.
     rows.forEach(tr=>tr.style.display='');
+    const chosen=selective
+      ? rows.filter(tr=>tr.querySelector('.pm-report-row-select')?.checked)
+      : rows;
+    if(!chosen.length){if(window.pmToast)pmToast('לא נבחרו טיפולים להדפסה','error');return;}
     if(selective){
-      const chosen=rows.filter(tr=>tr.querySelector('.pm-report-row-select')?.checked);
-      if(!chosen.length){if(window.pmToast)pmToast('לא נבחרו טיפולים להדפסה','error');return;}
-      rows.forEach(tr=>{if(!tr.querySelector('.pm-report-row-select')?.checked)tr.style.display='none'});
+      const chosenSet=new Set(chosen);
+      rows.forEach(tr=>{if(!chosenSet.has(tr))tr.style.display='none'});
     }
+
+    // Make the print summary reflect only the selected rows.
+    const chosenKeys=new Set(chosen.map(tr=>tr.dataset.reportKey));
+    const chosenData=(window.pmUnifiedReportRows||[]).filter(r=>{
+      const key=String(r.kind||'')+'|'+String(r.id||r.task?.id||r.description||'')+'|'+String(r.date||r.due||'');
+      return chosenKeys.has(key);
+    });
+    const mins=chosenData.reduce((a,r)=>a+Number(r.duration||0),0);
+    const opts=reportOptions();
+    if($('pmReportsCount'))$('pmReportsCount').textContent=chosen.length;
+    if($('pmReportsHours'))$('pmReportsHours').textContent=hours(mins)+' שעות';
+    if($('pmReportsFooterCount'))$('pmReportsFooterCount').textContent=chosen.length;
+    if($('pmReportsFooterHours'))$('pmReportsFooterHours').textContent=hours(mins);
+    if($('pmReportsMeta'))$('pmReportsMeta').textContent=reportMeta(opts,chosen.length);
+
     const includeChecklist=$('pmReportsPrintChecklistDetails')?.checked!==false;
     document.body.classList.toggle('pm-print-checklists',includeChecklist);
     document.body.classList.add('pm-report-printing');
-    // iOS Safari requires window.print() to run synchronously inside the user's tap.
-    // A setTimeout here is treated as automatic printing and may be blocked.
+    // Keep print() directly inside the user's tap for iOS Safari.
     void document.body.offsetHeight;
     window.print();
   };
