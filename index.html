@@ -1309,8 +1309,12 @@ async function loadCloudData(){
     tasks=allTaskRows.map(normalize);
     // V46 integrity guard: active master data must match the three-category business model.
     const classificationIssues=tasks.filter(t=>t.active!==false).filter(t=>{
-      if(isOperatorPerformer(t.performer))return taskTypeValue(t)!=='inspection'||!!t.trade;
-      if(isMaintenancePerformer(t.performer))return !['inspection','maintenance'].includes(taskTypeValue(t))||!['מכונאי','חשמלאי'].includes(String(t.trade||''));
+      const type=taskTypeValue(t);
+      if(!['inspection','maintenance'].includes(type))return true;
+      if(type==='inspection'&&isOperatorPerformer(t.performer))return !!t.trade;
+      if(type==='inspection'&&isMaintenancePerformer(t.performer))return !['מכונאי','חשמלאי'].includes(String(t.trade||''));
+      if(type==='maintenance'&&isMaintenancePerformer(t.performer))return !['מכונאי','חשמלאי'].includes(String(t.trade||''));
+      if(type==='maintenance'&&isOperatorPerformer(t.performer))return !!t.trade;
       return true;
     });
     if(classificationIssues.length)console.warn(`V46 classification integrity: ${classificationIssues.length} active task(s) need task_type/trade correction.`,classificationIssues.slice(0,20));
@@ -1364,10 +1368,13 @@ function validateTaskDefinition(t){const e=[];if(!String(t?.department||'').trim
 function taskDbPayload(t){
   const definitionErrors=validateTaskDefinition(t);if(definitionErrors.length)throw new Error('הגדרת טיפול לא תקינה: '+definitionErrors.join(', '));
   const performer=t.performer||null;
-  // V46: task_type + trade in pm_tasks are the authoritative business classification.
-  // Operator work is ALWAYS an operator inspection and never carries a maintenance trade.
+  // V56: operator performer always means Operator Check, never PM.
   const rawType=String(t.taskType??t.task_type??'').trim().toLowerCase();
-  const taskType=performer==='מפעיל'?'inspection':(['inspection','maintenance'].includes(rawType)?rawType:(typeof isMaintenanceInspection==='function'&&isMaintenanceInspection(t)?'inspection':'maintenance'));
+  const taskType=performer==='מפעיל'
+    ? 'inspection'
+    : (['inspection','maintenance'].includes(rawType)
+        ? rawType
+        : (typeof isMaintenanceInspection==='function'&&isMaintenanceInspection(t)?'inspection':'maintenance'));
   let trade=performer==='מפעיל'?null:String(t.trade||'').trim();
   if(performer==='טכנאי אחזקה'&&!['מכונאי','חשמלאי'].includes(trade)){
     const fallback=typeof maintenanceTrade==='function'?maintenanceTrade(t):'';
@@ -1855,7 +1862,11 @@ function renderPlanner(){
 function performerText(v){return String(v||'').trim();}
 function isOperatorPerformer(v){return performerText(v)==='מפעיל';}
 function isMaintenancePerformer(v){return performerText(v)==='טכנאי אחזקה';}
-function isOperatorTask(t){return !!t&&t.active!==false&&isOperatorPerformer(t.performer);}
+// V56 business rule: performer='מפעיל' ALWAYS belongs to Operator Checks.
+// Operator work is NEVER part of PM, regardless of task_type or wording.
+function isOperatorTask(t){
+  return !!t&&t.active!==false&&isOperatorPerformer(t.performer);
+}
 
 // V5 classification: only clear inspections are removed from cyclic PM management.
 // Any ambiguous maintenance task defaults to PHYSICAL, per management decision.
@@ -1866,14 +1877,15 @@ const PM_MECHANICAL_TERMS=['מיסב','שרשרת','גיר','ממסרה','היד
 function pmHasTerm(text,terms){const x=String(text||'').toLowerCase();return terms.some(k=>x.includes(String(k).toLowerCase()));}
 function taskTypeValue(t){return String(t?.taskType??t?.task_type??'').trim().toLowerCase();}
 function isMaintenanceInspection(t){
-  if(!t||t.active===false||!isMaintenancePerformer(t.performer))return false;
+  if(!t||t.active===false)return false;
   const type=taskTypeValue(t);
-  if(type)return type==='inspection';
+  if(type)return type==='inspection'&&isMaintenancePerformer(t.performer);
+  if(!isMaintenancePerformer(t.performer))return false;
   // Legacy fallback only for old rows that predate task_type.
   const x=t.task||'';return !pmHasTerm(x,PM_PHYSICAL_TERMS)&&pmHasTerm(x,PM_INSPECTION_TERMS);
 }
 function isMaintenanceTask(t){
-  if(!t||t.active===false||!isMaintenancePerformer(t.performer))return false;
+  if(!t||t.active===false||isOperatorPerformer(t.performer)||!isMaintenancePerformer(t.performer))return false;
   const type=taskTypeValue(t);
   if(type)return type==='maintenance';
   return !isMaintenanceInspection(t);
@@ -1935,7 +1947,7 @@ function printOperatorChecklist(){
   const frequency=document.getElementById('pmOperatorFrequency')?.value||'כל התדירויות';
   const rows=items.map((t,i)=>`<tr><td>${i+1}</td><td>${esc(t.department)}</td><td>${esc(t.machine)}</td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${Number(t.duration||0)} דק׳</td><td style="width:55px">☐</td></tr>`).join('');
   const w=window.open('','_blank');
-  w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>Checklist מפעיל</title><style>body{font-family:Arial,sans-serif;padding:24px}h1{font-size:22px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:7px;text-align:right;font-size:12px}.meta{margin:10px 0 18px}.sign{margin-top:24px;display:flex;justify-content:space-between}</style></head><body><h1>Checklist בדיקות מפעיל</h1><div class="meta">תאריך: __________ · מחלקה: ${esc(dep)} · מכונה: ${esc(machine)} · תדירות: ${esc(frequency)}</div><table><thead><tr><th>#</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>תדירות</th><th>משך</th><th>בוצע</th></tr></thead><tbody>${rows}</tbody></table><div class="sign"><span>שם מפעיל: __________________</span><span>חתימה: __________________</span></div><script>window.onload=()=>window.print();<\/script></body></html>`);
+  w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>Checklist מפעיל</title><style>body{font-family:Arial,sans-serif;padding:24px}h1{font-size:22px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:7px;text-align:right;font-size:12px}.meta{margin:10px 0 18px}.sign{margin-top:24px;display:flex;justify-content:space-between}</style></head><body><div style="background:#10284c;color:#fff;padding:10px;border-radius:8px;margin-bottom:12px;text-align:center;font-weight:700">להדפסה: פתח את תפריט הדפדפן / שיתוף ובחר הדפסה.</div><h1>Checklist בדיקות מפעיל</h1><div class="meta">תאריך: __________ · מחלקה: ${esc(dep)} · מכונה: ${esc(machine)} · תדירות: ${esc(frequency)}</div><table><thead><tr><th>#</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>תדירות</th><th>משך</th><th>בוצע</th></tr></thead><tbody>${rows}</tbody></table><div class="sign"><span>שם מפעיל: __________________</span><span>חתימה: __________________</span></div></body></html>`);
   w.document.close();
 }
 function fillMaintenanceCheckFilters(){
@@ -1947,7 +1959,7 @@ function fillMaintenanceCheckFilters(){
 function fillMaintenanceCheckMachines(){const sel=document.getElementById('pmMaintenanceCheckMachine');if(!sel)return;const dep=document.getElementById('pmMaintenanceCheckDepartment')?.value||'';const old=sel.value;const vals=[...new Set(maintenanceInspectionTasks().filter(t=>!dep||t.department===dep).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));sel.innerHTML='<option value="">כל המכונות</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(vals.includes(old))sel.value=old;}
 function maintenanceChecklistItems(){const dep=document.getElementById('pmMaintenanceCheckDepartment')?.value||'',machine=document.getElementById('pmMaintenanceCheckMachine')?.value||'',frequency=document.getElementById('pmMaintenanceCheckFrequency')?.value||'',trade=document.getElementById('pmMaintenanceCheckTrade')?.value||'';return maintenanceInspectionTasks().filter(t=>(!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!frequency||t.frequency===frequency)&&(!trade||maintenanceTrade(t)===trade)).sort((a,b)=>String(a.department).localeCompare(String(b.department),'he')||String(a.machine).localeCompare(String(b.machine),'he')||String(a.frequency).localeCompare(String(b.frequency),'he')||String(a.task).localeCompare(String(b.task),'he'));}
 function renderMaintenanceChecks(){const box=document.getElementById('pmMaintenanceChecksList');if(!box)return;const items=maintenanceChecklistItems();const c=document.getElementById('pmMaintenanceCheckCount');if(c)c.textContent=`${maintenanceInspectionTasks().length} בדיקות אחזקה במאגר · ${items.length} מוצגות לפי הסינון`;box.innerHTML=items.length?items.map(t=>`<div class="task-card"><div><div class="task-machine">${esc(t.machine)}</div><div class="task-desc">${esc(t.task)}</div><div class="task-meta">${esc(t.department)} · ${esc(t.frequency)} · ${Number(t.duration||0)} דק׳ · ${maintenanceTrade(t)}</div></div><span class="status">☐</span></div>`).join(''):'<div class="empty">אין בדיקות אחזקה לפי הסינון שנבחר.</div>';}
-function printMaintenanceChecklist(){const items=maintenanceChecklistItems();if(!items.length){alert('אין בדיקות להדפסה לפי הסינון שנבחר.');return;}const dep=document.getElementById('pmMaintenanceCheckDepartment')?.value||'כל המחלקות',machine=document.getElementById('pmMaintenanceCheckMachine')?.value||'כל המכונות',frequency=document.getElementById('pmMaintenanceCheckFrequency')?.value||'כל התדירויות',trade=document.getElementById('pmMaintenanceCheckTrade')?.value||'כל המקצועות';const rows=items.map((t,i)=>`<tr><td>${i+1}</td><td>${esc(t.department)}</td><td>${esc(t.machine)}</td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${maintenanceTrade(t)}</td><td style="width:55px">☐</td></tr>`).join('');const w=window.open('','_blank');w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>Checklist אחזקה</title><style>body{font-family:Arial,sans-serif;padding:24px}h1{font-size:22px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:7px;text-align:right;font-size:12px}.meta{margin:10px 0 18px}.sign{margin-top:24px;display:flex;justify-content:space-between}</style></head><body><h1>Checklist בדיקות אחזקה</h1><div class="meta">תאריך: __________ · מחלקה: ${esc(dep)} · מכונה: ${esc(machine)} · תדירות: ${esc(frequency)} · מקצוע: ${esc(trade)}</div><table><thead><tr><th>#</th><th>מחלקה</th><th>מכונה</th><th>בדיקה</th><th>תדירות</th><th>מקצוע</th><th>בוצע</th></tr></thead><tbody>${rows}</tbody></table><div class="sign"><span>שם איש אחזקה: __________________</span><span>חתימה: __________________</span><span>אישור מנהל: __________________</span></div><script>window.onload=()=>window.print();<\/script></body></html>`);w.document.close();}
+function printMaintenanceChecklist(){const items=maintenanceChecklistItems();if(!items.length){alert('אין בדיקות להדפסה לפי הסינון שנבחר.');return;}const dep=document.getElementById('pmMaintenanceCheckDepartment')?.value||'כל המחלקות',machine=document.getElementById('pmMaintenanceCheckMachine')?.value||'כל המכונות',frequency=document.getElementById('pmMaintenanceCheckFrequency')?.value||'כל התדירויות',trade=document.getElementById('pmMaintenanceCheckTrade')?.value||'כל המקצועות';const rows=items.map((t,i)=>`<tr><td>${i+1}</td><td>${esc(t.department)}</td><td>${esc(t.machine)}</td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${maintenanceTrade(t)}</td><td style="width:55px">☐</td></tr>`).join('');const w=window.open('','_blank');w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><title>Checklist אחזקה</title><style>body{font-family:Arial,sans-serif;padding:24px}h1{font-size:22px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #999;padding:7px;text-align:right;font-size:12px}.meta{margin:10px 0 18px}.sign{margin-top:24px;display:flex;justify-content:space-between}</style></head><body><div style="background:#10284c;color:#fff;padding:10px;border-radius:8px;margin-bottom:12px;text-align:center;font-weight:700">להדפסה: פתח את תפריט הדפדפן / שיתוף ובחר הדפסה.</div><h1>Checklist בדיקות אחזקה</h1><div class="meta">תאריך: __________ · מחלקה: ${esc(dep)} · מכונה: ${esc(machine)} · תדירות: ${esc(frequency)} · מקצוע: ${esc(trade)}</div><table><thead><tr><th>#</th><th>מחלקה</th><th>מכונה</th><th>בדיקה</th><th>תדירות</th><th>מקצוע</th><th>בוצע</th></tr></thead><tbody>${rows}</tbody></table><div class="sign"><span>שם איש אחזקה: __________________</span><span>חתימה: __________________</span><span>אישור מנהל: __________________</span></div></body></html>`);w.document.close();}
 
 function normalize(t){
   return {
@@ -4905,9 +4917,11 @@ renderPlanner=function(){
   function uniquePMRowsForPeriod(opts={}){
     const {period='week',anchor=today(),department='',machine='',trade='',status='open'}=opts;
     const {start,end}=periodBounds(period,anchor);
-    const source=(Array.isArray(window.cloudDashboardTasks)&&window.cloudDashboardTasks.length)
-      ? window.cloudDashboardTasks
-      : (Array.isArray(window.tasks)?window.tasks:[]);
+    // V55 audit fix: cloudDashboardTasks/tasks are top-level lexical bindings,
+    // not window properties. Reading window.* here produced an empty source and 0 KPIs.
+    const source=(typeof cloudDashboardTasks!=='undefined'&&Array.isArray(cloudDashboardTasks)&&cloudDashboardTasks.length)
+      ? cloudDashboardTasks
+      : ((typeof tasks!=='undefined'&&Array.isArray(tasks))?tasks:[]);
     return source
       .filter(t=>t&&t.active!==false&&isMaintenanceTask(t))
       .filter(t=>!department||t.department===department)
@@ -5250,7 +5264,7 @@ renderPlanner=function(){
       <p id="pmReportsPrintConfirmText"></p>
       <div class="pm-print-confirm-actions">
         <button type="button" class="pm-print-confirm-cancel" onclick="pmCancelPrintPreview()">ביטול</button>
-        <button type="button" class="pm-print-confirm-go" onclick="pmDoPrintNow()">🖨️ הדפס עכשיו</button>
+        <button type="button" class="pm-print-confirm-go" onclick="pmCancelPrintPreview()">סגור</button>
       </div>
     </div>`;
     document.body.appendChild(modal);
@@ -5319,13 +5333,28 @@ renderPlanner=function(){
   };
 
   function printSelectedReport(mode){
-    // IMPORTANT: keep this entire path synchronous from the user's original tap.
-    // No timeout, modal callback, Promise or re-render is allowed before print().
     const count=window.pmRefreshPrintSnapshot();
     if(!count){if(window.pmToast)pmToast('לא נבחרו טיפולים להדפסה','error');return;}
-    document.body.classList.add('pm-print-ready');
-    if(mode==='pdf' && window.pmToast)pmToast('במסך ההדפסה של iPhone בחר שיתוף / שמירה כ‑PDF');
-    window.print();
+    const snap=ensurePrintSnapshot();
+    const w=window.open('','_blank');
+    if(!w){if(window.pmToast)pmToast('הדפדפן חסם את פתיחת תצוגת ההדפסה. אפשר חלונות קופצים ונסה שוב.','error');return;}
+    const help=mode==='pdf'
+      ? 'לשמירה כ‑PDF: פתח את תפריט הדפדפן / שיתוף ובחר הדפסה או שמירה כ‑PDF.'
+      : 'להדפסה: פתח את תפריט הדפדפן / שיתוף ובחר הדפסה.';
+    w.document.open();
+    w.document.write(`<!doctype html><html dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>תוכנית אחזקה</title>
+      <style>
+        body{font-family:Arial,sans-serif;margin:0;padding:18px;color:#10284c;background:#fff}
+        .manual-print-help{position:sticky;top:0;z-index:10;background:#10284c;color:#fff;padding:12px 14px;border-radius:12px;margin-bottom:16px;font-weight:700;text-align:center}
+        .pm-report-sheet{width:100%;background:#fff}.pm-report-sheet-logos{display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;gap:12px;text-align:center}
+        .pm-report-sheet-logos img{max-height:42px;max-width:100%}.pm-report-sheet-title strong{display:block;font-size:20px}.pm-report-sheet-title span{display:block;font-size:12px}
+        h2{text-align:center;margin:14px 0 6px}.pm-report-meta{text-align:center;font-size:12px;margin-bottom:12px}
+        table{width:100%;border-collapse:collapse;font-size:10px}th,td{border:1px solid #cfd8e5;padding:6px 5px;vertical-align:top;text-align:right}
+        th{background:#eef3f8}.pm-report-check-item{display:block;margin-top:3px}.pm-report-footer{margin-top:12px;font-size:11px;display:grid;gap:6px}
+        .pm-report-notes{min-height:35px;border-bottom:1px solid #aaa}
+        @media print{.manual-print-help{display:none!important}body{padding:0}.pm-report-sheet-logos img{max-height:28px}table{font-size:8pt}th,td{padding:5px 4px}}
+      </style></head><body><div class="manual-print-help">${esc(help)}</div>${snap.innerHTML}</body></html>`);
+    w.document.close();
   }
 
   window.pmCancelPrintPreview=function(){
@@ -5334,7 +5363,7 @@ renderPlanner=function(){
   };
 
   // Kept only for backward compatibility; no UI path uses the old confirmation modal.
-  window.pmDoPrintNow=function(){return false;};
+  window.pmDoPrintNow=function(){window.pmCancelPrintPreview();return false;};
 
   window.printWorkPlanReport=function(){printSelectedReport('print')};
   window.pdfWorkPlanReport=function(){printSelectedReport('pdf')};
@@ -5536,11 +5565,11 @@ renderPlanner=function(){
  const systemMeta=n=>systemMetaTokens(n).join('\n').trim();
  const taggedNotes=(visible,existing='')=>[String(visible||'').trim(),systemMeta(existing)].filter(Boolean).join('\n');
  const inferredKind=t=>{
-   // Business rule: performer wins for operator tasks; task_type wins for maintenance technician tasks.
-   if(isOperatorPerformer(t?.performer))return 'operator';
+   // V56: operator performer always wins and can never be classified as physical PM.
    const type=String(t?.taskType??t?.task_type??'').trim().toLowerCase();
-   if(type==='inspection')return 'inspection';
+   if(isOperatorPerformer(t?.performer))return 'operator';
    if(type==='maintenance')return 'physical';
+   if(type==='inspection')return 'inspection';
    return tagKind(t)||(typeof isMaintenanceInspection==='function'&&isMaintenanceInspection(t)?'inspection':'physical');
  };
  window.tmTaskKind=inferredKind;
