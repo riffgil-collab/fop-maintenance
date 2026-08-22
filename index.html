@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260822-v49-ios-print-fix"/>
+<meta name="fop-build" content="20260822-v50-selective-print"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -396,6 +396,14 @@ body.pm-report-printing.pm-print-checklists .pm-report-checklist-detail{display:
   body.pm-report-printing .pm-report-notes{min-height:35px!important}
 }
 
+/* V50 — selective report printing */
+.pm-report-select-tools{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:8px;width:100%}
+.pm-report-select-tools .btn{padding:7px 11px}
+.pm-report-select-count{font-weight:800;color:#52647c}
+.pm-report-select-col{width:42px;text-align:center!important}
+.pm-report-row-select{width:19px;height:19px;cursor:pointer}
+@media print{body.pm-report-printing .pm-report-select-col{display:none!important}}
+
 /* V47 — consolidated PM checklist UI */
 .pm-checklist-toggle{margin-top:10px;border:1px solid #cfd8e5;background:#f6f8fb;color:#17375e;border-radius:9px;padding:7px 10px;font-weight:800;cursor:pointer}
 .pm-checklist-box{margin-top:9px;border:1px solid #d9e2ee;background:#fbfcfe;border-radius:12px;padding:10px 12px}
@@ -778,6 +786,15 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
       <input id="pmReportsPrintChecklistDetails" type="checkbox" checked/>
       הדפס פירוט פעולות בטיפול מרוכז
     </label>
+    <div class="pm-report-select-tools">
+      <label style="display:flex;align-items:center;gap:7px;font-weight:800;cursor:pointer">
+        <input id="pmReportsSelectivePrint" type="checkbox" onchange="pmToggleSelectivePrint()"/>
+        בחירת טיפולים להדפסה
+      </label>
+      <button type="button" class="btn" id="pmReportsSelectAllBtn" onclick="pmSetAllReportRows(true)" style="display:none">סמן הכל</button>
+      <button type="button" class="btn" id="pmReportsClearAllBtn" onclick="pmSetAllReportRows(false)" style="display:none">בטל הכל</button>
+      <span id="pmReportsSelectedCount" class="pm-report-select-count" style="display:none"></span>
+    </div>
   </div>
 
   <div id="pmReportsStatusLine" class="status-line"></div>
@@ -798,6 +815,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="pm-report-table-wrap">
       <table class="pm-report-table">
         <thead><tr>
+          <th class="pm-report-select-col" id="pmReportsSelectHead" style="display:none">בחר</th>
           <th>תאריך</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>סוג / תדירות</th><th>משך</th><th>מבצע</th><th>סטטוס</th><th>הערות / חתימה</th>
         </tr></thead>
         <tbody id="pmReportsBody"></tbody>
@@ -4099,7 +4117,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(window.pmToast)pmToast('במסך ההדפסה של iPhone בחר שיתוף / שמירה כ‑PDF');
     preparePrint();
   };
-  window.addEventListener('afterprint',()=>document.body.classList.remove('pm-report-printing','pm-print-checklists'));
+  window.addEventListener('afterprint',()=>{document.body.classList.remove('pm-report-printing','pm-print-checklists');document.querySelectorAll('#pmReportsBody tr[data-report-key]').forEach(tr=>tr.style.display='');});
   function xlsEscape(v){return clean(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
   window.exportWorkPlanExcel=function(){
     renderReports();
@@ -5066,7 +5084,9 @@ renderPlanner=function(){
     const note=r.note||'';
     const checklist=(r.kind==='PM'&&r.task)?pmChecklistItems(r.task):[];
     const checklistHtml=checklist.length?`<div class="pm-report-checklist-detail"><strong>פעולות הטיפול (${checklist.length}):</strong>${checklist.map(x=>`<span class="pm-report-check-item">☐ ${esc(x)}</span>`).join('')}</div>`:'';
-    return `<tr>
+    const key=String(r.kind||'')+'|'+String(r.id||r.task?.id||r.description||'')+'|'+String(r.date||r.due||'');
+    return `<tr data-report-key="${esc(key)}">
+      <td class="pm-report-select-col" style="display:none"><input type="checkbox" class="pm-report-row-select" data-key="${esc(key)}" checked onchange="pmUpdateSelectedCount()"></td>
       <td>${esc(fDate(r.date||r.due))}</td>
       <td>${esc(r.department)}</td>
       <td><strong>${esc(r.machine)}</strong></td>
@@ -5098,7 +5118,8 @@ renderPlanner=function(){
     $('pmReportsMeta').textContent=reportMeta(opts,reportRowsCache.length);
 
     body.innerHTML=reportRowsCache.length?reportRowsCache.map(rowHTML).join(''):
-      '<tr><td colspan="9" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לתקופה ולפילטרים שנבחרו.</td></tr>';
+      '<tr><td colspan="10" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לתקופה ולפילטרים שנבחרו.</td></tr>';
+    if(typeof window.pmApplySelectivePrintUI==='function')window.pmApplySelectivePrintUI();
 
     const st=$('pmReportsStatusLine');
     if(st){
@@ -5116,8 +5137,35 @@ renderPlanner=function(){
     const e=$(id); if(e)e.onchange=window.renderReports;
   });
 
+  window.pmUpdateSelectedCount=function(){
+    const boxes=[...document.querySelectorAll('#pmReportsBody .pm-report-row-select')];
+    const selected=boxes.filter(x=>x.checked).length;
+    const el=$('pmReportsSelectedCount');
+    if(el)el.textContent=`נבחרו ${selected} מתוך ${boxes.length}`;
+  };
+  window.pmApplySelectivePrintUI=function(){
+    const active=!!$('pmReportsSelectivePrint')?.checked;
+    const head=$('pmReportsSelectHead'); if(head)head.style.display=active?'table-cell':'none';
+    document.querySelectorAll('#pmReportsBody .pm-report-select-col').forEach(e=>e.style.display=active?'table-cell':'none');
+    ['pmReportsSelectAllBtn','pmReportsClearAllBtn','pmReportsSelectedCount'].forEach(id=>{const e=$(id);if(e)e.style.display=active?'inline-flex':'none'});
+    window.pmUpdateSelectedCount();
+  };
+  window.pmToggleSelectivePrint=function(){window.pmApplySelectivePrintUI()};
+  window.pmSetAllReportRows=function(v){
+    document.querySelectorAll('#pmReportsBody .pm-report-row-select').forEach(x=>x.checked=!!v);
+    window.pmUpdateSelectedCount();
+  };
+
   window.printWorkPlanReport=function(){
     window.renderReports();
+    const selective=!!$('pmReportsSelectivePrint')?.checked;
+    const rows=[...document.querySelectorAll('#pmReportsBody tr[data-report-key]')];
+    rows.forEach(tr=>tr.style.display='');
+    if(selective){
+      const chosen=rows.filter(tr=>tr.querySelector('.pm-report-row-select')?.checked);
+      if(!chosen.length){if(window.pmToast)pmToast('לא נבחרו טיפולים להדפסה','error');return;}
+      rows.forEach(tr=>{if(!tr.querySelector('.pm-report-row-select')?.checked)tr.style.display='none'});
+    }
     const includeChecklist=$('pmReportsPrintChecklistDetails')?.checked!==false;
     document.body.classList.toggle('pm-print-checklists',includeChecklist);
     document.body.classList.add('pm-report-printing');
