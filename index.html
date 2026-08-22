@@ -5996,9 +5996,12 @@ async function saveHistoryEdit(){
   }
   function period(period,anchor){ return v3PeriodBounds(period||'week',anchor||today()); }
   function filterBase(t,o){
+    // V61: trade belongs to the PM record itself. Separate mechanical/electrical
+    // treatments for the same machine/frequency remain separate work requirements.
+    const tr=String(t.trade||maintenanceTrade(t)||'').trim();
     return (!o.department||t.department===o.department) &&
            (!o.machine||t.machine===o.machine) &&
-           (!o.trade||maintenanceTrade(t)===o.trade);
+           (!o.trade||tr===o.trade);
   }
   function pmRow(t,anchor){
     const p=currentPlanFor(t), state=pmStateV60(t,anchor), due=String(t.nextDue||'');
@@ -6006,7 +6009,7 @@ async function saveHistoryEdit(){
       kind:'PM', key:`PM:${t.id}:${due}`, task:t, item:{t,due,plan:p,backlog:due<String(anchor||today())},
       plan:p, state, due,
       date:(p&&ACTIVE_PLAN.has(normStatus(p.status))&&p.plannedDate)?String(p.plannedDate):due,
-      department:t.department||'', machine:t.machine||'', trade:maintenanceTrade(t),
+      department:t.department||'', machine:t.machine||'', trade:String(t.trade||maintenanceTrade(t)||'').trim(),
       description:t.task||'', frequency:t.frequency||'', duration:Number(t.duration||0),
       assignee:p?.assignedTo||t.performer||'', priority:p?.priority||'', note:p?.postponedReason||''
     };
@@ -6214,6 +6217,33 @@ async function saveHistoryEdit(){
     currentNear:(periodName='week',anchor=today())=>getPM({period:periodName,anchor,status:'near'}).length
   };
   setTimeout(()=>{try{renderDashboard()}catch(e){console.error('V60 dashboard init',e)}},0);
+})();
+</script>
+
+<script id="fop-v61-trade-ui">
+(function(){
+  function decorateTrade(){
+    try{
+      document.querySelectorAll('.pm-v3-card,.pm-plan-card,.pm-report-card,.pm-card,.pm-v17-card').forEach(card=>{
+        if(card.querySelector('.pm-v61-trade'))return;
+        const txt=card.textContent||'';
+        // Find the matching visible active PM conservatively by machine + task title.
+        const candidates=(typeof tasks!=='undefined'?tasks:[]).filter(t=>t&&t.active!==false&&t.taskType==='maintenance'&&t.performer==='טכנאי אחזקה');
+        const t=candidates.find(x=>x.machine&&x.task&&txt.includes(x.machine)&&txt.includes(x.task));
+        if(!t)return;
+        const trade=String(t.trade||'').trim(); if(!trade)return;
+        const el=document.createElement('div');
+        el.className='pm-v61-trade';
+        el.style.cssText='margin-top:4px;font-size:12px;font-weight:800;color:#52647c';
+        el.textContent='מקצוע: '+trade+' · מבצע: טכנאי אחזקה';
+        const meta=card.querySelector('.pm-v3-meta,.pm-plan-meta,.pm-report-meta')||card;
+        meta.appendChild(el);
+      });
+    }catch(e){console.warn('V61 trade decorator',e)}
+  }
+  const obs=new MutationObserver(()=>{clearTimeout(window.__v61td);window.__v61td=setTimeout(decorateTrade,30)});
+  obs.observe(document.body,{childList:true,subtree:true});
+  setTimeout(decorateTrade,0);
 })();
 </script>
 </body></html>
