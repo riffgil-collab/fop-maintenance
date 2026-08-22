@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260822-v69-db-authoritative-planner"/>
+<meta name="fop-build" content="20260823-v72-final-rolling-pm-forecast"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -6574,54 +6574,152 @@ async function saveHistoryEdit(){
 })();
 </script>
 
-<script id="fop-v71-recurrence-workload-forecast">
-/* V71 — official workload logic: recurring PM forecast. next_due is the recurrence anchor. */
+
+<script id="fop-v72-final-rolling-pm-forecast">
+/* V72 FINAL
+   Official workload logic:
+   - rolling horizon from selected anchor date
+   - PM maintenance only (no inspections)
+   - next_due is the FIRST still-open occurrence
+   - generate recurrences FORWARD only
+   - completing PM advances next_due, therefore the completed occurrence disappears
+     from workload while later recurrences remain if they are still inside the horizon.
+*/
 (function(){
   const $=id=>document.getElementById(id), DAY=86400000;
   const parse=x=>{const [y,m,d]=String(x||'').slice(0,10).split('-').map(Number);return new Date(y,m-1,d)};
-  function addMonths(d,n){const x=new Date(d),day=x.getDate();x.setDate(1);x.setMonth(x.getMonth()+n);const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();x.setDate(Math.min(day,last));return x}
-  function shift(d,f,dir){const z=String(f||'').trim(),x=new Date(d);if(z==='יומי')return new Date(x.getTime()+dir*DAY);if(z==='שבועי')return new Date(x.getTime()+dir*7*DAY);if(z==='דו שבועי')return new Date(x.getTime()+dir*14*DAY);if(z==='חודשי')return addMonths(x,dir);if(z==='תלת חודשי')return addMonths(x,dir*3);if(z==='חצי שנתי')return addMonths(x,dir*6);if(z==='שנתי')return addMonths(x,dir*12);if(z==='5 שנתי')return addMonths(x,dir*60);return null}
-  function bounds(){const p=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',a=$('pmPlannerStart')?.value||today();return window.fopUnifiedWorkSource.periodBounds(p,a)}
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+
+  function addDays(d,n){return new Date(d.getFullYear(),d.getMonth(),d.getDate()+n)}
+  function addMonths(d,n){
+    const x=new Date(d),day=x.getDate();
+    x.setDate(1); x.setMonth(x.getMonth()+n);
+    const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();
+    x.setDate(Math.min(day,last));
+    return x;
+  }
+  function nextOccurrence(d,f){
+    const z=String(f||'').trim(),x=new Date(d);
+    if(z==='יומי') return addDays(x,1);
+    if(z==='שבועי') return addDays(x,7);
+    if(z==='דו שבועי') return addDays(x,14);
+    if(z==='חודשי') return addMonths(x,1);
+    if(z==='תלת חודשי') return addMonths(x,3);
+    if(z==='חצי שנתי') return addMonths(x,6);
+    if(z==='שנתי') return addMonths(x,12);
+    if(z==='5 שנתי') return addMonths(x,60);
+    return null;
+  }
+
+  function rollingBounds(){
+    const p=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week';
+    const a=parse($('pmPlannerStart')?.value||today());
+    let end;
+    if(p==='week') end=addDays(a,6);          // 7 calendar days incl. anchor
+    else if(p==='month') end=addMonths(a,1);  // anchor -> same date next month
+    else if(p==='half') end=addMonths(a,6);
+    else if(p==='year') end=addMonths(a,12);
+    else end=addDays(a,6);
+    return {start:iso(a),end:iso(end),period:p};
+  }
+
   function source(){
-    const dep=$('pmPlannerDepartment')?.value||'',machine=$('pmPlannerMachine')?.value||'',trade=$('pmPlannerTrade')?.value||'',wt=$('pmPlannerWorkType')?.value||'';
-    if(wt==='WO')return [];
+    const dep=$('pmPlannerDepartment')?.value||'',
+          machine=$('pmPlannerMachine')?.value||'',
+          trade=$('pmPlannerTrade')?.value||'',
+          wt=$('pmPlannerWorkType')?.value||'';
+    if(wt==='WO') return [];
     return ((typeof tasks!=='undefined'&&Array.isArray(tasks))?tasks:[]).filter(t=>
-      t.active!==false&&String(t.performer||'')==='טכנאי אחזקה'&&String(t.task_type||'')==='maintenance'&&t.next_due&&
-      (!dep||dep==='כל המחלקות'||String(t.department||'')===dep)&&
-      (!machine||machine==='כל המכונות'||String(t.machine||'')===machine)&&
+      t.active!==false &&
+      String(t.performer||'')==='טכנאי אחזקה' &&
+      String(t.task_type||'')==='maintenance' &&
+      t.next_due &&
+      (!dep||dep==='כל המחלקות'||String(t.department||'')===dep) &&
+      (!machine||machine==='כל המכונות'||String(t.machine||'')===machine) &&
       (!trade||trade==='כל המקצועות'||String(t.trade||'')===trade)
     );
   }
+
   function occurrences(){
-    const b=bounds(),start=parse(b.start),end=parse(b.end),out=[];
+    const b=rollingBounds(), start=parse(b.start), end=parse(b.end), out=[];
     source().forEach(t=>{
-      let d=parse(t.next_due);if(isNaN(d))return;let guard=0;
-      while(d>start&&guard++<5000){const p=shift(d,t.frequency,-1);if(!p)return;d=p}
-      while(d<start&&guard++<5000){const n=shift(d,t.frequency,1);if(!n)return;d=n}
-      while(d<=end&&guard++<5000){out.push({task:t,due:d,duration:Number(t.duration||0)});const n=shift(d,t.frequency,1);if(!n)break;d=n}
+      let d=parse(t.next_due);
+      if(isNaN(d)) return;
+
+      // next_due is the first OPEN occurrence.
+      // If it is overdue, it is part of today's workload, then recurrence continues forward.
+      if(d<start) d=start;
+
+      let guard=0;
+      while(d<=end && guard++<5000){
+        out.push({task:t,due:iso(d),duration:Number(t.duration||0)});
+        const n=nextOccurrence(d,t.frequency);
+        if(!n) break;
+        d=n;
+      }
     });
     return out;
   }
+
   function reconcile(){
     try{
-      const occ=occurrences(),mins=occ.reduce((a,x)=>a+x.duration,0),set=(id,v)=>{const e=$(id);if(e)e.textContent=v};
+      const b=rollingBounds(), occ=occurrences();
+      const mins=occ.reduce((a,x)=>a+x.duration,0);
+      const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};
+
+      // Workload KPIs = forecast occurrences, not unique master rows.
       set('pmWorkRequiredHours',(mins/60).toFixed(1));
       set('pmWorkTechnicianHours',(mins/60).toFixed(1));
-      const b=bounds(),src=new Map(source().map(t=>[String(t.id),t]));
+      set('pmPlanRequired',String(occ.length));
+
+      const src=new Map(source().map(t=>[String(t.id),t]));
       const scheduled=((typeof workPlan!=='undefined'&&Array.isArray(workPlan))?workPlan:[]).filter(p=>{
         const st=String(p.status||'').toLowerCase();
-        return ['planned','postponed'].includes(st)&&String(p.planned_date||'')>=String(b.start)&&String(p.planned_date||'')<=String(b.end)&&src.has(String(p.task_id));
+        const pd=String(p.planned_date||p.plannedDate||'').slice(0,10);
+        return ['planned','postponed'].includes(st) &&
+               pd>=b.start && pd<=b.end &&
+               src.has(String(p.task_id||p.taskId||''));
       });
-      const schedMin=scheduled.reduce((a,p)=>a+Number(src.get(String(p.task_id))?.duration||0),0);
+      const schedMin=scheduled.reduce((a,p)=>{
+        const id=String(p.task_id||p.taskId||'');
+        return a+Number(src.get(id)?.duration||0);
+      },0);
+
       set('pmWorkScheduledHours',(schedMin/60).toFixed(1));
       set('pmWorkUnplannedHours',(Math.max(0,mins-schedMin)/60).toFixed(1));
+
+      const unique=new Set(occ.map(x=>String(x.task.id))).size;
       const note=document.querySelector('.pm-workload-note');
-      if(note){const unique=new Set(occ.map(x=>String(x.task.id))).size;note.textContent=`תחזית עומס PM מחזורית: ${occ.length} מופעי טיפול מ-${unique} משימות בסיס · ${(mins/60).toFixed(1)} שעות. next_due הוא עוגן המחזור; כל המופעים בתקופה מחושבים לפי תדירות הטיפול.`}
-    }catch(e){console.error('V71 recurrence workload forecast',e)}
+      if(note){
+        note.textContent=`תחזית PM מתגלגלת ${b.start}–${b.end}: ${occ.length} טיפולים צפויים מ-${unique} משימות בסיס · ${(mins/60).toFixed(1)} שעות. טיפול שהושלם אינו נספר עוד; next_due החדש ממשיך את התחזית קדימה.`;
+      }
+
+      // Keep the visible range explanation aligned with the same rolling logic.
+      const range=$('pmV3RangeText');
+      if(range){
+        const labels={week:'שבוע קדימה',month:'חודש קדימה',half:'חצי שנה קדימה',year:'שנה קדימה'};
+        range.textContent=`${labels[b.period]||'תחזית'} · ${b.start} – ${b.end} · ${occ.length} טיפולי PM צפויים`;
+      }
+    }catch(e){console.error('V72 final rolling PM forecast',e)}
   }
+
   const prev=window.renderPlanner;
-  if(typeof prev==='function')window.renderPlanner=function(){const out=prev.apply(this,arguments);setTimeout(reconcile,0);return out};
+  if(typeof prev==='function'){
+    window.renderPlanner=function(){
+      const out=prev.apply(this,arguments);
+      setTimeout(reconcile,0);
+      return out;
+    };
+  }
+
+  // Reconcile after data refreshes / UI changes as well.
+  document.addEventListener('change',e=>{
+    if(e.target && ['pmPlannerStart','pmPlannerDepartment','pmPlannerMachine','pmPlannerTrade','pmPlannerProfession','pmPlannerWorkType','pmPlannerStatus'].includes(e.target.id)){
+      setTimeout(reconcile,0);
+    }
+  });
   setTimeout(reconcile,0);
 })();
 </script>
+
 </body></html>
