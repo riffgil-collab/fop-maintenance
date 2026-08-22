@@ -6520,4 +6520,47 @@ async function saveHistoryEdit(){
   setTimeout(reconcile,0);
 })();
 </script>
+<script id="fop-v68-authoritative-workload-fix">
+/* V68 — workload follows V60 authoritative contract: current actionable PM + backlog through period end.
+   Do NOT synthesize historical/future recurrences from next_due. next_due is the one current actionable occurrence. */
+(function(){
+  const $=id=>document.getElementById(id);
+  function set(id,v){const e=$(id);if(e)e.textContent=v}
+  function rows(){
+    try{
+      return window.fopUnifiedWorkSource.getWork({
+        period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',
+        anchor:$('pmPlannerStart')?.value||today(),
+        department:$('pmPlannerDepartment')?.value||'',
+        machine:$('pmPlannerMachine')?.value||'',
+        trade:$('pmPlannerTrade')?.value||'',
+        workType:$('pmPlannerWorkType')?.value||'',
+        status:'open'
+      }).filter(r=>r.kind==='PM');
+    }catch(e){console.warn('V68 authoritative workload source',e);return []}
+  }
+  function reconcile(){
+    try{
+      const r=rows();
+      const mins=r.reduce((a,x)=>a+Number(x.duration||0),0);
+      const scheduled=r.filter(x=>x.plan&&['planned','postponed'].includes(String(x.plan.status||'').toLowerCase()));
+      const schedMin=scheduled.reduce((a,x)=>a+Number(x.duration||0),0);
+      set('pmWorkRequiredHours',(mins/60).toFixed(1));
+      set('pmWorkTechnicianHours',(mins/60).toFixed(1));
+      set('pmWorkScheduledHours',(schedMin/60).toFixed(1));
+      set('pmWorkUnplannedHours',(Math.max(0,mins-schedMin)/60).toFixed(1));
+      const note=document.querySelector('.pm-workload-note');
+      if(note){
+        const overdue=r.filter(x=>x.state==='overdue');
+        const om=overdue.reduce((a,x)=>a+Number(x.duration||0),0);
+        const trade=$('pmPlannerTrade')?.value||'כל המקצועות';
+        note.textContent=`עומס לביצוע עד סוף התקופה: ${r.length} דרישות PM · ${(mins/60).toFixed(1)} שעות · מקצוע: ${trade}. מתוכן צבר באיחור: ${overdue.length} דרישות (${(om/60).toFixed(1)} שעות). החישוב משתמש ב-next_due הנוכחי בלבד לכל דרישת PM ואינו ממציא מופעים מחזוריים לפניו או אחריו.`;
+      }
+    }catch(e){console.error('V68 authoritative workload reconcile',e)}
+  }
+  const prev=window.renderPlanner;
+  if(typeof prev==='function') window.renderPlanner=function(){const out=prev.apply(this,arguments);setTimeout(reconcile,0);return out};
+  setTimeout(reconcile,0);
+})();
+</script>
 </body></html>
