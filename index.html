@@ -6017,7 +6017,9 @@ async function saveHistoryEdit(){
   function currentPMRows(opts={}){
     const o={period:'week',anchor:today(),department:'',machine:'',trade:'',status:'open',...opts};
     const b=period(o.period,o.anchor), nearEnd=addDays(o.anchor,7);
-    return currentPMTasks().filter(t=>t.nextDue&&filterBase(t,o)).map(t=>pmRow(t,o.anchor)).filter(r=>{
+    return currentPMTasks().filter(t=>t.nextDue&&filterBase(t,o))
+      .filter(t=>!o.trade||String(t.trade||maintenanceTrade(t)||'').trim()===String(o.trade).trim())
+      .map(t=>pmRow(t,o.anchor)).filter(r=>{
       const st=r.state, ps=normStatus(r.plan?.status), due=r.due, pd=String(r.plan?.plannedDate||'');
       if(o.status==='near') return !['completed','cancelled'].includes(st)&&due>=o.anchor&&due<=nearEnd&&due>=b.start&&due<=b.end;
       if(o.status==='overdue') return st==='overdue'&&due<=b.end;
@@ -6084,7 +6086,7 @@ async function saveHistoryEdit(){
       anchor:$('pmPlannerStart')?.value||today(),
       department:$('pmPlannerDepartment')?.value||'',
       machine:$('pmPlannerMachine')?.value||'',
-      trade:$('pmPlannerTrade')?.value||'',
+      trade:($('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||''),
       status
     }).map(r=>r.item);
   };
@@ -6146,6 +6148,7 @@ async function saveHistoryEdit(){
     if($('pmPlannerDepartment'))$('pmPlannerDepartment').value=o.department;
     if(typeof fillPlanningMachines==='function')fillPlanningMachines();
     if($('pmPlannerMachine'))$('pmPlannerMachine').value=o.machine;
+    if($('pmPlannerProfession'))$('pmPlannerProfession').value=o.trade;
     if($('pmPlannerTrade'))$('pmPlannerTrade').value=o.trade;
     if($('pmPlannerWorkType'))$('pmPlannerWorkType').value=workType??(o.workType||'');
     if($('pmPlannerStatus'))$('pmPlannerStatus').value=status;
@@ -6171,7 +6174,7 @@ async function saveHistoryEdit(){
         anchor:$('pmPlannerStart')?.value||today(),
         department:$('pmPlannerDepartment')?.value||'',
         machine:$('pmPlannerMachine')?.value||'',
-        trade:$('pmPlannerTrade')?.value||'',
+        trade:($('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||''),
         workType:$('pmPlannerWorkType')?.value||'',
         status:$('pmPlannerStatus')?.value||'open'
       };
@@ -6220,30 +6223,38 @@ async function saveHistoryEdit(){
 })();
 </script>
 
-<script id="fop-v61-trade-ui">
+<script id="fop-v62-trade-ui">
 (function(){
-  function decorateTrade(){
-    try{
-      document.querySelectorAll('.pm-v3-card,.pm-plan-card,.pm-report-card,.pm-card,.pm-v17-card').forEach(card=>{
-        if(card.querySelector('.pm-v61-trade'))return;
-        const txt=card.textContent||'';
-        // Find the matching visible active PM conservatively by machine + task title.
-        const candidates=(typeof tasks!=='undefined'?tasks:[]).filter(t=>t&&t.active!==false&&t.taskType==='maintenance'&&t.performer==='טכנאי אחזקה');
-        const t=candidates.find(x=>x.machine&&x.task&&txt.includes(x.machine)&&txt.includes(x.task));
-        if(!t)return;
-        const trade=String(t.trade||'').trim(); if(!trade)return;
-        const el=document.createElement('div');
-        el.className='pm-v61-trade';
-        el.style.cssText='margin-top:4px;font-size:12px;font-weight:800;color:#52647c';
-        el.textContent='מקצוע: '+trade+' · מבצע: טכנאי אחזקה';
-        const meta=card.querySelector('.pm-v3-meta,.pm-plan-meta,.pm-report-meta')||card;
-        meta.appendChild(el);
-      });
-    }catch(e){console.warn('V61 trade decorator',e)}
+  function taskById(id){
+    return (typeof tasks!=='undefined'&&Array.isArray(tasks)?tasks:[]).find(t=>String(t.id)===String(id));
   }
-  const obs=new MutationObserver(()=>{clearTimeout(window.__v61td);window.__v61td=setTimeout(decorateTrade,30)});
+  function decoratePlannerTrades(){
+    try{
+      document.querySelectorAll('input.pm-plan-check[data-task-id]').forEach(cb=>{
+        const t=taskById(cb.dataset.taskId); if(!t)return;
+        const card=cb.closest('.pm-plan-item')||cb.closest('.pm-v3-item')||cb.parentElement?.parentElement;
+        if(!card||card.querySelector('.pm-v62-trade'))return;
+        const tr=String(t.trade||'').trim(); if(!tr)return;
+        const d=document.createElement('div');
+        d.className='pm-v62-trade';
+        d.style.cssText='margin-top:5px;font-size:12px;font-weight:900;color:#173765';
+        d.textContent='מקצוע: '+tr+' · מבצע: '+String(t.performer||'טכנאי אחזקה');
+        const title=card.querySelector('strong')||card.firstElementChild;
+        if(title&&title.parentNode)title.parentNode.insertBefore(d,title.nextSibling); else card.appendChild(d);
+      });
+    }catch(e){console.warn('V62 trade display',e)}
+  }
+  const prev=window.renderPlanner;
+  if(typeof prev==='function'){
+    window.renderPlanner=function(){
+      const r=prev.apply(this,arguments);
+      setTimeout(decoratePlannerTrades,0);
+      return r;
+    };
+  }
+  const obs=new MutationObserver(()=>{clearTimeout(window.__v62trade);window.__v62trade=setTimeout(decoratePlannerTrades,20)});
   obs.observe(document.body,{childList:true,subtree:true});
-  setTimeout(decorateTrade,0);
+  setTimeout(decoratePlannerTrades,0);
 })();
 </script>
 </body></html>
