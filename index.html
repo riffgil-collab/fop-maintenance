@@ -683,7 +683,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="field"><label>שיבוץ למבצע</label><input id="pmPlanAssignee" type="text" placeholder="למשל: טכנאי אחזקה"/></div>
     <div class="field"><label>בחירה</label><button type="button" class="secondary-btn" onclick="toggleAllPlanRows(true)">בחר הכל המוצג</button></div>
     <button type="button" class="btn" onclick="saveSelectedPlanning()">שבץ לתוכנית</button>
-    <button type="button" class="secondary-btn" onclick="unplanSelected()">החזר לממתינה</button>
+    <button type="button" class="secondary-btn" onclick="unplanSelected()">הסר מהתוכנית</button>
     <button type="button" class="danger-btn" onclick="cancelSelectedPlanning()">בטל טיפול</button>
   </div>
 
@@ -962,7 +962,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <section class="pm-panel" id="pmInitialization">
 <div class="section-title"><h3>אתחול מערכת</h3><small>Admin בלבד</small></div>
 <div class="panel-box">
-  <div id="pmInitStatus" style="font-weight:800;margin-bottom:8px">🔴 Status: Not Initialized</div>
+  <div id="pmInitStatus" style="font-weight:800;margin-bottom:8px"><div style="margin-top:8px;font-size:11px;line-height:1.5;color:#52647c;font-weight:700">אתחול חל רק על טיפולי PM פיזיים: הוא בונה מחדש את מועדי ה‑PM ומנקה את תוכנית העבודה הפעילה. בדיקות מפעיל, בדיקות אחזקה והיסטוריית ביצוע אינן משתנות.</div>🔴 Status: Not Initialized</div>
   <div id="pmInitDate" class="sub" style="margin-bottom:14px"></div>
   <p style="margin:0 0 14px">האתחול יוצר נקודת התחלה חדשה לתוכנית האחזקה. תוכנית העבודה והיסטוריית התוכנית הקודמת יאופסו, אך מאגר המכונות ומשימות הטיפול יישמר.</p>
   <button class="danger-btn" id="pmInitBtn" type="button" onclick="initializePMPlan()" style="display:none">אתחול תוכנית</button>
@@ -2953,12 +2953,13 @@ async function initializePMPlan(){
   const updates=buildBalancedInitUpdates(activeTasks,base);
   const expectedDueById=new Map(updates.map(u=>[String(u.id),u.next_due]));
   // Snapshot operator tasks. Initialization must never modify them.
-  const operatorBefore=new Map(operatorTasks().map(t=>[String(t.id),JSON.stringify({nextDue:t.nextDue||null,lastDone:t.lastDone||null,notes:t.notes||null})]));
+  const operatorBefore=new Map(operatorTasks().map(t=>[String(t.id),JSON.stringify({nextDue:t.nextDue||null,lastDone:t.lastDone||null,notes:t.notes||null,taskType:t.taskType||null,trade:t.trade||null,performer:t.performer||null})]));
+  const inspectionBefore=new Map(maintenanceInspectionTasks().map(t=>[String(t.id),JSON.stringify({nextDue:t.nextDue||null,lastDone:t.lastDone||null,notes:t.notes||null,taskType:t.taskType||null,trade:t.trade||null,performer:t.performer||null})]));
   // V5 reset scope: ALL maintenance-technician master IDs are cleaned from the old operational
   // plan/history, but ONLY physical maintenance tasks receive new cyclic due dates below.
   // This prevents legacy inspection occurrences from surviving an initialization performed after
   // upgrading from the old model. Operator tasks remain completely untouched.
-  const allMaintenanceMasterTasks=tasks.filter(t=>t&&t.active!==false&&isMaintenancePerformer(t.performer));
+  const allMaintenanceMasterTasks=maintenanceTasks().filter(t=>t&&t.active!==false);
 
   // Hard pre-write validation: every active task exactly once and inside its first cycle.
   const updateIds=new Set(updates.map(u=>String(u.id)));
@@ -2997,13 +2998,15 @@ async function initializePMPlan(){
         machine:String(t.machine||'').trim(),
         task:String(t.task||'').trim(),
         frequency:t.frequency,
-        performer:'טכנאי אחזקה',
+        performer:String(t.performer||'טכנאי אחזקה').trim(),
         duration:t.duration===null||t.duration===''||t.duration===undefined?null:Number(t.duration),
         parts:t.parts||null,
         notes:[cleanNotes,initMarker].filter(Boolean).join('\n'),
         next_due:u.next_due,
         last_done:null,
-        active:t.active!==false
+        active:t.active!==false,
+        task_type:'maintenance',
+        trade:maintenanceTrade(t)
       };
     });
     for(let i=0;i<rows.length;i+=100){
@@ -3033,8 +3036,8 @@ async function initializePMPlan(){
     if(!Array.isArray(tasks)||!tasks.some(t=>t.active!==false))throw new Error('לא נטענו טיפולי אחזקה פעילים מהענן');
     if(!pmWorkPlanLoaded)throw new Error('תוכנית העבודה לא נטענה מהענן');
 
-    // Post-write cloud audit: verify EVERY active MAINTENANCE-TECHNICIAN task, in EVERY department.
-    // Operator tasks are intentionally excluded and must remain untouched by initialization.
+    // Post-write cloud audit: verify EVERY active physical PM task, in EVERY department.
+    // Operator checks and maintenance inspections are excluded and must remain untouched by initialization.
     const cloudActive=maintenanceTasks().filter(t=>t&&t.active!==false);
     const bad=[];
     for(const t of cloudActive){
@@ -3067,13 +3070,20 @@ async function initializePMPlan(){
     const operatorBad=[];
     for(const t of operatorTasks()){
       const before=operatorBefore.get(String(t.id));
-      const after=JSON.stringify({nextDue:t.nextDue||null,lastDone:t.lastDone||null,notes:t.notes||null});
+      const after=JSON.stringify({nextDue:t.nextDue||null,lastDone:t.lastDone||null,notes:t.notes||null,taskType:t.taskType||null,trade:t.trade||null,performer:t.performer||null});
       if(before!==undefined&&before!==after)operatorBad.push(`${t.department} / ${t.machine} / ${t.task}`);
     }
     if(operatorTasks().length!==operatorBefore.size)operatorBad.push('מספר משימות המפעיל השתנה במהלך האתחול');
-    if(cloudActive.length!==activeTasks.length||bad.length||distributionBad.length||operatorBad.length){
+    const inspectionBad=[];
+    for(const t of maintenanceInspectionTasks()){
+      const before=inspectionBefore.get(String(t.id));
+      const after=JSON.stringify({nextDue:t.nextDue||null,lastDone:t.lastDone||null,notes:t.notes||null,taskType:t.taskType||null,trade:t.trade||null,performer:t.performer||null});
+      if(before!==undefined&&before!==after)inspectionBad.push(`${t.department} / ${t.machine} / ${t.task}`);
+    }
+    if(maintenanceInspectionTasks().length!==inspectionBefore.size)inspectionBad.push('מספר בדיקות האחזקה השתנה במהלך האתחול');
+    if(cloudActive.length!==activeTasks.length||bad.length||distributionBad.length||operatorBad.length||inspectionBad.length){
       const details=distributionBad.slice(0,8).join('; ');
-      throw new Error(`אימות האתחול בענן נכשל: ${bad.length} משימות לא תקינות, ${distributionBad.length} קבוצות לא מפוזרות מתוך ${cloudActive.length} משימות פעילות.${details?' '+details:''}`);
+      throw new Error(`אימות האתחול בענן נכשל: ${bad.length} PM לא תקינים, ${distributionBad.length} קבוצות לא מפוזרות, ${operatorBad.length} בדיקות מפעיל השתנו, ${inspectionBad.length} בדיקות אחזקה השתנו מתוך ${cloudActive.length} PM פעילים.${details?' '+details:''}`);
     }
 
     updatePlanningEntryButtons();
@@ -3351,7 +3361,8 @@ unplanSelected=async function(){
     for(const key of keys){
       const item=lookup.get(key);if(!item)continue;
       const existing=wpForOccurrence(item.t.id,item.due);if(!existing)continue;
-      const res=await supabaseClient.from('pm_work_plan').update({status:'Cancelled'}).eq('id',existing.id);
+      if(wpDone(existing)||String(existing.status||'').toLowerCase()==='cancelled')continue;
+      const res=await supabaseClient.from('pm_work_plan').delete().eq('id',existing.id);
       if(res.error)throw res.error;
     }
     await reloadCloudData();
@@ -3522,10 +3533,27 @@ renderReport=function(){
     <div class="pm-task-actions">
       <button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}','${x.plan?.id||''}')">✓ בוצע</button>
       ${canManage&&x.plan?`<button class="pm-postpone" onclick="moveWorkPlan('${x.plan.id}')">דחה / שנה תאריך</button>`:''}
+      ${canManage&&x.plan?`<button class="secondary-btn" onclick="removeSingleFromPlan('${x.t.id}','${x.plan.id}')">↩ הסר מהתוכנית</button>`:''}
       ${canManage&&!x.plan?`<button class="pm-postpone" onclick="openPostponeModal('${x.t.id}')">דחיית טיפול</button>`:''}
     </div>
   </div>`).join('');
 };
+
+
+/* V58 — remove scheduled occurrence from plan only; PM recurrence is untouched. */
+async function removeSingleFromPlan(taskId,planId){
+  if(!pmCan('manageExceptions'))return statusLine('שינוי תוכנית זמין למנהל אחזקה בלבד.','error');
+  const t=tasks.find(x=>String(x.id)===String(taskId));
+  const p=pmWorkPlan.find(x=>String(x.id)===String(planId));
+  if(!t||!p)return statusLine('השיבוץ לא נמצא.','error');
+  if(wpDone(p)||String(p.status||'').toLowerCase()==='cancelled')return statusLine('לא ניתן להסיר שיבוץ שכבר בוצע או בוטל.','error');
+  if(!await pmConfirm(`להסיר את הטיפול מתוכנית העבודה?\n\n${t.machine||''} — ${t.task||''}\n\nמשימת ה‑PM והמחזוריות יישארו ללא שינוי.`))return;
+  const {error}=await supabaseClient.from('pm_work_plan').delete().eq('id',p.id);
+  if(error){statusLine('הסרת הטיפול מהתוכנית נכשלה: '+error.message,'error');return}
+  await reloadCloudData();
+  statusLine('הטיפול הוסר מתוכנית העבודה וחזר למצב פתוח לתכנון. המחזוריות לא השתנתה.','success');
+  pmToast('הוסר מהתוכנית','success');
+}
 
 /* ---------- Completion updates BOTH pm_history/pm_tasks and pm_work_plan ---------- */
 completeTask=async function(id,workPlanId=''){
@@ -3998,7 +4026,7 @@ renderReport=function(){
 
   if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין משימות לביצוע בתאריך ובסינון שנבחרו.</div>';return}
   const canManage=pmCan('manageExceptions');
-  pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מקצוע: ${esc(maintenanceTrade(x.t))}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}${pmNonChecklistNotes(x.t.notes)?`<br><b>הערות:</b> ${esc(pmNonChecklistNotes(x.t.notes))}`:''}</div>${pmChecklistToggleHtml(x.t)}<div class="pm-task-actions"><button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}','${p?.id||''}','${x.due}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
+  pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מקצוע: ${esc(maintenanceTrade(x.t))}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}${pmNonChecklistNotes(x.t.notes)?`<br><b>הערות:</b> ${esc(pmNonChecklistNotes(x.t.notes))}`:''}</div>${pmChecklistToggleHtml(x.t)}<div class="pm-task-actions"><button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}','${p?.id||''}','${x.due}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage&&p?`<button class="secondary-btn" onclick="removeSingleFromPlan('${x.t.id}','${p.id}')">↩ הסר מהתוכנית</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
 };
 
 // Completion accepts Planned or Postponed rows and closes them as Completed.
