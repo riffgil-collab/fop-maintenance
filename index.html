@@ -6445,4 +6445,79 @@ async function saveHistoryEdit(){
   setTimeout(reconcile,0);
 })();
 </script>
+
+<script id="fop-v67-bidirectional-recurrence-fix">
+(function(){
+  const DAY=86400000, $=id=>document.getElementById(id);
+  const parse=x=>{const [y,m,d]=String(x||'').slice(0,10).split('-').map(Number);return new Date(y,m-1,d)};
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  function addMonths(d,n){const x=new Date(d), day=x.getDate();x.setDate(1);x.setMonth(x.getMonth()+n);const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();x.setDate(Math.min(day,last));return x}
+  function shift(d,f,dir){
+    const z=String(f||'').trim(), x=new Date(d);
+    if(z==='יומי') return new Date(x.getTime()+dir*DAY);
+    if(z==='שבועי') return new Date(x.getTime()+dir*7*DAY);
+    if(z==='דו שבועי') return new Date(x.getTime()+dir*14*DAY);
+    if(z==='חודשי') return addMonths(x,dir);
+    if(z==='תלת חודשי') return addMonths(x,dir*3);
+    if(z==='חצי שנתי') return addMonths(x,dir*6);
+    if(z==='שנתי') return addMonths(x,dir*12);
+    if(z==='5 שנתי') return addMonths(x,dir*60);
+    return null;
+  }
+  function bounds(){
+    const p=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week';
+    const a=$('pmPlannerStart')?.value||today();
+    return window.fopUnifiedWorkSource.periodBounds(p,a);
+  }
+  function sourceTasks(){
+    const dep=$('pmPlannerDepartment')?.value||'', machine=$('pmPlannerMachine')?.value||'', trade=$('pmPlannerTrade')?.value||'', wt=$('pmPlannerWorkType')?.value||'';
+    return ((typeof tasks!=='undefined'&&Array.isArray(tasks))?tasks:[]).filter(t=>{
+      if(t.active===false || String(t.performer||'')!=='טכנאי אחזקה' || !t.next_due) return false;
+      if(dep && dep!=='כל המחלקות' && String(t.department||'')!==dep) return false;
+      if(machine && machine!=='כל המכונות' && String(t.machine||'')!==machine) return false;
+      if(trade && trade!=='כל המקצועות' && String(t.trade||'')!==trade) return false;
+      if(wt && wt!=='הכל' && String(t.task_type||'')!==wt) return false;
+      return true;
+    });
+  }
+  function occurrences(){
+    const b=bounds(), start=parse(b.start), end=parse(b.end), out=[];
+    sourceTasks().forEach(t=>{
+      let d=parse(t.next_due); if(isNaN(d)) return;
+      let guard=0;
+      // next_due is an anchor in the recurrence series, not the beginning of history.
+      // Walk backward until the occurrence immediately before the selected period.
+      while(d>start && guard++<5000){
+        const p=shift(d,t.frequency,-1); if(!p) break;
+        d=p;
+      }
+      // If we stepped before the period, advance once to the first occurrence >= start.
+      while(d<start && guard++<5000){
+        const n=shift(d,t.frequency,1); if(!n) return;
+        d=n;
+      }
+      while(d<=end && guard++<5000){
+        out.push({task:t,due:iso(d),duration:Number(t.duration||0)});
+        const n=shift(d,t.frequency,1); if(!n) break;
+        d=n;
+      }
+    });
+    return out;
+  }
+  function reconcile(){
+    try{
+      const occ=occurrences(), hours=occ.reduce((a,x)=>a+x.duration,0)/60;
+      const unique=new Set(occ.map(x=>String(x.task.id))).size;
+      const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};
+      set('pmWorkRequiredHours',hours.toFixed(1));
+      set('pmWorkTechnicianHours',hours.toFixed(1));
+      const note=document.querySelector('.pm-workload-note');
+      if(note) note.textContent=`תחזית עומס מחזורית דו-כיוונית: ${occ.length} מופעי טיפול מ-${unique} דרישות PM · ${hours.toFixed(1)} שעות. next_due משמש עוגן למחזוריות, והמנוע מחשב מופעים גם לפניו וגם אחריו בתוך התקופה הנבחרת.`;
+    }catch(e){console.error('V67 bidirectional recurrence',e)}
+  }
+  const prev=window.renderPlanner;
+  if(typeof prev==='function') window.renderPlanner=function(){const r=prev.apply(this,arguments);setTimeout(reconcile,0);return r};
+  setTimeout(reconcile,0);
+})();
+</script>
 </body></html>
