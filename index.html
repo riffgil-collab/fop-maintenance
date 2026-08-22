@@ -6573,4 +6573,55 @@ async function saveHistoryEdit(){
  const prev=window.renderPlanner;if(typeof prev==='function')window.renderPlanner=function(){const out=prev.apply(this,arguments);reconcile();return out};setTimeout(()=>{try{if(typeof renderPlanner==='function')renderPlanner();else reconcile()}catch(e){console.error(e)}},0);
 })();
 </script>
+
+<script id="fop-v71-recurrence-workload-forecast">
+/* V71 — official workload logic: recurring PM forecast. next_due is the recurrence anchor. */
+(function(){
+  const $=id=>document.getElementById(id), DAY=86400000;
+  const parse=x=>{const [y,m,d]=String(x||'').slice(0,10).split('-').map(Number);return new Date(y,m-1,d)};
+  function addMonths(d,n){const x=new Date(d),day=x.getDate();x.setDate(1);x.setMonth(x.getMonth()+n);const last=new Date(x.getFullYear(),x.getMonth()+1,0).getDate();x.setDate(Math.min(day,last));return x}
+  function shift(d,f,dir){const z=String(f||'').trim(),x=new Date(d);if(z==='יומי')return new Date(x.getTime()+dir*DAY);if(z==='שבועי')return new Date(x.getTime()+dir*7*DAY);if(z==='דו שבועי')return new Date(x.getTime()+dir*14*DAY);if(z==='חודשי')return addMonths(x,dir);if(z==='תלת חודשי')return addMonths(x,dir*3);if(z==='חצי שנתי')return addMonths(x,dir*6);if(z==='שנתי')return addMonths(x,dir*12);if(z==='5 שנתי')return addMonths(x,dir*60);return null}
+  function bounds(){const p=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',a=$('pmPlannerStart')?.value||today();return window.fopUnifiedWorkSource.periodBounds(p,a)}
+  function source(){
+    const dep=$('pmPlannerDepartment')?.value||'',machine=$('pmPlannerMachine')?.value||'',trade=$('pmPlannerTrade')?.value||'',wt=$('pmPlannerWorkType')?.value||'';
+    if(wt==='WO')return [];
+    return ((typeof tasks!=='undefined'&&Array.isArray(tasks))?tasks:[]).filter(t=>
+      t.active!==false&&String(t.performer||'')==='טכנאי אחזקה'&&String(t.task_type||'')==='maintenance'&&t.next_due&&
+      (!dep||dep==='כל המחלקות'||String(t.department||'')===dep)&&
+      (!machine||machine==='כל המכונות'||String(t.machine||'')===machine)&&
+      (!trade||trade==='כל המקצועות'||String(t.trade||'')===trade)
+    );
+  }
+  function occurrences(){
+    const b=bounds(),start=parse(b.start),end=parse(b.end),out=[];
+    source().forEach(t=>{
+      let d=parse(t.next_due);if(isNaN(d))return;let guard=0;
+      while(d>start&&guard++<5000){const p=shift(d,t.frequency,-1);if(!p)return;d=p}
+      while(d<start&&guard++<5000){const n=shift(d,t.frequency,1);if(!n)return;d=n}
+      while(d<=end&&guard++<5000){out.push({task:t,due:d,duration:Number(t.duration||0)});const n=shift(d,t.frequency,1);if(!n)break;d=n}
+    });
+    return out;
+  }
+  function reconcile(){
+    try{
+      const occ=occurrences(),mins=occ.reduce((a,x)=>a+x.duration,0),set=(id,v)=>{const e=$(id);if(e)e.textContent=v};
+      set('pmWorkRequiredHours',(mins/60).toFixed(1));
+      set('pmWorkTechnicianHours',(mins/60).toFixed(1));
+      const b=bounds(),src=new Map(source().map(t=>[String(t.id),t]));
+      const scheduled=((typeof workPlan!=='undefined'&&Array.isArray(workPlan))?workPlan:[]).filter(p=>{
+        const st=String(p.status||'').toLowerCase();
+        return ['planned','postponed'].includes(st)&&String(p.planned_date||'')>=String(b.start)&&String(p.planned_date||'')<=String(b.end)&&src.has(String(p.task_id));
+      });
+      const schedMin=scheduled.reduce((a,p)=>a+Number(src.get(String(p.task_id))?.duration||0),0);
+      set('pmWorkScheduledHours',(schedMin/60).toFixed(1));
+      set('pmWorkUnplannedHours',(Math.max(0,mins-schedMin)/60).toFixed(1));
+      const note=document.querySelector('.pm-workload-note');
+      if(note){const unique=new Set(occ.map(x=>String(x.task.id))).size;note.textContent=`תחזית עומס PM מחזורית: ${occ.length} מופעי טיפול מ-${unique} משימות בסיס · ${(mins/60).toFixed(1)} שעות. next_due הוא עוגן המחזור; כל המופעים בתקופה מחושבים לפי תדירות הטיפול.`}
+    }catch(e){console.error('V71 recurrence workload forecast',e)}
+  }
+  const prev=window.renderPlanner;
+  if(typeof prev==='function')window.renderPlanner=function(){const out=prev.apply(this,arguments);setTimeout(reconcile,0);return out};
+  setTimeout(reconcile,0);
+})();
+</script>
 </body></html>
