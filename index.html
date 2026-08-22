@@ -1848,7 +1848,7 @@ function renderPlanner(){
     const cls=doneNow?'done-plan':latePlan?'late-plan':planned?'planned':'';
     return `<div class="pm-plan-row ${cls}">
       <input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/>
-      <div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · תדירות: ${esc(item.t.frequency||'—')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · פיגור קודם':''}</small>${planned?`<small>שובץ: ${esc(fDate(planned.plannedDate))}${planned.assignee?' · '+esc(planned.assignee):''} · עדיפות ${esc(planned.priority)}</small>`:''}</div>
+      <div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · <strong>מקצוע: ${esc(String(item.t.trade||maintenanceTrade(item.t)||'—'))}</strong> · מבצע: ${esc(item.t.performer||'')} · תדירות: ${esc(item.t.frequency||'—')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · פיגור קודם':''}</small>${planned?`<small>שובץ: ${esc(fDate(planned.plannedDate))}${planned.assignee?' · '+esc(planned.assignee):''} · עדיפות ${esc(planned.priority)}</small>`:''}</div>
       <div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div>
       <div class="pm-plan-meta">${esc(fDate(item.due))}</div>
       <div class="pm-plan-meta pm-plan-hide-mobile">${planned?esc(fDate(planned.plannedDate)):'—'}</div>
@@ -2137,12 +2137,12 @@ function renderReport(){
   const includeUnplanned=document.getElementById('pmReportIncludeUnplanned')?.checked===true;
   const planned=plannedItemsForDate(reportDate)
     .filter(x=>!isPlanItemDone(x))
-    .filter(x=>(!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&(!trade||maintenanceTrade(x.t)===trade))
+    .filter(x=>(!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&(!trade||String(x.t.trade||maintenanceTrade(x.t)||'').trim()===String(trade).trim()))
     .map(x=>({t:x.t,s:stateOf({...x.t,nextDue:x.due}),plan:x.plan,plannedDue:x.due}));
   const plannedIds=new Set(planned.map(x=>String(x.t.id)));
   const extras=includeUnplanned?openTasks(dep)
     .filter(x=>!plannedIds.has(String(x.t.id)))
-    .filter(x=>(!machine||x.t.machine===machine)&&(!trade||maintenanceTrade(x.t)===trade)):[];
+    .filter(x=>(!machine||x.t.machine===machine)&&(!trade||String(x.t.trade||maintenanceTrade(x.t)||'').trim()===String(trade).trim())):[];
   const list=[...planned,...extras]
     .sort((a,b)=>(a.plan?0:1)-(b.plan?0:1)||a.s.n-b.s.n||a.t.machine.localeCompare(b.t.machine,'he'));
 
@@ -3426,7 +3426,7 @@ renderPlanner=function(){
       <input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/>
       <div class="pm-plan-main">
         <strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong>
-        <small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · תדירות: ${esc(item.t.frequency||'—')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · פיגור קודם':''}</small>
+        <small>${esc(item.t.department)} · <strong>מקצוע: ${esc(String(item.t.trade||maintenanceTrade(item.t)||'—'))}</strong> · מבצע: ${esc(item.t.performer||'')} · תדירות: ${esc(item.t.frequency||'—')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · פיגור קודם':''}</small>
         ${p?`<small>שובץ ל־${esc(fDate(p.plannedDate))}${p.assignedTo?' · '+esc(p.assignedTo):''} · עדיפות ${esc(p.priority)}</small>`:''}
       </div>
       <div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div>
@@ -3814,7 +3814,7 @@ renderDashboard=function(){
   const dashAnchor=document.getElementById('pmDashboardAnchor');
   if(dashAnchor&&!dashAnchor.value)dashAnchor.value=document.getElementById('pmPlannerStart')?.value||pmBestPlanningAnchor(today());
   const {start,end,label}=v3PeriodBounds(pmV3DashboardPeriod,dashAnchor?.value||today());
-  const items=v3RequirementItems(start,end).filter(x=>isMaintenanceTask(x.t)&&v3FilterTask(x.t,dep,machine,'',x.plan)&&(!trade||maintenanceTrade(x.t)===trade));
+  const items=v3RequirementItems(start,end).filter(x=>isMaintenanceTask(x.t)&&v3FilterTask(x.t,dep,machine,'',x.plan)&&(!trade||String(x.t.trade||maintenanceTrade(x.t)||'').trim()===String(trade).trim()));
   const groups={waiting:[],planned:[],completed:[],postponed:[],cancelled:[],overdue:[]};
   items.forEach(x=>{const st=v3OccurrenceState(x);(groups[st]||(groups[st]=[])).push(x)});
 
@@ -3882,7 +3882,7 @@ filteredPlanningItems=function(){
   const status=document.getElementById('pmPlannerStatus')?.value||'';
   return v3RequirementItems(start,end).filter(x=>{
     const st=v3OccurrenceState(x);
-    return (!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&isMaintenanceTask(x.t)&&(!trade||maintenanceTrade(x.t)===trade)&&(!status||st===status);
+    return (!dep||x.t.department===dep)&&(!machine||x.t.machine===machine)&&isMaintenanceTask(x.t)&&(!trade||String(x.t.trade||maintenanceTrade(x.t)||'').trim()===String(trade).trim())&&(!status||st===status);
   }).sort((a,b)=>{
     const rank={overdue:0,waiting:1,postponed:2,planned:3,completed:4,cancelled:5};
     const ra=rank[v3OccurrenceState(a)]??9,rb=rank[v3OccurrenceState(b)]??9;
@@ -3930,7 +3930,7 @@ renderPlanner=function(){
     const p=item.plan,st=v3OccurrenceState(item);const label={waiting:'ממתינה לתכנון',planned:'מתוכננת',completed:'בוצעה',postponed:'נדחתה',cancelled:'בוטלה',overdue:'באיחור'}[st];
     const badge={waiting:'open',planned:'planned',completed:'done',postponed:'postponed',cancelled:'cancelled',overdue:'risk'}[st];
     const cls=st==='completed'?'done-plan':st==='cancelled'?'cancelled-plan':st==='postponed'?'postponed-plan':st==='planned'?'planned':st==='overdue'?'late-plan':'';
-    return `<div class="pm-plan-row ${cls}"><input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · ${esc(item.t.performer||'')} · תדירות: ${esc(item.t.frequency||'—')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · צבר קודם':''}</small>${p?`<small>${p.plannedDate?'תאריך '+esc(fDate(p.plannedDate)):''}${p.assignedTo?' · '+esc(p.assignedTo):''}${p.priority?' · עדיפות '+esc(p.priority):''}${p.postponedReason?' · סיבה: '+esc(p.postponedReason):''}</small>`:''}${pmChecklistToggleHtml(item.t)}</div><div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div><div class="pm-plan-meta">${esc(fDate(item.due))}</div><div class="pm-plan-meta pm-plan-hide-mobile">${p?.plannedDate?esc(fDate(p.plannedDate)):'—'}</div><span class="pm-plan-badge ${badge}">${label}</span></div>`;
+    return `<div class="pm-plan-row ${cls}"><input class="pm-plan-check" type="checkbox" value="${esc(planKey(item))}" onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${esc(item.t.machine)} — ${esc(item.t.task)}</strong><small>${esc(item.t.department)} · <strong>מקצוע: ${esc(String(item.t.trade||maintenanceTrade(item.t)||'—'))}</strong> · מבצע: ${esc(item.t.performer||'')} · תדירות: ${esc(item.t.frequency||'—')} · ${Number(item.t.duration||0)} דק׳${item.backlog?' · צבר קודם':''}</small>${p?`<small>${p.plannedDate?'תאריך '+esc(fDate(p.plannedDate)):''}${p.assignedTo?' · '+esc(p.assignedTo):''}${p.priority?' · עדיפות '+esc(p.priority):''}${p.postponedReason?' · סיבה: '+esc(p.postponedReason):''}</small>`:''}${pmChecklistToggleHtml(item.t)}</div><div class="pm-plan-meta pm-plan-hide-mobile">${esc(item.t.frequency)}</div><div class="pm-plan-meta">${esc(fDate(item.due))}</div><div class="pm-plan-meta pm-plan-hide-mobile">${p?.plannedDate?esc(fDate(p.plannedDate)):'—'}</div><span class="pm-plan-badge ${badge}">${label}</span></div>`;
   }).join(''):'<div class="empty">אין דרישות אחזקה בתקופה ובסינון שנבחרו.</div>';
   updatePlanSelectionInfo();
 };
@@ -4714,7 +4714,7 @@ function pmV23DashboardOpenPM(){
     const st=v3OccurrenceState(x,anchor);
     return isMaintenanceTask(x.t) &&
       v3FilterTask(x.t,dep,machine,'',x.plan) &&
-      (!trade||maintenanceTrade(x.t)===trade) &&
+      (!trade||String(x.t.trade||maintenanceTrade(x.t)||'').trim()===String(trade).trim()) &&
       !['completed','cancelled'].includes(st);
   });
 }
@@ -4758,7 +4758,7 @@ function pmV25CancelledItems(){
     isMaintenanceTask(x.t) &&
     (!dep||x.t.department===dep) &&
     (!machine||x.t.machine===machine) &&
-    (!trade||maintenanceTrade(x.t)===trade) &&
+    (!trade||String(x.t.trade||maintenanceTrade(x.t)||'').trim()===String(trade).trim()) &&
     v3OccurrenceState(x,anchor)==='cancelled'
   );
 }
@@ -6223,38 +6223,82 @@ async function saveHistoryEdit(){
 })();
 </script>
 
-<script id="fop-v62-trade-ui">
+
+
+<script id="fop-v63-trade-hardfix">
 (function(){
-  function taskById(id){
-    return (typeof tasks!=='undefined'&&Array.isArray(tasks)?tasks:[]).find(t=>String(t.id)===String(id));
-  }
-  function decoratePlannerTrades(){
-    try{
-      document.querySelectorAll('input.pm-plan-check[data-task-id]').forEach(cb=>{
-        const t=taskById(cb.dataset.taskId); if(!t)return;
-        const card=cb.closest('.pm-plan-item')||cb.closest('.pm-v3-item')||cb.parentElement?.parentElement;
-        if(!card||card.querySelector('.pm-v62-trade'))return;
-        const tr=String(t.trade||'').trim(); if(!tr)return;
-        const d=document.createElement('div');
-        d.className='pm-v62-trade';
-        d.style.cssText='margin-top:5px;font-size:12px;font-weight:900;color:#173765';
-        d.textContent='מקצוע: '+tr+' · מבצע: '+String(t.performer||'טכנאי אחזקה');
-        const title=card.querySelector('strong')||card.firstElementChild;
-        if(title&&title.parentNode)title.parentNode.insertBefore(d,title.nextSibling); else card.appendChild(d);
-      });
-    }catch(e){console.warn('V62 trade display',e)}
+  function showProfessionBanner(){
+    const detail=document.getElementById('pmPlannerDetail');
+    const trade=document.getElementById('pmPlannerTrade')?.value||'';
+    if(!detail)return;
+    let b=document.getElementById('pmV63TradeBanner');
+    if(!b){
+      b=document.createElement('div');
+      b.id='pmV63TradeBanner';
+      b.style.cssText='margin:10px 0 14px;padding:10px 12px;border-radius:12px;background:#eef4fb;color:#173765;font-weight:900;text-align:center';
+      detail.parentNode?.insertBefore(b,detail);
+    }
+    b.textContent=trade?('מסנן מקצוע פעיל: '+trade):'מסנן מקצוע: כל המקצועות';
   }
   const prev=window.renderPlanner;
   if(typeof prev==='function'){
     window.renderPlanner=function(){
       const r=prev.apply(this,arguments);
-      setTimeout(decoratePlannerTrades,0);
+      showProfessionBanner();
       return r;
     };
   }
-  const obs=new MutationObserver(()=>{clearTimeout(window.__v62trade);window.__v62trade=setTimeout(decoratePlannerTrades,20)});
-  obs.observe(document.body,{childList:true,subtree:true});
-  setTimeout(decoratePlannerTrades,0);
+  const tr=document.getElementById('pmPlannerTrade');
+  if(tr){
+    const old=tr.onchange;
+    tr.onchange=function(e){
+      if(typeof old==='function')old.call(this,e);
+      showProfessionBanner();
+    };
+  }
+  setTimeout(showProfessionBanner,0);
 })();
 </script>
+
+<script id="fop-v64-profession-final">
+(function(){
+  function allTasks(){ return (typeof tasks!=='undefined'&&Array.isArray(tasks))?tasks:[]; }
+  function byId(id){ return allTasks().find(t=>String(t.id)===String(id)); }
+  function badge(card,t){
+    if(!card||!t||card.querySelector('.pm-v64-profession')) return;
+    const tr=String(t.trade||'').trim();
+    if(!tr) return;
+    const b=document.createElement('div');
+    b.className='pm-v64-profession';
+    b.style.cssText='display:inline-block;margin:6px 0;padding:5px 10px;border-radius:999px;background:#eaf1fb;color:#123665;font-size:13px;font-weight:900';
+    b.textContent='מקצוע: '+tr;
+    const title=card.querySelector('h3,h4,strong,.title')||card.firstElementChild;
+    if(title?.parentNode) title.parentNode.insertBefore(b,title.nextSibling); else card.prepend(b);
+  }
+  function decorate(){
+    // Planner checkboxes carry the authoritative task id.
+    document.querySelectorAll('[data-task-id]').forEach(el=>{
+      const t=byId(el.getAttribute('data-task-id')); if(!t)return;
+      const card=el.closest('.pm-plan-item,.pm-v3-item,.pm-card,.card,[class*="plan"],[class*="task"]')||el.parentElement;
+      badge(card,t);
+    });
+    // Consolidated treatment titles: make profession unmistakable when task can be matched.
+    document.querySelectorAll('.pm-v64-profession').forEach(()=>{});
+  }
+  const old=window.renderPlanner;
+  if(typeof old==='function'){
+    window.renderPlanner=function(){
+      const r=old.apply(this,arguments);
+      setTimeout(decorate,0);
+      return r;
+    };
+  }
+  const obs=new MutationObserver(()=>{clearTimeout(window.__v64);window.__v64=setTimeout(decorate,25)});
+  obs.observe(document.body,{childList:true,subtree:true});
+  setTimeout(decorate,0);
+})();
+</script>
+<style id="fop-v64-profession-style">
+.pm-v64-profession{direction:rtl}
+</style>
 </body></html>
