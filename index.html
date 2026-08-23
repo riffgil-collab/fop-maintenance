@@ -6303,317 +6303,133 @@ async function saveHistoryEdit(){
 </style>
 
 
-<script id="fop-v74-final-single-source">
-/* V74 FINAL — one source of truth for PM workload, Dashboard and Reports.
-   Business rule:
-   1. PM = active maintenance-technician task_type=maintenance only.
-   2. Horizons are rolling from the selected anchor: 7 days / 1 / 6 / 12 months.
-   3. next_due is the first still-open occurrence. Overdue occurrence is carried at the
-      anchor, then recurrence continues forward according to frequency.
-   4. Completed PM advances next_due in the existing completion transaction; therefore
-      that occurrence immediately disappears from open workload/forecast.
-   5. Dashboard and Reports consume the exact same occurrence engine.
-*/
-(function(){
- const $=id=>document.getElementById(id);
- const ACTIVE=new Set(['planned','postponed']);
- const CLOSED=new Set(['completed','done','בוצע','cancelled','canceled','בוטל']);
- const norm=v=>String(v||'').trim().toLowerCase();
- const parse=s=>{const a=String(s||'').slice(0,10).split('-').map(Number);return a.length===3?new Date(a[0],a[1]-1,a[2]):new Date(NaN)};
- const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
- const dadd=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
- function madd(d,n){const x=new Date(d),day=x.getDate();x.setDate(1);x.setMonth(x.getMonth()+n);x.setDate(Math.min(day,new Date(x.getFullYear(),x.getMonth()+1,0).getDate()));return x}
- function next(d,f){
-   f=String(f||'').trim();
-   if(f==='יומי')return dadd(d,1); if(f==='שבועי')return dadd(d,7); if(f==='דו שבועי')return dadd(d,14);
-   if(f==='חודשי')return madd(d,1); if(f==='תלת חודשי')return madd(d,3); if(f==='חצי שנתי')return madd(d,6);
-   if(f==='שנתי')return madd(d,12); if(f==='5 שנתי')return madd(d,60); return null;
- }
- function bounds(period,anchor){
-   const a=parse(anchor||today()); let e;
-   if(period==='month')e=madd(a,1); else if(period==='half')e=madd(a,6); else if(period==='year')e=madd(a,12); else e=dadd(a,6);
-   return {start:iso(a),end:iso(e),period:period||'week'};
- }
- function masters(){
-   return (Array.isArray(tasks)?tasks:[]).filter(t=>t&&t.active!==false&&String(t.performer||'').trim()==='טכנאי אחזקה'&&String(t.taskType??t.task_type??'').trim().toLowerCase()==='maintenance'&&t.nextDue);
- }
- function latestPlan(taskId,due){
-   return (Array.isArray(pmWorkPlan)?pmWorkPlan:[]).filter(p=>String(p.taskId)===String(taskId)&&String(wpDueFromNotes(p.notes)||'')===String(due))
-     .sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')))[0]||null;
- }
- function rows(opts={}){
-   const o={period:'week',anchor:today(),department:'',machine:'',trade:'',status:'open',...opts}, b=bounds(o.period,o.anchor);
-   const start=parse(b.start),end=parse(b.end),out=[];
-   masters().forEach(t=>{
-     const tr=String(t.trade||maintenanceTrade(t)||'').trim();
-     if(o.department&&t.department!==o.department)return;if(o.machine&&t.machine!==o.machine)return;if(o.trade&&tr!==o.trade)return;
-     let original=String(t.nextDue), d=parse(original); if(isNaN(d))return;
-     let overdue=d<start, guard=0;
-     // Carry one unresolved overdue occurrence into the anchor; do not fabricate historical recurrences.
-     if(overdue)d=new Date(start);
-     while(d<=end&&guard++<5000){
-       const due=iso(d), p=(due===original?latestPlan(t.id,original):null), ps=norm(p?.status);
-       let state=overdue&&due===b.start?'overdue':(ACTIVE.has(ps)?ps:'waiting');
-       if(CLOSED.has(ps))state=ps.startsWith('cancel')||ps==='בוטל'?'cancelled':'completed';
-       const r={kind:'PM',key:`PM:${t.id}:${due}`,task:t,item:{t,due,plan:p,backlog:overdue&&due===b.start},plan:p,state,due,
-         date:(p&&ACTIVE.has(ps)&&p.plannedDate)?String(p.plannedDate):due,department:t.department||'',machine:t.machine||'',trade:tr,
-         description:t.task||'',frequency:t.frequency||'',duration:Number(t.duration||0),assignee:p?.assignedTo||t.performer||'',priority:p?.priority||'',note:p?.postponedReason||''};
-       if(o.status==='open' || !o.status){if(!['completed','cancelled'].includes(state))out.push(r)}
-       else if(o.status==='overdue'){if(state==='overdue')out.push(r)}
-       else if(o.status==='waiting'){if(state==='waiting'||state==='overdue')out.push(r)}
-       else if(o.status==='planned'){if(state==='planned'||state==='postponed')out.push(r)}
-       else if(o.status==='postponed'){if(state==='postponed')out.push(r)}
-       // completed/cancelled are historical and remain handled by the existing audited source.
-       const nd=next(d,t.frequency);if(!nd)break;d=nd;overdue=false;
-     }
-   });
-   return out.sort((a,b)=>a.due.localeCompare(b.due)||a.department.localeCompare(b.department,'he')||a.machine.localeCompare(b.machine,'he'));
- }
- const oldSource=window.fopUnifiedWorkSource;
- function getPM(opts={}){
-   if(['completed','cancelled'].includes(opts.status))return oldSource?.getPM?oldSource.getPM(opts):[];
-   return rows(opts);
- }
- function getWO(opts={}){return oldSource?.getWO?oldSource.getWO(opts):[]}
- function getWork(opts={}){
-   const wt=opts.workType||'';
-   return [...(wt==='WO'?[]:getPM(opts)),...(wt==='PM'?[]:getWO(opts))]
-     .sort((a,b)=>String(a.date||a.due).localeCompare(String(b.date||b.due)));
- }
- window.fopUnifiedWorkSource={periodBounds:bounds,getPM,getWO,getWork,pmState:oldSource?.pmState};
- window.pmV73Forecast={bounds,rows,getPM,getWork};
-
- function dashOpts(status='open'){
-   return {period:(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week',anchor:$('pmDashboardAnchor')?.value||today(),
-     department:$('pmDashboardDepartment')?.value||'',machine:$('pmDashboardMachine')?.value||'',trade:$('pmDashboardTrade')?.value||'',
-     workType:$('pmDashboardWorkType')?.value||'',status};
- }
- function set(id,v){const e=$(id);if(e)e.textContent=v}
- const priorDash=window.renderDashboard;
- window.renderDashboard=renderDashboard=function(){
-   try{priorDash?.()}catch(e){}
-   const o=dashOpts('open'),b=bounds(o.period,o.anchor),open=getWork(o),over=getWork({...o,status:'overdue'}),
-         planned=getWork({...o,status:'planned'}),done=getWork({...o,status:'completed'}),cancel=getWork({...o,status:'cancelled'});
-   const pm=open.filter(r=>r.kind==='PM'),wo=open.filter(r=>r.kind==='WO');
-   set('pmV17Open',open.length);set('pmV31Planned',planned.length);set('pmV17Overdue',over.length);
-   const weekBounds=bounds('week',o.anchor);
-   const weekUpcoming=getWork({...o,status:'open',period:'week'}).filter(r=>{
-     if(r.kind!=='PM') return true;
-     const masterDue=String(r.task?.nextDue||r.task?.next_due||'').slice(0,10);
-     return masterDue>=weekBounds.start && masterDue<=weekBounds.end;
-   });
-   set('pmV17Week',weekUpcoming.length);set('pmV17WO',wo.length);
-   set('pmV3Waiting',pm.length);set('pmV3Planned',planned.filter(r=>r.kind==='PM').length);set('pmV3Completed',done.filter(r=>r.kind==='PM').length);
-   set('pmV3Cancelled',cancel.filter(r=>r.kind==='PM').length);set('pmV3Overdue',over.filter(r=>r.kind==='PM').length);
-   set('pmV3BacklogTotal',pm.length);
-   const mins=pm.reduce((a,r)=>a+r.duration,0);
-   set('pmWeekHours',hours(getPM({...o,period:'week',workType:'PM'}).reduce((a,r)=>a+r.duration,0)));
-   const detail=$('pmV3BacklogDetail');if(detail)detail.textContent=`תחזית מתגלגלת ${b.start}–${b.end}: ${pm.length} טיפולי PM צפויים · ${hours(mins)} שעות`;
-   const wait=$('pmV3WaitingDetail');if(wait)wait.textContent=`${pm.length} מופעי PM פתוחים/צפויים בתקופה`;
-   const trades={'מכונאי':0,'חשמלאי':0};pm.forEach(r=>trades[r.trade==='חשמלאי'?'חשמלאי':'מכונאי']++);
-   const tb=$('pmV17Trade'),mx=Math.max(1,...Object.values(trades));if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${esc(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${v}</strong></div>`).join('');
- }
-
- // Planner: list remains actionable master occurrences, but KPI workload is rolling forecast.
- const priorPlanner=window.renderPlanner;
- window.renderPlanner=renderPlanner=function(){
-   const z=priorPlanner?.();
-   try{
-     const o={period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||today(),
-       department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:$('pmPlannerTrade')?.value||'',workType:'PM',status:'open'};
-     const rr=getPM(o),mins=rr.reduce((a,r)=>a+r.duration,0),sched=rr.filter(r=>r.plan&&ACTIVE.has(norm(r.plan.status))),sm=sched.reduce((a,r)=>a+r.duration,0);
-     set('pmPlanRequired',rr.length);set('pmWorkRequiredHours',(mins/60).toFixed(1));set('pmWorkTechnicianHours',(mins/60).toFixed(1));
-     set('pmWorkScheduledHours',(sm/60).toFixed(1));set('pmWorkUnplannedHours',(Math.max(0,mins-sm)/60).toFixed(1));
-     const b=bounds(o.period,o.anchor),note=document.querySelector('.pm-workload-note');
-     if(note)note.textContent=`תחזית PM מתגלגלת ${b.start}–${b.end}: ${rr.length} טיפולים צפויים · ${(mins/60).toFixed(1)} שעות. סגירת טיפול מקדמת next_due ומעדכנת את העומס.`;
-     const range=$('pmV3RangeText');if(range)range.textContent=`${b.start} – ${b.end} · ${rr.length} טיפולי PM צפויים`;
-   }catch(e){console.error('V73 planner',e)}
-   return z;
- }
-
- // Reports: same exact PM occurrence source as dashboard; WO remains existing source.
- function reportOpts(){
-   return {period:$('pmReportsPeriod')?.value||'week',anchor:$('pmReportsAnchor')?.value||today(),department:$('pmReportsDepartment')?.value||'',
-     machine:$('pmReportsMachine')?.value||'',trade:$('pmReportsTrade')?.value||'',workType:$('pmReportsWorkType')?.value||'',status:$('pmReportsStatus')?.value||'open'};
- }
- const priorReports=window.renderReports;
- window.renderReports=function(){
-   // Existing V4 renderer already calls fopUnifiedWorkSource.getWork; after replacing the source above
-   // it now consumes the same occurrence population as Dashboard.
-   const r=priorReports?.();
-   const o=reportOpts(),rr=getWork(o),mins=rr.reduce((a,x)=>a+Number(x.duration||0),0),b=bounds(o.period,o.anchor);
-   set('pmReportsCount',rr.length);set('pmReportsHours',hours(mins)+' שעות');set('pmReportsFooterCount',rr.length);set('pmReportsFooterHours',hours(mins));
-   const st=$('pmReportsStatusLine');if(st){st.className='status-line success';st.textContent=`מקור אחיד עם הדשבורד · ${b.start}–${b.end} · ${rr.length} עבודות · ${hours(mins)} שעות`;}
-   return r;
- };
-
- // Keep dashboard/report anchors synchronized on initial load; user may change either later.
- setTimeout(()=>{
-   const a=$('pmDashboardAnchor')?.value||today();if($('pmReportsAnchor'))$('pmReportsAnchor').value=a;
-   try{renderDashboard()}catch(e){};try{renderPlanner()}catch(e){};try{window.renderReports()}catch(e){}
- },0);
-})();
-</script>
 
 
-<script id="fop-v75-audited-dashboard-reports-single-source">
-/* V75 AUDITED — definitive Dashboard/Reports synchronization.
-   Canonical business rules:
-   - Physical PM only: active + performer=טכנאי אחזקה + task_type=maintenance.
-   - One CURRENT occurrence per master task: pm_tasks.next_due. Future cycles are NOT
-     fabricated before the current occurrence is closed; completion advances next_due.
-   - Periods are rolling from the selected anchor.
-   - OPEN = unresolved current occurrences whose due date is on/before period end,
-     including backlog before the anchor.
-   - NEAR/WEEK = unresolved current occurrences due inside the rolling 7-day window,
-     excluding backlog.
-   - Dashboard and Reports call the exact same source at render time. No captured legacy
-     getWork closure is allowed to populate Reports.
+<script id="fop-v76-canonical-pm-engine">
+/* V76 CANONICAL PM ENGINE — one definition for Dashboard, Planning and Reports.
+   OPEN/WORKLOAD business rule:
+   - Count forecast maintenance OCCURRENCES, not unique master tasks.
+   - Horizon is rolling from anchor: week = anchor..anchor+6d, month = +1m, half = +6m, year = +12m.
+   - One unresolved overdue occurrence is carried to anchor; historical missed recurrences are not fabricated.
+   - From that open occurrence forward, recurrence is generated by frequency through the horizon.
+   - Task count and labor hours are calculated from the SAME occurrence rows.
+   - Completing a task advances master next_due, so the forecast automatically reflows.
 */
 (function(){
   const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
   const ACTIVE_PLAN=new Set(['planned','postponed']);
   const DONE=new Set(['completed','done','בוצע']);
   const CANCELLED=new Set(['cancelled','canceled','בוטל']);
-  const norm=v=>String(v||'').trim().toLowerCase();
   const iso10=v=>String(v||'').slice(0,10);
-  const esc2=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-
-  function physicalPMTasks(){
-    return (Array.isArray(window.tasks)?window.tasks:(typeof tasks!=='undefined'&&Array.isArray(tasks)?tasks:[])).filter(t=>
-      t && t.active!==false &&
-      String(t.performer||'').trim()==='טכנאי אחזקה' &&
-      String(t.taskType??t.task_type??'').trim().toLowerCase()==='maintenance' &&
-      !!iso10(t.nextDue??t.next_due)
-    );
-  }
-  function planRows(){return (typeof pmWorkPlan!=='undefined'&&Array.isArray(pmWorkPlan))?pmWorkPlan:[]}
-  function latestPlanFor(taskId,due){
-    return planRows().filter(p=>String(p.taskId)===String(taskId)&&iso10(wpDueFromNotes(p.notes))===iso10(due))
-      .sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')))[0]||null;
+  const parse=s=>{const a=iso10(s).split('-').map(Number);return a.length===3&&a.every(Number.isFinite)?new Date(a[0],a[1]-1,a[2]):new Date(NaN)};
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const dadd=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+  function madd(d,n){const x=new Date(d),day=x.getDate();x.setDate(1);x.setMonth(x.getMonth()+n);x.setDate(Math.min(day,new Date(x.getFullYear(),x.getMonth()+1,0).getDate()));return x}
+  function advance(d,f){
+    f=String(f||'').trim();
+    if(f==='יומי')return dadd(d,1); if(f==='שבועי')return dadd(d,7); if(f==='דו שבועי')return dadd(d,14);
+    if(f==='חודשי')return madd(d,1); if(f==='תלת חודשי')return madd(d,3); if(f==='חצי שנתי')return madd(d,6);
+    if(f==='שנתי')return madd(d,12); if(f==='5 שנתי')return madd(d,60); return null;
   }
   function bounds(period,anchor){
-    // Reuse the audited rolling-period implementation that already drives the UI.
-    if(typeof v3PeriodBounds==='function')return v3PeriodBounds(period||'week',anchor||today());
-    const a=iso10(anchor||today()), end=period==='week'?addDays(a,6):period==='month'?addMonths(a,1):period==='half'?addMonths(a,6):addMonths(a,12);
-    return {start:a,end};
+    const a=parse(anchor||today()); let e;
+    if(period==='month')e=madd(a,1); else if(period==='half')e=madd(a,6); else if(period==='year')e=madd(a,12); else e=dadd(a,6);
+    return {start:iso(a),end:iso(e),period:period||'week'};
   }
-  function tradeOf(t){return String(t.trade||maintenanceTrade(t)||'').trim()}
-  function baseMatch(t,o){
-    return (!o.department||t.department===o.department)&&(!o.machine||t.machine===o.machine)&&(!o.trade||tradeOf(t)===String(o.trade).trim());
+  function physicalPMTasks(){
+    return (Array.isArray(tasks)?tasks:[]).filter(t=>t&&t.active!==false&&String(t.performer||'').trim()==='טכנאי אחזקה'&&norm(t.taskType??t.task_type)==='maintenance'&&iso10(t.nextDue??t.next_due));
   }
-  function currentState(t,anchor){
-    const due=iso10(t.nextDue??t.next_due), p=latestPlanFor(t.id,due), ps=norm(p?.status);
-    if(DONE.has(ps))return 'completed';
-    if(CANCELLED.has(ps))return 'cancelled';
-    if(ps==='planned'||ps==='postponed'){
-      const effective=iso10(p?.plannedDate||p?.planned_date||due);
-      return effective && effective<iso10(anchor||today()) ? 'overdue' : ps;
+  function tradeOf(t){return String(t.trade||((typeof maintenanceTrade==='function')?maintenanceTrade(t):'')||'').trim()||'מכונאי'}
+  function baseMatch(t,o){const tr=tradeOf(t);return (!o.department||t.department===o.department)&&(!o.machine||t.machine===o.machine)&&(!o.trade||tr===o.trade)}
+  function planRows(){return Array.isArray(pmWorkPlan)?pmWorkPlan:[]}
+  function latestPlan(taskId,due){
+    return planRows().filter(p=>String(p.taskId)===String(taskId)&&iso10((typeof wpDueFromNotes==='function'?wpDueFromNotes(p.notes):'')||p.dueDate||p.due_date||'')===iso10(due))
+      .sort((a,b)=>String(b.updatedAt||b.updated_at||b.createdAt||b.created_at||'').localeCompare(String(a.updatedAt||a.updated_at||a.createdAt||a.created_at||'')))[0]||null;
+  }
+  function forecastPM(opts={}){
+    const o={period:'week',anchor:today(),department:'',machine:'',trade:'',status:'open',...opts},b=bounds(o.period,o.anchor),start=parse(b.start),end=parse(b.end),out=[];
+    for(const t of physicalPMTasks()){
+      if(!baseMatch(t,o))continue;
+      const original=iso10(t.nextDue??t.next_due); let d=parse(original); if(isNaN(d))continue;
+      let backlog=d<start,guard=0;
+      if(backlog)d=new Date(start); // carry exactly one unresolved backlog item
+      while(d<=end&&guard++<5000){
+        const due=iso(d),isMaster=(due===original),p=isMaster?latestPlan(t.id,original):null,ps=norm(p?.status),pd=iso10(p?.plannedDate??p?.planned_date);
+        let state=(backlog&&due===b.start)?'overdue':(ACTIVE_PLAN.has(ps)?ps:'waiting');
+        if(DONE.has(ps))state='completed'; else if(CANCELLED.has(ps))state='cancelled';
+        const date=(p&&ACTIVE_PLAN.has(ps)&&pd)?pd:due;
+        const r={kind:'PM',key:`PM:${t.id}:${due}`,id:t.id,task:t,item:{t,due,plan:p,backlog:backlog&&due===b.start},plan:p,state,due,date,
+          department:t.department||'',machine:t.machine||'',trade:tradeOf(t),description:t.task||'',frequency:t.frequency||'',duration:Number(t.duration||0),assignee:p?.assignedTo||p?.assigned_to||t.performer||'',priority:p?.priority||'',note:p?.postponedReason||p?.postponed_reason||''};
+        if(o.status==='open'||!o.status){if(!['completed','cancelled'].includes(state))out.push(r)}
+        else if(o.status==='near'){if(due>=b.start&&due<=b.end&&!['completed','cancelled'].includes(state))out.push(r)}
+        else if(o.status==='overdue'){if(state==='overdue')out.push(r)}
+        else if(o.status==='waiting'){if(state==='waiting'||state==='overdue')out.push(r)}
+        else if(o.status==='planned'){if(state==='planned'||state==='postponed')out.push(r)}
+        else if(o.status==='postponed'){if(state==='postponed')out.push(r)}
+        const nd=advance(d,t.frequency); if(!nd)break; d=nd; backlog=false;
+      }
     }
-    return due<iso10(anchor||today())?'overdue':'waiting';
+    return out.sort((a,b)=>a.due.localeCompare(b.due)||String(a.department).localeCompare(String(b.department),'he')||String(a.machine).localeCompare(String(b.machine),'he'));
   }
-  function rowFor(t,anchor){
-    const due=iso10(t.nextDue??t.next_due), p=latestPlanFor(t.id,due), ps=norm(p?.status), state=currentState(t,anchor);
-    return {kind:'PM',key:`PM:${t.id}:${due}`,id:t.id,task:t,item:{t,due,plan:p,backlog:due<iso10(anchor||today())},plan:p,state,due,
-      date:(p&&ACTIVE_PLAN.has(ps)&&iso10(p.plannedDate))?iso10(p.plannedDate):due,
-      department:t.department||'',machine:t.machine||'',trade:tradeOf(t),description:t.task||'',frequency:t.frequency||'',duration:Number(t.duration||0),
-      assignee:p?.assignedTo||t.performer||'',priority:p?.priority||'',note:p?.postponedReason||''};
-  }
+  const legacySource=window.fopUnifiedWorkSource;
   function historicalPM(opts={}){
-    const o={period:'week',anchor:today(),department:'',machine:'',trade:'',status:'completed',...opts},b=bounds(o.period,o.anchor);
-    const taskMap=new Map(physicalPMTasks().map(t=>[String(t.id),t]));
-    const latest=new Map();
-    for(const p of planRows()){
-      const ps=norm(p.status), wanted=o.status==='completed'?DONE:CANCELLED;
-      if(!wanted.has(ps))continue;
-      const t=taskMap.get(String(p.taskId));if(!t||!baseMatch(t,o))continue;
-      const due=iso10(wpDueFromNotes(p.notes)||p.plannedDate), eventDate=o.status==='completed'?iso10(p.completedDate||p.plannedDate||due):iso10(p.plannedDate||due);
-      if(!eventDate||eventDate<b.start||eventDate>b.end)continue;
-      const k=`${p.taskId}|${due}`,old=latest.get(k);
-      if(!old||String(p.updatedAt||p.createdAt||'')>String(old.p.updatedAt||old.p.createdAt||''))latest.set(k,{p,t,due,eventDate});
-    }
-    return [...latest.values()].map(({p,t,due,eventDate})=>({kind:'PM',key:`PM:${t.id}:${due}`,id:t.id,task:t,item:{t,due,plan:p,backlog:false},plan:p,state:o.status,due,date:eventDate,
-      department:t.department||'',machine:t.machine||'',trade:tradeOf(t),description:t.task||'',frequency:t.frequency||'',duration:Number(t.duration||0),assignee:p.assignedTo||t.performer||'',priority:p.priority||'',note:p.postponedReason||''}));
+    // Keep historical completed/cancelled behavior from the audited pre-V74 source if available.
+    try{return legacySource?.getPM?legacySource.getPM(opts):[]}catch(e){return []}
   }
-  function currentPM(opts={}){
-    const o={period:'week',anchor:today(),department:'',machine:'',trade:'',status:'open',...opts},b=bounds(o.period,o.anchor),a=iso10(o.anchor);
-    return physicalPMTasks().filter(t=>baseMatch(t,o)).map(t=>rowFor(t,a)).filter(r=>{
-      const ps=norm(r.plan?.status),pd=iso10(r.plan?.plannedDate),st=r.state,due=r.due;
-      if(o.status==='open'||!o.status)return due<=b.end&&!['completed','cancelled'].includes(st);
-      if(o.status==='near')return due>=b.start&&due<=b.end&&!['completed','cancelled'].includes(st);
-      if(o.status==='overdue')return st==='overdue'&&due<=b.end;
-      if(o.status==='waiting')return (!r.plan||['','waiting','unplanned'].includes(ps))&&due<=b.end&&!['completed','cancelled'].includes(st);
-      if(o.status==='planned')return ACTIVE_PLAN.has(ps)&&pd>=b.start&&pd<=b.end&&!['completed','cancelled'].includes(st);
-      if(o.status==='postponed')return ps==='postponed'&&pd>=b.start&&pd<=b.end&&!['completed','cancelled'].includes(st);
-      return false;
-    });
-  }
+  const getWO=opts=>{try{return legacySource?.getWO?legacySource.getWO(opts):[]}catch(e){return []}};
+  function getPM(opts={}){return ['completed','cancelled'].includes(opts.status)?historicalPM(opts):forecastPM(opts)}
+  function getWork(opts={}){const wt=opts.workType||'';return [...(wt==='WO'?[]:getPM(opts)),...(wt==='PM'?[]:getWO(opts))].sort((a,b)=>String(a.date||a.due).localeCompare(String(b.date||b.due)))}
+  window.fopUnifiedWorkSource={periodBounds:bounds,getPM,getWO,getWork,pmState:legacySource?.pmState};
+  window.pmCanonicalForecast={bounds,getPM,getWork};
 
-  // Preserve only the audited WO provider from the pre-V73 source. PM is fully replaced here.
-  const previous=window.fopUnifiedWorkSource;
-  const getWO=opts=>{try{return window.fopUnifiedWorkSourceV59WO?window.fopUnifiedWorkSourceV59WO(opts):(previous?.getWO?previous.getWO(opts):[])}catch(e){return []}};
-  function getPM(opts={}){return ['completed','cancelled'].includes(opts.status)?historicalPM(opts):currentPM(opts)}
-  function getWork(opts={}){
-    const wt=opts.workType||'';
-    return [...(wt==='WO'?[]:getPM(opts)),...(wt==='PM'?[]:getWO(opts))].sort((a,b)=>String(a.date||a.due).localeCompare(String(b.date||b.due))||String(a.department).localeCompare(String(b.department),'he')||String(a.machine).localeCompare(String(b.machine),'he'));
-  }
-  window.fopUnifiedWorkSource={periodBounds:bounds,getPM,getWO,getWork,pmState:(item,a)=>item?.t?currentState(item.t,a):'waiting'};
-
-  function dashboardOpts(status='open'){
-    return {period:(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week',anchor:$('pmDashboardAnchor')?.value||today(),department:$('pmDashboardDepartment')?.value||'',machine:$('pmDashboardMachine')?.value||'',trade:$('pmDashboardTrade')?.value||'',workType:$('pmDashboardWorkType')?.value||'',status};
-  }
+  function dashOpts(status='open'){return {period:(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week',anchor:$('pmDashboardAnchor')?.value||today(),department:$('pmDashboardDepartment')?.value||'',machine:$('pmDashboardMachine')?.value||'',trade:$('pmDashboardTrade')?.value||'',workType:$('pmDashboardWorkType')?.value||'',status}}
+  function reportOpts(){return {period:$('pmReportsPeriod')?.value||'week',anchor:$('pmReportsAnchor')?.value||today(),department:$('pmReportsDepartment')?.value||'',machine:$('pmReportsMachine')?.value||'',trade:$('pmReportsTrade')?.value||'',workType:$('pmReportsWorkType')?.value||'',status:$('pmReportsStatus')?.value||'open'}}
   function setText(id,v){const e=$(id);if(e)e.textContent=v}
-  const prevDash=window.renderDashboard;
+  const fmtHours=m=>((Number(m||0)/60).toFixed(1));
+
+  const legacyDash=window.renderDashboard||renderDashboard;
   window.renderDashboard=renderDashboard=function(){
-    try{prevDash?.()}catch(e){console.warn('V75 legacy dashboard ignored',e)}
-    const o=dashboardOpts('open'),b=bounds(o.period,o.anchor),open=getWork(o),over=getWork({...o,status:'overdue'}),planned=getWork({...o,status:'planned'}),completed=getWork({...o,status:'completed'}),cancelled=getWork({...o,status:'cancelled'}),postponed=getWork({...o,status:'postponed'});
-    const weekB=bounds('week',o.anchor),near=getWork({...o,period:'week',status:'near'}),pm=open.filter(r=>r.kind==='PM'),wo=open.filter(r=>r.kind==='WO');
+    try{legacyDash?.()}catch(e){}
+    const o=dashOpts('open'),b=bounds(o.period,o.anchor),open=getWork(o),over=getWork({...o,status:'overdue'}),planned=getWork({...o,status:'planned'}),pm=open.filter(r=>r.kind==='PM'),wo=open.filter(r=>r.kind==='WO');
+    const near=getWork({...o,period:'week',status:'near'});
     setText('pmV17Open',open.length);setText('pmV31Planned',planned.length);setText('pmV17Overdue',over.length);setText('pmV17Week',near.length);setText('pmV17WO',wo.length);
-    setText('pmV3Waiting',pm.filter(r=>r.state==='waiting'||r.state==='overdue').length);setText('pmV3Planned',planned.filter(r=>r.kind==='PM').length);setText('pmV3Completed',completed.filter(r=>r.kind==='PM').length);setText('pmV3Postponed',postponed.filter(r=>r.kind==='PM').length);setText('pmV3Cancelled',cancelled.filter(r=>r.kind==='PM').length);setText('pmV3Overdue',over.filter(r=>r.kind==='PM').length);setText('pmV3BacklogTotal',pm.length);
-    const prior=pm.filter(r=>r.due<b.start).length,inPeriod=pm.filter(r=>r.due>=b.start&&r.due<=b.end).length;
-    const bd=$('pmV3BacklogDetail');if(bd)bd.textContent=`${prior} צבר קודם + ${inPeriod} בתקופה שנבחרה`;
-    const wd=$('pmV3WaitingDetail');if(wd)wd.textContent=`${prior} צבר קודם | ${inPeriod} בתקופה שנבחרה`;
-    setText('pmWeekHours',hours(near.filter(r=>r.kind==='PM').reduce((a,r)=>a+Number(r.duration||0),0)));
+    setText('pmV3Waiting',pm.filter(r=>r.state==='waiting'||r.state==='overdue').length);setText('pmV3Planned',planned.filter(r=>r.kind==='PM').length);setText('pmV3Overdue',over.filter(r=>r.kind==='PM').length);setText('pmV3BacklogTotal',pm.length);
+    const mins=pm.reduce((a,r)=>a+Number(r.duration||0),0);setText('pmWeekHours',fmtHours(mins));
+    const bd=$('pmV3BacklogDetail');if(bd)bd.textContent=`תחזית מצטברת ${b.start}–${b.end}: ${pm.length} טיפולי PM · ${fmtHours(mins)} שעות`;
+    const wd=$('pmV3WaitingDetail');if(wd)wd.textContent=`${pm.length} מופעי PM פתוחים/צפויים בתקופה`;
     const trades={'מכונאי':0,'חשמלאי':0};pm.forEach(r=>trades[r.trade==='חשמלאי'?'חשמלאי':'מכונאי']++);
-    const tb=$('pmV17Trade'),mx=Math.max(1,...Object.values(trades));if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${esc2(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${v}</strong></div>`).join('');
-    window.pmV75LastDashboard={opts:o,bounds:b,openCount:open.length,nearCount:near.length,overdueCount:over.length};
+    const tb=$('pmV17Trade'),mx=Math.max(1,...Object.values(trades));if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${typeof esc==='function'?esc(k):k}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${v}</strong></div>`).join('');
+    window.pmV76LastDashboard={opts:o,bounds:b,count:open.length,hours:fmtHours(open.filter(r=>r.kind==='PM').reduce((a,r)=>a+Number(r.duration||0),0))};
+  };
+
+  const legacyPlanner=window.renderPlanner;
+  window.renderPlanner=renderPlanner=function(){
+    const z=legacyPlanner?.();
+    try{const o={period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||today(),department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:$('pmPlannerTrade')?.value||'',workType:'PM',status:'open'},rr=getPM(o),mins=rr.reduce((a,r)=>a+Number(r.duration||0),0),sched=rr.filter(r=>r.plan&&ACTIVE_PLAN.has(norm(r.plan.status))),sm=sched.reduce((a,r)=>a+Number(r.duration||0),0),b=bounds(o.period,o.anchor);
+      setText('pmPlanRequired',rr.length);setText('pmWorkRequiredHours',fmtHours(mins));setText('pmWorkTechnicianHours',fmtHours(mins));setText('pmWorkScheduledHours',fmtHours(sm));setText('pmWorkUnplannedHours',fmtHours(Math.max(0,mins-sm)));
+      const note=document.querySelector('.pm-workload-note');if(note)note.textContent=`אותו מנוע תחזית: ${b.start}–${b.end} · ${rr.length} טיפולים · ${fmtHours(mins)} שעות.`;
+    }catch(e){console.error('V76 planner',e)}return z;
   };
 
   const labels={open:'פתוחות',waiting:'ממתינה לתכנון',planned:'מתוכננת',postponed:'נדחתה',overdue:'באיחור',cancelled:'בוטלה',completed:'בוצעה'};
-  function reportOpts(){return {period:$('pmReportsPeriod')?.value||'week',anchor:$('pmReportsAnchor')?.value||today(),department:$('pmReportsDepartment')?.value||'',machine:$('pmReportsMachine')?.value||'',trade:$('pmReportsTrade')?.value||'',workType:$('pmReportsWorkType')?.value||'',status:$('pmReportsStatus')?.value||'open'}}
-  function checklistHtml(r){
-    if(r.kind!=='PM'||!r.task||typeof pmChecklistItems!=='function')return '';
-    const a=pmChecklistItems(r.task)||[];return a.length?`<div class="pm-report-checklist-detail"><strong>פעולות הטיפול (${a.length}):</strong>${a.map(x=>`<span class="pm-report-check-item">☐ ${esc2(x)}</span>`).join('')}</div>`:'';
-  }
-  function rowHtml(r){
-    const key=`${r.kind||''}|${r.id||r.task?.id||r.description||''}|${r.date||r.due||''}`;
-    return `<tr data-report-key="${esc2(key)}"><td class="pm-report-select-col" style="display:none"><input type="checkbox" class="pm-report-row-select" data-key="${esc2(key)}" checked onchange="pmUpdateSelectedCount()"></td><td>${esc2(fDate(r.date||r.due))}</td><td>${esc2(r.department)}</td><td><strong>${esc2(r.machine)}</strong></td><td>${esc2(r.description)}${checklistHtml(r)}</td><td>${esc2(r.kind==='PM'?`PM · ${r.frequency||'—'}`:'WO')}</td><td>${Number(r.duration||0)} דק׳</td><td>${esc2(r.assignee||r.trade||'')}</td><td class="status-cell">${esc2(labels[r.state]||r.state)}</td><td>${r.note?esc2(r.note):'________________'}</td></tr>`;
-  }
+  const escH=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  function checklistHtml(r){if(r.kind!=='PM'||!r.task||typeof pmChecklistItems!=='function')return '';const a=pmChecklistItems(r.task)||[];return a.length?`<div class="pm-report-checklist-detail"><strong>פעולות הטיפול (${a.length}):</strong>${a.map(x=>`<span class="pm-report-check-item">☐ ${escH(x)}</span>`).join('')}</div>`:''}
+  function rowHtml(r){const key=`${r.kind||''}|${r.id||r.task?.id||r.description||''}|${r.date||r.due||''}`;return `<tr data-report-key="${escH(key)}"><td class="pm-report-select-col" style="display:none"><input type="checkbox" class="pm-report-row-select" data-key="${escH(key)}" checked onchange="pmUpdateSelectedCount()"></td><td>${escH(typeof fDate==='function'?fDate(r.date||r.due):(r.date||r.due))}</td><td>${escH(r.department)}</td><td><strong>${escH(r.machine)}</strong></td><td>${escH(r.description)}${checklistHtml(r)}</td><td>${escH(r.kind==='PM'?`PM · ${r.frequency||'—'}`:'WO')}</td><td>${Number(r.duration||0)} דק׳</td><td>${escH(r.assignee||r.trade||'')}</td><td class="status-cell">${escH(labels[r.state]||r.state)}</td><td>${r.note?escH(r.note):'________________'}</td></tr>`}
   window.renderReports=function(){
-    const body=$('pmReportsBody');if(!body)return;
-    if(!$('pmReportsAnchor')?.value&&$('pmReportsAnchor'))$('pmReportsAnchor').value=$('pmDashboardAnchor')?.value||today();
+    const body=$('pmReportsBody');if(!body)return;if(!$('pmReportsAnchor')?.value&&$('pmReportsAnchor'))$('pmReportsAnchor').value=$('pmDashboardAnchor')?.value||today();
     try{window.fillReportsDepartments?.();window.fillReportMachinesV4?.()}catch(e){}
-    const o=reportOpts(),b=bounds(o.period,o.anchor),rows=getWork(o),mins=rows.reduce((a,r)=>a+Number(r.duration||0),0);
-    window.pmUnifiedReportRows=rows;
-    setText('pmReportsCount',rows.length);setText('pmReportsHours',hours(mins)+' שעות');setText('pmReportsFooterCount',rows.length);setText('pmReportsFooterHours',hours(mins));
-    const meta=$('pmReportsMeta');if(meta)meta.textContent=`${b.label||`${b.start}–${b.end}`} · ${labels[o.status]||o.status} · ${rows.length} משימות`;
+    const o=reportOpts(),b=bounds(o.period,o.anchor),rows=getWork(o),mins=rows.reduce((a,r)=>a+Number(r.duration||0),0);window.pmUnifiedReportRows=rows;
+    setText('pmReportsCount',rows.length);setText('pmReportsHours',fmtHours(mins)+' שעות');setText('pmReportsFooterCount',rows.length);setText('pmReportsFooterHours',fmtHours(mins));
+    const meta=$('pmReportsMeta');if(meta)meta.textContent=`${b.start}–${b.end} · ${labels[o.status]||o.status} · ${rows.length} משימות`;
     body.innerHTML=rows.length?rows.map(rowHtml).join(''):'<tr><td colspan="10" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לתקופה ולפילטרים שנבחרו.</td></tr>';
     try{window.pmApplySelectivePrintUI?.();window.pmRefreshPrintSnapshot?.();window.pmUpdateSelectedCount?.()}catch(e){}
-    const st=$('pmReportsStatusLine');if(st){st.className='status-line success';st.textContent=`מקור אחיד עם הדשבורד · ${b.start}–${b.end} · ${rows.length} עבודות · ${hours(mins)} שעות`;}
-    window.pmV75LastReport={opts:o,bounds:b,count:rows.length};
+    const st=$('pmReportsStatusLine');if(st){st.className='status-line success';st.textContent=`מקור אחיד עם הדשבורד · ${b.start}–${b.end} · ${rows.length} עבודות · ${fmtHours(mins)} שעות`;}
+    window.pmV76LastReport={opts:o,bounds:b,count:rows.length,hours:fmtHours(mins)};
   };
-
-  // Clarify that Waiting is a subset of Open, not a competing dashboard total.
   const waitingOpt=$('pmReportsStatus')?.querySelector('option[value="waiting"]');if(waitingOpt)waitingOpt.textContent='ממתינה לתכנון — מתוך הפתוחות';
-
-  // Audit helper: with identical filters/period/anchor, Reports(open) MUST equal Dashboard(open).
-  window.pmV75Audit=function(){
-    const d=dashboardOpts('open'),r={...reportOpts(),status:'open'};
-    const dc=getWork(d).length,rc=getWork(r).length;
-    return {dashboard:d,report:r,dashboardOpen:dc,reportOpen:rc,sameContext:d.period===r.period&&d.anchor===r.anchor&&d.department===r.department&&d.machine===r.machine&&d.trade===r.trade&&d.workType===r.workType,match:dc===rc};
-  };
-
-  setTimeout(()=>{try{renderDashboard()}catch(e){console.error('V75 dashboard init',e)}try{window.renderReports()}catch(e){console.error('V75 reports init',e)}},0);
+  window.pmV76Audit=function(){const d=dashOpts('open'),r={...reportOpts(),status:'open'},dr=getWork(d),rr=getWork(r);return {dashboardOpen:dr.length,reportOpen:rr.length,dashboardHours:fmtHours(dr.reduce((a,x)=>a+Number(x.duration||0),0)),reportHours:fmtHours(rr.reduce((a,x)=>a+Number(x.duration||0),0)),sameContext:d.period===r.period&&d.anchor===r.anchor&&d.department===r.department&&d.machine===r.machine&&d.trade===r.trade&&d.workType===r.workType,match:dr.length===rr.length};};
+  setTimeout(()=>{try{renderDashboard()}catch(e){console.error('V76 dashboard init',e)}try{renderPlanner()}catch(e){console.error('V76 planner init',e)}try{renderReports()}catch(e){console.error('V76 reports init',e)}},0);
 })();
 </script>
 </body></html>
