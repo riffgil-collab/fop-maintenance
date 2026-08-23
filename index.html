@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260823-v78-reports-filter-audit"/>
+<meta name="fop-build" content="20260823-v82-reports-profession-only"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -840,7 +840,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
       <table class="pm-report-table">
         <thead><tr>
           <th class="pm-report-select-col" id="pmReportsSelectHead" style="display:none">בחר</th>
-          <th>תאריך</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>סוג / תדירות</th><th>משך</th><th>מבצע</th><th>סטטוס</th><th>הערות / חתימה</th>
+          <th>תאריך</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>סוג / תדירות</th><th>משך</th><th>מקצוע</th><th>סטטוס</th><th>הערות / חתימה</th>
         </tr></thead>
         <tbody id="pmReportsBody"></tbody>
       </table>
@@ -4171,7 +4171,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     body.innerHTML=currentRows.length?currentRows.map(r=>{
       const t=r.item.t,p=r.item.plan;
       const note=p?.postponedReason||'';
-      return `<tr><td>${esc(fDate(r.date))}</td><td>${esc(t.department)}</td><td><strong>${esc(t.machine)}</strong></td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${Number(t.duration||0)} דק׳</td><td>${esc(r.assigned)}</td><td class="status-cell">${esc(statusLabels[r.state]||r.state)}</td><td>${note?esc(note):'________________'}</td></tr>`;
+      return `<tr><td>${esc(fDate(r.date))}</td><td>${esc(t.department)}</td><td><strong>${esc(t.machine)}</strong></td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${Number(t.duration||0)} דק׳</td><td>${esc(maintenanceTrade(t)||'')}</td><td class="status-cell">${esc(statusLabels[r.state]||r.state)}</td><td>${note?esc(note):'________________'}</td></tr>`;
     }).join(''):'<tr><td colspan="9" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לפילטרים שנבחרו.</td></tr>';
   };
   /* V53: legacy print path removed completely.
@@ -4181,8 +4181,8 @@ document.addEventListener('DOMContentLoaded',()=>{
     renderReports();
     if(!currentRows.length){if(window.pmToast)pmToast('אין משימות לייצוא','error');return}
     const {label}=reportBounds();
-    const rows=currentRows.map(r=>{const t=r.item.t;return [fDate(r.date),t.department,t.machine,t.task,t.frequency,Number(t.duration||0),r.assigned,statusLabels[r.state]||r.state,r.item.plan?.postponedReason||'']});
-    const head=['תאריך','מחלקה','מכונה','משימה','תדירות','משך (דקות)','מבצע','סטטוס','הערות'];
+    const rows=currentRows.map(r=>{const t=r.item.t;return [fDate(r.date),t.department,t.machine,t.task,t.frequency,Number(t.duration||0),maintenanceTrade(t)||'',statusLabels[r.state]||r.state,r.item.plan?.postponedReason||'']});
+    const head=['תאריך','מחלקה','מכונה','משימה','תדירות','משך (דקות)','מקצוע','סטטוס','הערות'];
     const html=`<!doctype html><html dir="rtl"><head><meta charset="utf-8"></head><body><h2>תוכנית עבודה</h2><p>${xlsEscape(label)}</p><table border="1"><thead><tr>${head.map(x=>`<th>${xlsEscape(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(x=>`<td>${xlsEscape(x)}</td>`).join('')}</tr>`).join('')}</tbody></table>
 
 </body></html>`;
@@ -4248,10 +4248,10 @@ document.addEventListener('DOMContentLoaded',()=>{
     body.innerHTML=currentRows.length?currentRows.map(r=>{
       if(r.workType==='WO'){
         const w=r.wo,note=w.notes||'';
-        return `<tr><td>${esc(fDate(r.date))}</td><td>${esc(w.department||'')}</td><td><strong>${esc(w.machine||'')}</strong><br><small>WO</small></td><td>${esc(w.description||'')}</td><td>WO</td><td>${Number(w.duration||0)} דק׳</td><td>${esc(r.assigned||w.trade||'')}</td><td class="status-cell">${esc(statusLabels[r.state]||r.state)}</td><td>${note?esc(note):'________________'}</td></tr>`;
+        return `<tr><td>${esc(fDate(r.date))}</td><td>${esc(w.department||'')}</td><td><strong>${esc(w.machine||'')}</strong><br><small>WO</small></td><td>${esc(w.description||'')}</td><td>WO</td><td>${Number(w.duration||0)} דק׳</td><td>${esc(w.trade||'')}</td><td class="status-cell">${esc(statusLabels[r.state]||r.state)}</td><td>${note?esc(note):'________________'}</td></tr>`;
       }
       const t=r.item.t,p=r.item.plan,note=p?.postponedReason||'';
-      return `<tr><td>${esc(fDate(r.date))}</td><td>${esc(t.department)}</td><td><strong>${esc(t.machine)}</strong><br><small>PM</small></td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${Number(t.duration||0)} דק׳</td><td>${esc(r.assigned)}</td><td class="status-cell">${esc(statusLabels[r.state]||r.state)}</td><td>${note?esc(note):'________________'}</td></tr>`;
+      return `<tr><td>${esc(fDate(r.date))}</td><td>${esc(t.department)}</td><td><strong>${esc(t.machine)}</strong><br><small>PM</small></td><td>${esc(t.task)}</td><td>${esc(t.frequency)}</td><td>${Number(t.duration||0)} דק׳</td><td>${esc(maintenanceTrade(t)||'')}</td><td class="status-cell">${esc(statusLabels[r.state]||r.state)}</td><td>${note?esc(note):'________________'}</td></tr>`;
     }).join(''):'<tr><td colspan="9" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לפילטרים שנבחרו.</td></tr>';
   };
 })();
@@ -5197,7 +5197,7 @@ renderPlanner=function(){
       <td>${esc(r.description)}${checklistHtml}</td>
       <td>${esc(typeFreq)}</td>
       <td>${Number(r.duration||0)} דק׳</td>
-      <td>${esc(r.assignee||r.trade||'')}</td>
+      <td>${esc(r.trade||'')}</td>
       <td class="status-cell">${esc(STATUS_LABELS[r.state]||r.state)}</td>
       <td>${note?esc(note):'________________'}</td>
     </tr>`;
@@ -5271,7 +5271,7 @@ renderPlanner=function(){
       <td>${esc(r.description)}${snapshotChecklistHTML(r,includeChecklist)}</td>
       <td>${esc(typeFreq)}</td>
       <td>${Number(r.duration||0)} דק׳</td>
-      <td>${esc(r.assignee||r.trade||'')}</td>
+      <td>${esc(r.trade||'')}</td>
       <td class="status-cell">${esc(STATUS_LABELS[r.state]||r.state)}</td>
       <td>${note?esc(note):'________________'}</td>
     </tr>`;
@@ -5326,7 +5326,7 @@ renderPlanner=function(){
       </div>
       <div class="pm-report-table-wrap">
         <table class="pm-report-table">
-          <thead><tr><th>תאריך</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>סוג / תדירות</th><th>משך</th><th>מבצע</th><th>סטטוס</th><th>הערות / חתימה</th></tr></thead>
+          <thead><tr><th>תאריך</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>סוג / תדירות</th><th>משך</th><th>מקצוע</th><th>סטטוס</th><th>הערות / חתימה</th></tr></thead>
           <tbody>${rows.length?rows.map(r=>snapshotRowHTML(r,includeChecklist)).join(''):'<tr><td colspan="9" style="text-align:center;padding:26px">לא נבחרו טיפולים להדפסה.</td></tr>'}</tbody>
         </table>
       </div>
@@ -5414,10 +5414,10 @@ renderPlanner=function(){
     const rows=window.pmUnifiedReportRows||[];
     if(!rows.length){if(window.pmToast)pmToast('אין משימות לייצוא','error');return}
     const opts=reportOptions(),b=periodBounds(opts.period,opts.anchor);
-    const head=['תאריך','מחלקה','מכונה','משימה','סוג','תדירות','משך (דקות)','מקצוע','מבצע','סטטוס','הערות'];
+    const head=['תאריך','מחלקה','מכונה','משימה','סוג','תדירות','משך (דקות)','מקצוע','סטטוס','הערות'];
     const data=rows.map(r=>[
       fDate(r.date||r.due),r.department,r.machine,r.description,r.kind,
-      r.kind==='PM'?r.frequency:'—',Number(r.duration||0),r.trade,r.assignee,
+      r.kind==='PM'?r.frequency:'—',Number(r.duration||0),r.trade,
       STATUS_LABELS[r.state]||r.state,r.note||''
     ]);
     const html=`<!doctype html><html dir="rtl"><head><meta charset="utf-8"></head><body>
@@ -6522,7 +6522,7 @@ async function saveHistoryEdit(){
   const labels={open:'פתוחות',waiting:'ממתינה לתכנון',planned:'מתוכננת',postponed:'נדחתה',overdue:'באיחור',cancelled:'בוטלה',completed:'בוצעה'};
   const escH=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function checklistHtml(r){if(r.kind!=='PM'||!r.task||typeof pmChecklistItems!=='function')return '';const a=pmChecklistItems(r.task)||[];return a.length?`<div class="pm-report-checklist-detail"><strong>פעולות הטיפול (${a.length}):</strong>${a.map(x=>`<span class="pm-report-check-item">☐ ${escH(x)}</span>`).join('')}</div>`:''}
-  function rowHtml(r){const key=`${r.kind||''}|${r.id||r.task?.id||r.description||''}|${r.date||r.due||''}`;return `<tr data-report-key="${escH(key)}"><td class="pm-report-select-col" style="display:none"><input type="checkbox" class="pm-report-row-select" data-key="${escH(key)}" checked onchange="pmUpdateSelectedCount()"></td><td>${escH(typeof fDate==='function'?fDate(r.date||r.due):(r.date||r.due))}</td><td>${escH(r.department)}</td><td><strong>${escH(r.machine)}</strong></td><td>${escH(r.description)}${checklistHtml(r)}</td><td>${escH(r.kind==='PM'?`PM · ${r.frequency||'—'}`:'WO')}</td><td>${Number(r.duration||0)} דק׳</td><td>${escH(r.assignee||r.trade||'')}</td><td class="status-cell">${escH(labels[r.state]||r.state)}</td><td>${r.note?escH(r.note):'________________'}</td></tr>`}
+  function rowHtml(r){const key=`${r.kind||''}|${r.id||r.task?.id||r.description||''}|${r.date||r.due||''}`;return `<tr data-report-key="${escH(key)}"><td class="pm-report-select-col" style="display:none"><input type="checkbox" class="pm-report-row-select" data-key="${escH(key)}" checked onchange="pmUpdateSelectedCount()"></td><td>${escH(typeof fDate==='function'?fDate(r.date||r.due):(r.date||r.due))}</td><td>${escH(r.department)}</td><td><strong>${escH(r.machine)}</strong></td><td>${escH(r.description)}${checklistHtml(r)}</td><td>${escH(r.kind==='PM'?`PM · ${r.frequency||'—'}`:'WO')}</td><td>${Number(r.duration||0)} דק׳</td><td>${escH(r.trade||'')}</td><td class="status-cell">${escH(labels[r.state]||r.state)}</td><td>${r.note?escH(r.note):'________________'}</td></tr>`}
   window.renderReports=function(){
     const body=$('pmReportsBody');if(!body)return;if(!$('pmReportsAnchor')?.value&&$('pmReportsAnchor'))$('pmReportsAnchor').value=$('pmDashboardAnchor')?.value||today();
     try{window.fillReportsDepartments?.();window.fillReportMachinesV4?.()}catch(e){}
@@ -6550,7 +6550,7 @@ async function saveHistoryEdit(){
   function rowsFor(o){const s=source();if(!s||typeof s.getWork!=='function')throw new Error('Canonical PM engine unavailable');return s.getWork(o);}
   function reportKey(r){return `${r.kind||''}|${r.id||r.task?.id||r.description||''}|${r.date||r.due||''}`;}
   function checklistHtml(r){if(r.kind!=='PM'||!r.task||typeof pmChecklistItems!=='function')return '';const a=pmChecklistItems(r.task)||[];return a.length?`<div class="pm-report-checklist-detail"><strong>פעולות הטיפול (${a.length}):</strong>${a.map(x=>`<span class="pm-report-check-item">☐ ${escH(x)}</span>`).join('')}</div>`:'';}
-  function rowHtml(r){return `<tr data-report-key="${escH(reportKey(r))}"><td class="pm-report-select-col" style="display:none"><input type="checkbox" class="pm-report-row-select" data-key="${escH(reportKey(r))}" checked onchange="pmUpdateSelectedCount()"></td><td>${escH(typeof fDate==='function'?fDate(r.date||r.due):(r.date||r.due))}</td><td>${escH(r.department||'')}</td><td><strong>${escH(r.machine||'')}</strong></td><td>${escH(r.description||'')}${checklistHtml(r)}</td><td>${escH(r.kind==='PM'?`PM · ${r.frequency||'—'}`:'WO')}</td><td>${Number(r.duration||0)} דק׳</td><td>${escH(r.assignee||r.trade||'')}</td><td class="status-cell">${escH(labels[r.state]||r.state||'')}</td><td>${r.note?escH(r.note):'________________'}</td></tr>`;}
+  function rowHtml(r){return `<tr data-report-key="${escH(reportKey(r))}"><td class="pm-report-select-col" style="display:none"><input type="checkbox" class="pm-report-row-select" data-key="${escH(reportKey(r))}" checked onchange="pmUpdateSelectedCount()"></td><td>${escH(typeof fDate==='function'?fDate(r.date||r.due):(r.date||r.due))}</td><td>${escH(r.department||'')}</td><td><strong>${escH(r.machine||'')}</strong></td><td>${escH(r.description||'')}${checklistHtml(r)}</td><td>${escH(r.kind==='PM'?`PM · ${r.frequency||'—'}`:'WO')}</td><td>${Number(r.duration||0)} דק׳</td><td>${escH(r.trade||'')}</td><td class="status-cell">${escH(labels[r.state]||r.state||'')}</td><td>${r.note?escH(r.note):'________________'}</td></tr>`;}
   function strictRenderReports(){
     const body=$('pmReportsBody');if(!body)return;const o=opts();if($('pmReportsAnchor')&&!$('pmReportsAnchor').value)$('pmReportsAnchor').value=o.anchor;
     const b=source().bounds(o.period,o.anchor),rows=rowsFor(o),mins=rows.reduce((a,r)=>a+Number(r.duration||0),0);window.pmUnifiedReportRows=rows;
