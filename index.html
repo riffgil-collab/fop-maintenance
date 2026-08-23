@@ -6432,4 +6432,34 @@ async function saveHistoryEdit(){
   setTimeout(()=>{try{renderDashboard()}catch(e){console.error('V76 dashboard init',e)}try{renderPlanner()}catch(e){console.error('V76 planner init',e)}try{renderReports()}catch(e){console.error('V76 reports init',e)}},0);
 })();
 </script>
+<script id="fop-v77-reports-parity-hardfix">
+(function(){
+  const $=id=>document.getElementById(id);
+  const escH=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fmtHours=m=>(Number(m||0)/60).toFixed(1);
+  const labels={open:'פתוחות',waiting:'ממתינה לתכנון',planned:'מתוכננת',postponed:'נדחתה',overdue:'באיחור',cancelled:'בוטלה',completed:'בוצעה'};
+  function opts(){return {period:$('pmReportsPeriod')?.value||'week',anchor:$('pmReportsAnchor')?.value||$('pmDashboardAnchor')?.value||today(),department:$('pmReportsDepartment')?.value||'',machine:$('pmReportsMachine')?.value||'',trade:$('pmReportsTrade')?.value||'',workType:$('pmReportsWorkType')?.value||'',status:$('pmReportsStatus')?.value||'open'};}
+  function source(){return window.pmCanonicalForecast;}
+  function rowsFor(o){const s=source();if(!s||typeof s.getWork!=='function')throw new Error('Canonical PM engine unavailable');return s.getWork(o);}
+  function reportKey(r){return `${r.kind||''}|${r.id||r.task?.id||r.description||''}|${r.date||r.due||''}`;}
+  function checklistHtml(r){if(r.kind!=='PM'||!r.task||typeof pmChecklistItems!=='function')return '';const a=pmChecklistItems(r.task)||[];return a.length?`<div class="pm-report-checklist-detail"><strong>פעולות הטיפול (${a.length}):</strong>${a.map(x=>`<span class="pm-report-check-item">☐ ${escH(x)}</span>`).join('')}</div>`:'';}
+  function rowHtml(r){return `<tr data-report-key="${escH(reportKey(r))}"><td class="pm-report-select-col" style="display:none"><input type="checkbox" class="pm-report-row-select" data-key="${escH(reportKey(r))}" checked onchange="pmUpdateSelectedCount()"></td><td>${escH(typeof fDate==='function'?fDate(r.date||r.due):(r.date||r.due))}</td><td>${escH(r.department||'')}</td><td><strong>${escH(r.machine||'')}</strong></td><td>${escH(r.description||'')}${checklistHtml(r)}</td><td>${escH(r.kind==='PM'?`PM · ${r.frequency||'—'}`:'WO')}</td><td>${Number(r.duration||0)} דק׳</td><td>${escH(r.assignee||r.trade||'')}</td><td class="status-cell">${escH(labels[r.state]||r.state||'')}</td><td>${r.note?escH(r.note):'________________'}</td></tr>`;}
+  function strictRenderReports(){
+    const body=$('pmReportsBody');if(!body)return;const o=opts();if($('pmReportsAnchor')&&!$('pmReportsAnchor').value)$('pmReportsAnchor').value=o.anchor;
+    const b=source().bounds(o.period,o.anchor),rows=rowsFor(o),mins=rows.reduce((a,r)=>a+Number(r.duration||0),0);window.pmUnifiedReportRows=rows;
+    if($('pmReportsCount'))$('pmReportsCount').textContent=rows.length;if($('pmReportsHours'))$('pmReportsHours').textContent=fmtHours(mins)+' שעות';if($('pmReportsFooterCount'))$('pmReportsFooterCount').textContent=rows.length;if($('pmReportsFooterHours'))$('pmReportsFooterHours').textContent=fmtHours(mins);if($('pmReportsMeta'))$('pmReportsMeta').textContent=`${b.start}–${b.end} · ${labels[o.status]||o.status} · ${rows.length} משימות · ${fmtHours(mins)} שעות`;
+    body.innerHTML=rows.length?rows.map(rowHtml).join(''):'<tr><td colspan="10" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לתקופה ולפילטרים שנבחרו.</td></tr>';
+    try{window.pmApplySelectivePrintUI?.();window.pmRefreshPrintSnapshot?.();window.pmUpdateSelectedCount?.();}catch(e){}
+    const d={period:(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week',anchor:$('pmDashboardAnchor')?.value||today(),department:$('pmDashboardDepartment')?.value||'',machine:$('pmDashboardMachine')?.value||'',trade:$('pmDashboardTrade')?.value||'',workType:$('pmDashboardWorkType')?.value||'',status:'open'};
+    const same=o.status==='open'&&o.period===d.period&&o.anchor===d.anchor&&o.department===d.department&&o.machine===d.machine&&o.trade===d.trade&&o.workType===d.workType;let parity='';
+    if(same){const dr=rowsFor(d),dm=dr.reduce((a,r)=>a+Number(r.duration||0),0),ok=dr.length===rows.length&&fmtHours(dm)===fmtHours(mins);parity=ok?'✓ התאמה מלאה לדשבורד':'⚠ אי־התאמה פנימית';if(!ok)console.error('V77 PARITY FAILURE',{dashboard:{count:dr.length,hours:fmtHours(dm)},report:{count:rows.length,hours:fmtHours(mins)},d,o});}
+    const st=$('pmReportsStatusLine');if(st){st.className='status-line '+(parity.startsWith('⚠')?'error':'success');st.textContent=`V77 מקור קנוני יחיד · ${rows.length} עבודות · ${fmtHours(mins)} שעות${parity?' · '+parity:''}`;}window.pmV77LastReport={opts:o,bounds:b,count:rows.length,hours:fmtHours(mins),parity};
+  }
+  window.renderReports=strictRenderReports;try{renderReports=strictRenderReports;}catch(e){}
+  ['pmReportsPeriod','pmReportsAnchor','pmReportsMachine','pmReportsTrade','pmReportsWorkType','pmReportsStatus'].forEach(id=>{const e=$(id);if(!e)return;e.onchange=null;e.addEventListener('change',strictRenderReports);});
+  const dep=$('pmReportsDepartment');if(dep){dep.onchange=null;dep.addEventListener('change',()=>{try{window.fillReportMachinesV4?.();}catch(e){}strictRenderReports();});}
+  const prevShow=window.showTab;window.showTab=function(name){const r=prevShow?.apply(this,arguments);if(name==='reports'){const a=$('pmReportsAnchor');if(a&&!a.value)a.value=$('pmDashboardAnchor')?.value||today();const p=$('pmReportsPeriod');if(p&&typeof pmV3DashboardPeriod!=='undefined')p.value=pmV3DashboardPeriod||'week';strictRenderReports();setTimeout(strictRenderReports,0);}return r;};
+  window.pmV77Audit=function(){const o=opts(),r=rowsFor(o),mins=r.reduce((a,x)=>a+Number(x.duration||0),0);return {opts:o,count:r.length,hours:fmtHours(mins),canonical:true};};setTimeout(strictRenderReports,0);
+})();
+</script>
 </body></html>
