@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260823-v73-final-single-source"/>
+<meta name="fop-build" content="20260823-v78-reports-filter-audit"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -2443,6 +2443,17 @@ async function undoCompletion(historyId,taskId,date){
     ? String(t.notes||'')
     : [String(t.notes||'').trim(),marker].filter(Boolean).join('\n');
 
+  // Resolve the completed occurrence before changing the PM master.
+  const undoCompletedPlanRows=pmWorkPlan
+    .filter(p=>String(p.taskId)===String(taskId)
+      && v3RowStatus(p)==='completed'
+      && String(p.completedDate||'')===String(h.date))
+    .sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
+  const undoCompletedPlan=undoCompletedPlanRows[0]||null;
+  const undoOriginalDue=undoCompletedPlan
+    ? (wpDueFromNotes(undoCompletedPlan.notes)||undoCompletedPlan.plannedDate||h.date)
+    : h.date;
+
   try{
     // First make the business state correct and auditable.
     const taskUpdate={notes:newNotes};
@@ -2450,7 +2461,7 @@ async function undoCompletion(historyId,taskId,date){
       taskUpdate.last_done=previousDone;
       const init=currentProgramStart(t);
       // Never resurrect a due date from before the active initialized program.
-      taskUpdate.next_due=init&&String(h.date)<String(init.date)?(t.nextDue||init.date):h.date;
+      taskUpdate.next_due=init&&String(undoOriginalDue)<String(init.date)?(t.nextDue||init.date):undoOriginalDue;
     }
     const upd=await supabaseClient.from('pm_tasks').update(taskUpdate).eq('id',t.id);
     if(upd.error)throw upd.error;
@@ -2458,20 +2469,13 @@ async function undoCompletion(historyId,taskId,date){
     // Undo must also reopen the matching work-plan occurrence. Completion writes
     // status=Completed + completed_date into pm_work_plan; without reversing that row
     // the V3 dashboard continues to count the occurrence as completed.
-    const completedPlanRows=pmWorkPlan
-      .filter(p=>String(p.taskId)===String(taskId)
-        && v3RowStatus(p)==='completed'
-        && String(p.completedDate||'')===String(h.date))
-      .sort((a,b)=>String(b.updatedAt||b.createdAt||'').localeCompare(String(a.updatedAt||a.createdAt||'')));
-    const completedPlan=completedPlanRows[0]||null;
-    if(completedPlan){
-      const originalDue=wpDueFromNotes(completedPlan.notes)||completedPlan.plannedDate||h.date;
+    if(undoCompletedPlan){
       const wpUndo=await supabaseClient.from('pm_work_plan').update({
         status:'Unplanned',
-        planned_date:originalDue,
+        planned_date:null,
         completed_date:null,
         postponed_reason:null
-      }).eq('id',completedPlan.id);
+      }).eq('id',undoCompletedPlan.id);
       if(wpUndo.error)throw wpUndo.error;
     }
 
@@ -3179,7 +3183,7 @@ function wpNorm(r){
   };
 }
 function wpDueFromNotes(notes){
-  const m=String(notes||'').match(/(?:^|\n)PM_DUE:([0-9]{4}-[0-9]{2}-[0-9]{2})(?:\n|$)/);
+  const m=String(notes||'').match(/(?:^|\n)PM_DUE:([0-9]{4}-[0-9]{2}-[0-9]{2})(?=\s|\||$)/);
   return m?m[1]:'';
 }
 function wpActive(p){return !['Cancelled','Canceled','בוטל'].includes(String(p.status||''))}
@@ -3950,7 +3954,7 @@ saveSelectedPlanning=async function(){
 // Returning to waiting is different from cancellation: the requirement remains alive in backlog.
 unplanSelected=async function(){
   if(!pmCan('manageExceptions'))return statusLine('שינוי תוכנית זמין למנהל אחזקה בלבד.','error');const keys=selectedPlanKeys();if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');if(!await pmConfirm(`להחזיר ${keys.length} משימות למצב ממתינה לתכנון?`))return;const lookup=new Map(filteredPlanningItems().map(x=>[planKey(x),x]));
-  try{for(const key of keys){const item=lookup.get(key);if(!item)continue;const existing=v3OccurrenceRow(item.t.id,item.due);if(!existing)continue;const res=await supabaseClient.from('pm_work_plan').update({status:'Unplanned',planned_date:item.due,completed_date:null,postponed_reason:null}).eq('id',existing.id);if(res.error)throw res.error}await reloadCloudData();statusLine(`${keys.length} משימות הוחזרו לממתינה לתכנון.`,'success')}catch(err){statusLine('עדכון המשימות נכשל: '+(err?.message||'שגיאה'),'error')}
+  try{for(const key of keys){const item=lookup.get(key);if(!item)continue;const existing=v3OccurrenceRow(item.t.id,item.due);if(!existing)continue;const res=await supabaseClient.from('pm_work_plan').update({status:'Unplanned',planned_date:null,completed_date:null,postponed_reason:null}).eq('id',existing.id);if(res.error)throw res.error}await reloadCloudData();statusLine(`${keys.length} משימות הוחזרו לממתינה לתכנון.`,'success')}catch(err){statusLine('עדכון המשימות נכשל: '+(err?.message||'שגיאה'),'error')}
 };
 
 async function cancelOccurrence(item,reason){
@@ -4782,8 +4786,11 @@ async function pmV25RestoreCancelled(taskId,due){
   try{
     const audit=`ביטול בוטל ושוחזר על ידי ${pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש'} בתאריך ${today()}. סיבת הביטול המקורית: ${row.postponedReason||''}`;
     const res=await supabaseClient.from('pm_work_plan').update({
-      status:'Waiting',completed_date:null,
-      notes:`PM_DUE:${due} | ${audit}`
+      status:'Waiting',
+      planned_date:null,
+      completed_date:null,
+      postponed_reason:null,
+      notes:`PM_DUE:${due}\n${audit}`
     }).eq('id',row.id);
     if(res.error)throw res.error;
     const t=tasks.find(x=>String(x.id)===String(taskId));
@@ -5901,6 +5908,9 @@ async function saveHistoryEdit(){
 
       await reloadCloudData();
       renderPlanner();
+      try{renderDashboard()}catch(_){}
+      try{renderReports()}catch(_){}
+      try{renderReport()}catch(_){}
       statusLine(`${changedCount} משימות שובצו לתוכנית העבודה.`,'success');
     }catch(err){
       await rollbackWorkPlan(changes);
@@ -5928,7 +5938,7 @@ async function saveHistoryEdit(){
         changes.push({kind:'update',before:{...existing}});
         const r=await supabaseClient.from('pm_work_plan').update({
           status:'Unplanned',
-          planned_date:item.due,
+          planned_date:null,
           completed_date:null,
           postponed_reason:null
         }).eq('id',existing.id);
@@ -5938,6 +5948,9 @@ async function saveHistoryEdit(){
 
       await reloadCloudData();
       renderPlanner();
+      try{renderDashboard()}catch(_){}
+      try{renderReports()}catch(_){}
+      try{renderReport()}catch(_){}
       statusLine(`${changedCount} משימות הוחזרו לממתינה לתכנון.`,'success');
     }catch(err){
       await rollbackWorkPlan(changes);
@@ -6348,29 +6361,70 @@ async function saveHistoryEdit(){
       .sort((a,b)=>String(b.updatedAt||b.updated_at||b.createdAt||b.created_at||'').localeCompare(String(a.updatedAt||a.updated_at||a.createdAt||a.created_at||'')))[0]||null;
   }
   function forecastPM(opts={}){
-    const o={period:'week',anchor:today(),department:'',machine:'',trade:'',status:'open',...opts},b=bounds(o.period,o.anchor),start=parse(b.start),end=parse(b.end),out=[];
-    for(const t of physicalPMTasks()){
-      if(!baseMatch(t,o))continue;
-      const original=iso10(t.nextDue??t.next_due); let d=parse(original); if(isNaN(d))continue;
-      let backlog=d<start,guard=0;
-      if(backlog)d=new Date(start); // carry exactly one unresolved backlog item
-      while(d<=end&&guard++<5000){
-        const due=iso(d),isMaster=(due===original),p=isMaster?latestPlan(t.id,original):null,ps=norm(p?.status),pd=iso10(p?.plannedDate??p?.planned_date);
-        let state=(backlog&&due===b.start)?'overdue':(ACTIVE_PLAN.has(ps)?ps:'waiting');
-        if(DONE.has(ps))state='completed'; else if(CANCELLED.has(ps))state='cancelled';
-        const date=(p&&ACTIVE_PLAN.has(ps)&&pd)?pd:due;
-        const r={kind:'PM',key:`PM:${t.id}:${due}`,id:t.id,task:t,item:{t,due,plan:p,backlog:backlog&&due===b.start},plan:p,state,due,date,
-          department:t.department||'',machine:t.machine||'',trade:tradeOf(t),description:t.task||'',frequency:t.frequency||'',duration:Number(t.duration||0),assignee:p?.assignedTo||p?.assigned_to||t.performer||'',priority:p?.priority||'',note:p?.postponedReason||p?.postponed_reason||''};
-        if(o.status==='open'||!o.status){if(!['completed','cancelled'].includes(state))out.push(r)}
-        else if(o.status==='near'){if(due>=b.start&&due<=b.end&&!['completed','cancelled'].includes(state))out.push(r)}
-        else if(o.status==='overdue'){if(state==='overdue')out.push(r)}
-        else if(o.status==='waiting'){if(state==='waiting'||state==='overdue')out.push(r)}
-        else if(o.status==='planned'){if(state==='planned'||state==='postponed')out.push(r)}
-        else if(o.status==='postponed'){if(state==='postponed')out.push(r)}
-        const nd=advance(d,t.frequency); if(!nd)break; d=nd; backlog=false;
+    const o={period:'week',anchor:today(),department:'',machine:'',trade:'',status:'open',...opts},
+          b=bounds(o.period,o.anchor),start=parse(b.start),end=parse(b.end),anchorIso=iso10(o.anchor),out=[];
+
+    function pushOccurrence(t, occurrenceDue, carriedBacklog){
+      const p=latestPlan(t.id,occurrenceDue);
+      const ps=norm(p?.status),pd=iso10(p?.plannedDate??p?.planned_date);
+      let state='waiting';
+
+      if(DONE.has(ps)) state='completed';
+      else if(CANCELLED.has(ps)) state='cancelled';
+      else if(ps==='planned'){
+        state=pd ? (pd<anchorIso?'overdue':'planned') : (occurrenceDue<anchorIso?'overdue':'waiting');
+      }else if(ps==='postponed'){
+        state=pd ? (pd<anchorIso?'overdue':'postponed') : (occurrenceDue<anchorIso?'overdue':'waiting');
+      }else{
+        state=occurrenceDue<anchorIso?'overdue':'waiting';
+      }
+
+      const date=(p&&ACTIVE_PLAN.has(ps)&&pd)?pd:occurrenceDue;
+      const r={kind:'PM',key:`PM:${t.id}:${occurrenceDue}`,id:t.id,task:t,item:{t,due:occurrenceDue,plan:p,backlog:carriedBacklog},plan:p,state,due:occurrenceDue,date,
+        department:t.department||'',machine:t.machine||'',trade:tradeOf(t),description:t.task||'',frequency:t.frequency||'',duration:Number(t.duration||0),
+        assignee:p?.assignedTo||p?.assigned_to||t.performer||'',priority:p?.priority||'',note:p?.postponedReason||p?.postponed_reason||''};
+
+      if(o.status==='open'||!o.status){
+        if(!['completed','cancelled'].includes(state))out.push(r);
+      }else if(o.status==='near'){
+        if(occurrenceDue>=b.start&&occurrenceDue<=b.end&&!['completed','cancelled'].includes(state))out.push(r);
+      }else if(o.status==='overdue'){
+        if(state==='overdue')out.push(r);
+      }else if(o.status==='waiting'){
+        if(state==='waiting'||state==='overdue')out.push(r);
+      }else if(o.status==='planned'){
+        if(state==='planned'&&pd&&pd>=b.start&&pd<=b.end)out.push(r);
+      }else if(o.status==='postponed'){
+        if(state==='postponed'&&pd&&pd>=b.start&&pd<=b.end)out.push(r);
       }
     }
-    return out.sort((a,b)=>a.due.localeCompare(b.due)||String(a.department).localeCompare(String(b.department),'he')||String(a.machine).localeCompare(String(b.machine),'he'));
+
+    for(const t of physicalPMTasks()){
+      if(!baseMatch(t,o))continue;
+      const original=iso10(t.nextDue??t.next_due);
+      let d=parse(original);
+      if(isNaN(d))continue;
+      let guard=0;
+
+      // Keep exactly one unresolved backlog occurrence, but preserve the original
+      // recurrence cadence for all future cycles. Never re-anchor recurrence to "today".
+      if(d<start){
+        pushOccurrence(t, original, true);
+        let nd=advance(d,t.frequency);
+        while(nd && nd<start && guard++<5000) nd=advance(nd,t.frequency);
+        d=nd;
+      }
+
+      while(d && d<=end && guard++<5000){
+        pushOccurrence(t, iso(d), false);
+        d=advance(d,t.frequency);
+      }
+    }
+
+    return out.sort((a,b)=>String(a.date||a.due).localeCompare(String(b.date||b.due))||
+      String(a.due).localeCompare(String(b.due))||
+      String(a.department).localeCompare(String(b.department),'he')||
+      String(a.machine).localeCompare(String(b.machine),'he'));
   }
   const legacySource=window.fopUnifiedWorkSource;
   function historicalPM(opts={}){
@@ -6459,7 +6513,115 @@ async function saveHistoryEdit(){
   ['pmReportsPeriod','pmReportsAnchor','pmReportsMachine','pmReportsTrade','pmReportsWorkType','pmReportsStatus'].forEach(id=>{const e=$(id);if(!e)return;e.onchange=null;e.addEventListener('change',strictRenderReports);});
   const dep=$('pmReportsDepartment');if(dep){dep.onchange=null;dep.addEventListener('change',()=>{try{window.fillReportMachinesV4?.();}catch(e){}strictRenderReports();});}
   const prevShow=window.showTab;window.showTab=function(name){const r=prevShow?.apply(this,arguments);if(name==='reports'){const a=$('pmReportsAnchor');if(a&&!a.value)a.value=$('pmDashboardAnchor')?.value||today();const p=$('pmReportsPeriod');if(p&&typeof pmV3DashboardPeriod!=='undefined')p.value=pmV3DashboardPeriod||'week';strictRenderReports();setTimeout(strictRenderReports,0);}return r;};
-  window.pmV77Audit=function(){const o=opts(),r=rowsFor(o),mins=r.reduce((a,x)=>a+Number(x.duration||0),0);return {opts:o,count:r.length,hours:fmtHours(mins),canonical:true};};setTimeout(strictRenderReports,0);
+  window.pmV77Audit=function(){const o=opts(),r=rowsFor(o),mins=r.reduce((a,x)=>a+Number(x.duration||0),0);return {opts:o,count:r.length,hours:fmtHours(mins),canonical:true};};
+  window.pmV78FilterAudit=function(){
+    const base=opts(), statuses=['open','waiting','planned','postponed','overdue','cancelled','completed'];
+    const result={base,bounds:source().bounds(base.period,base.anchor),statuses:{},checks:{}};
+    statuses.forEach(status=>{try{const rr=rowsFor({...base,status});result.statuses[status]={count:rr.length,hours:fmtHours(rr.reduce((a,x)=>a+Number(x.duration||0),0))};}catch(e){result.statuses[status]={error:String(e)}}});
+    try{
+      const rr=rowsFor(base);
+      result.checks.department=rr.every(r=>!base.department||r.department===base.department);
+      result.checks.machine=rr.every(r=>!base.machine||r.machine===base.machine);
+      result.checks.trade=rr.every(r=>!base.trade||r.trade===base.trade);
+      result.checks.workType=rr.every(r=>!base.workType||r.kind===base.workType);
+      result.checks.status=rr.every(r=>base.status==='open'? !['completed','cancelled'].includes(r.state) : base.status==='waiting'? ['waiting','overdue'].includes(r.state) : r.state===base.status);
+    }catch(e){result.checks.error=String(e)}
+    return result;
+  };
+  setTimeout(strictRenderReports,0);
 })();
 </script>
+
+<script id="fop-v80-full-regression-audit">
+(function(){
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const iso=v=>String(v||'').slice(0,10);
+
+  function pureState(due, plan, anchor){
+    const st=norm(plan?.status), pd=iso(plan?.plannedDate??plan?.planned_date);
+    if(['completed','done','בוצע'].includes(st))return 'completed';
+    if(['cancelled','canceled','בוטל'].includes(st))return 'cancelled';
+    if(st==='planned')return pd?(pd<anchor?'overdue':'planned'):(due<anchor?'overdue':'waiting');
+    if(['postponed','deferred','נדחה','נדחתה'].includes(st))return pd?(pd<anchor?'overdue':'postponed'):(due<anchor?'overdue':'waiting');
+    return due<anchor?'overdue':'waiting';
+  }
+
+  window.pmFullRegressionAudit=function(){
+    const errors=[],checks=[],plans=Array.isArray(window.pmWorkPlan)?window.pmWorkPlan:[];
+    const anchor=(typeof today==='function'?today():new Date().toISOString().slice(0,10));
+
+    // Persisted state invariants.
+    const seen=new Map();
+    for(const p of plans){
+      const st=norm(p.status),pd=iso(p.plannedDate??p.planned_date),cd=iso(p.completedDate??p.completed_date);
+      const due=(typeof wpDueFromNotes==='function'?wpDueFromNotes(p.notes):'');
+      if(['unplanned','waiting'].includes(st)&&pd)errors.push({type:'UNSCHEDULED_HAS_PLANNED_DATE',id:p.id,due,plannedDate:pd});
+      if(st==='planned'&&!pd)errors.push({type:'PLANNED_MISSING_DATE',id:p.id,due});
+      if(st==='completed'&&!cd)errors.push({type:'COMPLETED_MISSING_COMPLETION_DATE',id:p.id,due});
+      if(st!=='completed'&&cd)errors.push({type:'NONCOMPLETED_HAS_COMPLETION_DATE',id:p.id,due});
+      if(!due)errors.push({type:'MISSING_OCCURRENCE_KEY',id:p.id,status:p.status,notes:p.notes});
+      if(due){
+        const k=`${p.taskId}|${due}`,a=seen.get(k)||[];a.push(p);seen.set(k,a);
+      }
+    }
+    for(const [k,a] of seen)if(a.length>1)errors.push({type:'DUPLICATE_OCCURRENCE_ROWS',key:k,count:a.length,ids:a.map(x=>x.id)});
+
+    // Pure transition matrix.
+    const past='2026-08-20',future='2026-08-25',A='2026-08-23';
+    const matrix=[
+      ['waiting-future',future,null,'waiting'],
+      ['waiting-past',past,null,'overdue'],
+      ['planned-future',past,{status:'Planned',plannedDate:future},'planned'],
+      ['planned-date-passed',past,{status:'Planned',plannedDate:'2026-08-22'},'overdue'],
+      ['unplanned-past',past,{status:'Unplanned',plannedDate:null},'overdue'],
+      ['postponed-future',past,{status:'Postponed',plannedDate:future},'postponed'],
+      ['postponed-date-passed',past,{status:'Postponed',plannedDate:'2026-08-22'},'overdue'],
+      ['completed',past,{status:'Completed',plannedDate:'2026-08-22',completedDate:'2026-08-22'},'completed'],
+      ['cancelled',past,{status:'Cancelled',plannedDate:'2026-08-22'},'cancelled'],
+      ['restored-cancel-past',past,{status:'Waiting',plannedDate:null},'overdue']
+    ];
+    for(const [name,due,p,expected] of matrix){
+      const got=pureState(due,p,A);checks.push({name,expected,got,ok:got===expected});
+      if(got!==expected)errors.push({type:'TRANSITION_MATRIX_FAILURE',name,expected,got});
+    }
+
+    // Canonical filter invariants across every supported horizon.
+    const engine=window.pmCanonicalForecast;
+    if(engine?.getWork){
+      for(const period of ['week','month','half','year']){
+        const base={period,anchor,department:'',machine:'',trade:'',workType:''};
+        const by={};
+        for(const status of ['open','waiting','planned','postponed','overdue','cancelled','completed']){
+          by[status]=engine.getWork({...base,status});
+        }
+        for(const [status,rows] of Object.entries(by)){
+          if(status==='waiting'){
+            if(rows.some(r=>!['waiting','overdue'].includes(r.state)))errors.push({type:'WAITING_FILTER_LEAK',period});
+          }else if(status!=='open'&&rows.some(r=>r.state!==status)){
+            errors.push({type:'STATUS_FILTER_LEAK',period,status});
+          }
+        }
+        const keys=x=>new Set(x.map(r=>r.key||`${r.kind}:${r.id}:${r.due}`));
+        const planned=keys(by.planned),overdue=keys(by.overdue),completed=keys(by.completed),cancelled=keys(by.cancelled);
+        for(const k of planned)if(overdue.has(k))errors.push({type:'PLANNED_OVERDUE_OVERLAP',period,key:k});
+        for(const k of completed)if(cancelled.has(k))errors.push({type:'COMPLETED_CANCELLED_OVERLAP',period,key:k});
+        checks.push({name:`canonical-${period}`,open:by.open.length,waiting:by.waiting.length,planned:by.planned.length,postponed:by.postponed.length,overdue:by.overdue.length,completed:by.completed.length,cancelled:by.cancelled.length,ok:true});
+      }
+    }else errors.push({type:'CANONICAL_ENGINE_MISSING'});
+
+    // Existing report filter audit, if available.
+    try{
+      if(typeof window.pmV78FilterAudit==='function'){
+        const f=window.pmV78FilterAudit();
+        checks.push({name:'report-filter-audit',result:f,ok:!f?.checks?.error});
+        if(f?.checks?.error)errors.push({type:'REPORT_FILTER_AUDIT_ERROR',message:f.checks.error});
+      }
+    }catch(e){errors.push({type:'REPORT_FILTER_AUDIT_EXCEPTION',message:String(e)})}
+
+    return {ok:errors.length===0,errors,checks};
+  };
+  window.pmStateTransitionAudit=window.pmFullRegressionAudit;
+})();
+</script>
+
 </body></html>
