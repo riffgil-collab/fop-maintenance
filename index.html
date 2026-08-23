@@ -5489,7 +5489,11 @@ renderPlanner=function(){
 
     const dashType=$('pmDashboardWorkType')?.value||'';
     if($('pmPlannerWorkType'))$('pmPlannerWorkType').value=(kind==='wo'?'WO':dashType);
-    if($('pmPlannerStatus'))$('pmPlannerStatus').value=(kind==='overdue'?'overdue':'');
+    if($('pmPlannerStatus'))$('pmPlannerStatus').value=
+      kind==='overdue'?'overdue':
+      kind==='planned'?'planned':
+      kind==='week'?'near':
+      'open';
 
     pmPlanPage=0;
     showTab('planner');
@@ -6460,10 +6464,59 @@ async function saveHistoryEdit(){
   const legacyPlanner=window.renderPlanner;
   window.renderPlanner=renderPlanner=function(){
     const z=legacyPlanner?.();
-    try{const o={period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||today(),department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:$('pmPlannerTrade')?.value||'',workType:'PM',status:'open'},rr=getPM(o),mins=rr.reduce((a,r)=>a+Number(r.duration||0),0),sched=rr.filter(r=>r.plan&&ACTIVE_PLAN.has(norm(r.plan.status))),sm=sched.reduce((a,r)=>a+Number(r.duration||0),0),b=bounds(o.period,o.anchor);
-      setText('pmPlanRequired',rr.length);setText('pmWorkRequiredHours',fmtHours(mins));setText('pmWorkTechnicianHours',fmtHours(mins));setText('pmWorkScheduledHours',fmtHours(sm));setText('pmWorkUnplannedHours',fmtHours(Math.max(0,mins-sm)));
-      const note=document.querySelector('.pm-workload-note');if(note)note.textContent=`אותו מנוע תחזית: ${b.start}–${b.end} · ${rr.length} טיפולים · ${fmtHours(mins)} שעות.`;
-    }catch(e){console.error('V76 planner',e)}return z;
+    try{
+      const o={period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',
+        anchor:$('pmPlannerStart')?.value||today(),
+        department:$('pmPlannerDepartment')?.value||'',
+        machine:$('pmPlannerMachine')?.value||'',
+        trade:$('pmPlannerTrade')?.value||'',
+        workType:$('pmPlannerWorkType')?.value||'PM',
+        status:$('pmPlannerStatus')?.value||'open'};
+      const allRows=getWork(o);
+      const rr=allRows.filter(r=>r.kind==='PM');
+      const mins=rr.reduce((a,r)=>a+Number(r.duration||0),0);
+      const sched=rr.filter(r=>r.plan&&['planned','postponed'].includes(r.state));
+      const sm=sched.reduce((a,r)=>a+Number(r.duration||0),0),b=bounds(o.period,o.anchor);
+
+      setText('pmPlanRequired',allRows.length);
+      setText('pmWorkRequiredHours',fmtHours(allRows.reduce((a,r)=>a+Number(r.duration||0),0)));
+      setText('pmWorkTechnicianHours',fmtHours(mins));
+      setText('pmWorkScheduledHours',fmtHours(sm));
+      setText('pmWorkUnplannedHours',fmtHours(Math.max(0,mins-sm)));
+
+      // CRITICAL PARITY FIX: render the planner detail from the SAME canonical rows
+      // used by Dashboard and Reports. Previously only the KPI was reconciled while
+      // the visible list still came from legacy occurrenceItems(), causing 97 vs 77.
+      const detail=$('pmPlannerDetail');
+      if(detail){
+        const pages=Math.max(1,Math.ceil(allRows.length/PM_PLAN_PAGE_SIZE));
+        pmPlanPage=Math.max(0,Math.min(pages-1,pmPlanPage||0));
+        const pageRows=allRows.slice(pmPlanPage*PM_PLAN_PAGE_SIZE,(pmPlanPage+1)*PM_PLAN_PAGE_SIZE);
+        const info=$('pmPlanPageInfo');
+        if(info)info.textContent=`עמוד ${pmPlanPage+1} מתוך ${pages} · ${allRows.length} דרישות`;
+        detail.innerHTML=pageRows.length?pageRows.map(r=>{
+          const planned=!!r.plan&&['planned','postponed'].includes(r.state);
+          const done=r.state==='completed';
+          const latePlan=planned&&String(r.date||'')>String(r.due||'');
+          const badge=done?'done':latePlan?'risk':planned?'planned':r.state==='overdue'?'risk':'open';
+          const status=done?'בוצע':r.state==='overdue'?'באיחור':r.state==='postponed'?'נדחה':planned?'מתוכנן':'לא תוכנן';
+          const key=`${String(r.id)}@@${r.due}`;
+          return `<div class="pm-plan-row ${done?'done-plan':latePlan?'late-plan':planned?'planned':''}">
+            <input class="pm-plan-check" type="checkbox" value="${escH(key)}" onchange="updatePlanSelectionInfo()"/>
+            <div class="pm-plan-main"><strong>${escH(r.machine)} — ${escH(r.description)}</strong><small>${escH(r.department)} · <strong>מקצוע: ${escH(r.trade||'—')}</strong> · מבצע: ${escH(r.assignee||r.task?.performer||'')} · תדירות: ${escH(r.frequency||'—')} · ${Number(r.duration||0)} דק׳${r.item?.backlog?' · פיגור קודם':''}</small>${planned?`<small>שובץ: ${escH(fDate(r.date))}${r.assignee?' · '+escH(r.assignee):''}</small>`:''}</div>
+            <div class="pm-plan-meta pm-plan-hide-mobile">${escH(r.frequency||'')}</div>
+            <div class="pm-plan-meta">${escH(fDate(r.due))}</div>
+            <div class="pm-plan-meta pm-plan-hide-mobile">${planned?escH(fDate(r.date)):'—'}</div>
+            <span class="pm-plan-badge ${badge}">${status}${latePlan?' · אחרי היעד':''}</span>
+          </div>`;
+        }).join(''):'<div class="empty">אין דרישות אחזקה בתקופה ובסינון שנבחרו.</div>';
+      }
+
+      const note=document.querySelector('.pm-workload-note');
+      if(note)note.textContent=`אותו מנוע תחזית כמו הדשבורד והדוחות: ${b.start}–${b.end} · ${allRows.length} עבודות · ${fmtHours(allRows.reduce((a,r)=>a+Number(r.duration||0),0))} שעות.`;
+      window.pmPlannerParity={opts:o,count:allRows.length,dashboardComparable:getWork({...o,status:o.status||'open'}).length};
+    }catch(e){console.error('V81 planner canonical render',e)}
+    return z;
   };
 
   const labels={open:'פתוחות',waiting:'ממתינה לתכנון',planned:'מתוכננת',postponed:'נדחתה',overdue:'באיחור',cancelled:'בוטלה',completed:'בוצעה'};
