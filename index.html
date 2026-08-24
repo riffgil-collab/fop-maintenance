@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260824-v87-bilingual-checklist-restored"/>
+<meta name="fop-build" content="20260824-v88-planner-checklist-restored"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -6626,7 +6626,7 @@ async function saveHistoryEdit(){
           const key=`${String(r.id)}@@${r.due}`;
           return `<div class="pm-plan-row ${done?'done-plan':latePlan?'late-plan':planned?'planned':''}">
             <input class="pm-plan-check" type="checkbox" value="${escH(key)}" onchange="updatePlanSelectionInfo()"/>
-            <div class="pm-plan-main"><strong>${escH(r.machine)} — ${escH(r.description)}</strong><small>${escH(r.department)} · <strong>מקצוע: ${escH(r.trade||'—')}</strong> · מבצע: ${escH(r.assignee||r.task?.performer||'')} · תדירות: ${escH(r.frequency||'—')} · ${Number(r.duration||0)} דק׳${r.item?.backlog?' · פיגור קודם':''}</small>${planned?`<small>שובץ: ${escH(fDate(r.date))}${r.assignee?' · '+escH(r.assignee):''}</small>`:''}</div>
+            <div class="pm-plan-main"><strong>${escH(r.machine)} — ${escH(r.description)}</strong><small>${escH(r.department)} · <strong>מקצוע: ${escH(r.trade||'—')}</strong> · מבצע: ${escH(r.assignee||r.task?.performer||'')} · תדירות: ${escH(r.frequency||'—')} · ${Number(r.duration||0)} דק׳${r.item?.backlog?' · פיגור קודם':''}</small>${planned?`<small>שובץ: ${escH(fDate(r.date))}${r.assignee?' · '+escH(r.assignee):''}</small>`:''}${r.kind==='PM'&&r.task?pmChecklistToggleHtml(r.task):''}</div>
             <div class="pm-plan-meta pm-plan-hide-mobile">${escH(r.frequency||'')}</div>
             <div class="pm-plan-meta">${escH(fDate(r.due))}</div>
             <div class="pm-plan-meta pm-plan-hide-mobile">${planned?escH(fDate(r.date)):'—'}</div>
