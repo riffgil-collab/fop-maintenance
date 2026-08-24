@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260824-v83-real-pdf-print"/>
+<meta name="fop-build" content="20260824-v84-ios-pdf-print-fix"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -6679,8 +6679,8 @@ async function saveHistoryEdit(){
 })();
 </script>
 
-<script id="fop-v83-real-pdf-print">
-/* V83 — real native print + real PDF file from the exact selective-print snapshot. */
+<script id="fop-v84-ios-pdf-print-fix">
+/* V84 — iOS-safe native print + real PDF. Generate first, then navigate to the PDF so Safari does not suspend the source tab. */
 (function(){
   const $=id=>document.getElementById(id);
   const toast=(msg,type='')=>{if(typeof window.pmToast==='function')return window.pmToast(msg,type);alert(msg);};
@@ -6737,13 +6737,30 @@ async function saveHistoryEdit(){
       return pdf.output('blob');
     }finally{stage.remove();}
   }
+  function showPdfBusy(){
+    let el=document.getElementById('pmPdfBusyOverlay');
+    if(!el){el=document.createElement('div');el.id='pmPdfBusyOverlay';el.setAttribute('role','status');el.setAttribute('aria-live','polite');el.innerHTML='<div style="background:#fff;border-radius:16px;padding:22px 26px;box-shadow:0 12px 38px rgba(0,0,0,.22);font-family:Arial,sans-serif;font-weight:700;font-size:18px;color:#10284c;text-align:center">מכין PDF…<div style="font-size:13px;font-weight:400;color:#667085;margin-top:8px">נא להמתין, הקובץ ייפתח אוטומטית</div></div>';Object.assign(el.style,{position:'fixed',inset:'0',display:'flex',alignItems:'center',justifyContent:'center',background:'rgba(255,255,255,.78)',zIndex:'2147483647',padding:'20px'});document.body.appendChild(el);}else el.style.display='flex';return el;
+  }
+  function hidePdfBusy(){const el=document.getElementById('pmPdfBusyOverlay');if(el)el.style.display='none';}
   window.pdfWorkPlanReport=async function(){
     const prepared=prepareSnapshot();if(!prepared)return false;
-    const viewer=window.open('about:blank','_blank');if(viewer){try{viewer.document.open();viewer.document.write('<!doctype html><html dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>מכין PDF…</title><body style="font-family:Arial,sans-serif;padding:32px;text-align:center">מכין PDF…</body></html>');viewer.document.close();}catch(_e){}}
     const btn=document.querySelector('button[onclick="pdfWorkPlanReport()"]'),original=btn?.innerHTML;if(btn){btn.disabled=true;btn.textContent='מכין PDF…';}
-    try{const blob=await renderRealPdf(prepared.sheet),url=URL.createObjectURL(blob);if(viewer&&!viewer.closed)viewer.location.replace(url);else{const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.download='maintenance_work_plan.pdf';document.body.appendChild(a);a.click();a.remove();}setTimeout(()=>URL.revokeObjectURL(url),5*60*1000);toast('PDF נוצר בהצלחה','success');}
-    catch(err){console.error('PDF generation failed',err);if(viewer&&!viewer.closed)viewer.close();toast('יצירת ה‑PDF נכשלה. בדוק חיבור לאינטרנט ונסה שוב.','error');}
-    finally{if(btn){btn.disabled=false;btn.innerHTML=original||'📄 PDF';}}return false;
+    showPdfBusy();
+    try{
+      /* Important for iPhone/iPad Safari: do NOT open a placeholder tab first. Safari can suspend this page as soon as the new tab becomes active, which leaves "מכין PDF…" stuck forever. */
+      const blob=await renderRealPdf(prepared.sheet);
+      if(!blob||!blob.size)throw new Error('Empty PDF blob');
+      const url=URL.createObjectURL(blob);
+      /* Navigate only after the PDF is completely ready. _self/location is not popup-blocked after async work and iOS opens application/pdf in its native viewer. */
+      hidePdfBusy();
+      if(btn){btn.disabled=false;btn.innerHTML=original||'📄 PDF';}
+      setTimeout(()=>{try{window.location.assign(url);}catch(_e){window.location.href=url;}},30);
+      /* Do not revoke immediately: iOS may resolve the blob lazily after navigation. */
+      setTimeout(()=>{try{URL.revokeObjectURL(url);}catch(_e){}},10*60*1000);
+    }catch(err){
+      console.error('PDF generation failed',err);hidePdfBusy();toast('יצירת ה‑PDF נכשלה. נסה שוב.','error');if(btn){btn.disabled=false;btn.innerHTML=original||'📄 PDF';}
+    }
+    return false;
   };
   window.addEventListener('afterprint',()=>document.body.classList.remove('pm-print-ready'));
 })();
