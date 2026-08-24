@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260824-v88-planner-checklist-restored"/>
+<meta name="fop-build" content="20260824-v89-dashboard-navigation-hardfix"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -6909,4 +6909,137 @@ async function saveHistoryEdit(){
   else setTimeout(refreshLanguage,0);
 })();
 </script>
+
+<script id="fop-v89-dashboard-navigation-hardfix">
+(function(){
+  const $=id=>document.getElementById(id);
+  const tileSelector=[
+    '#pmV17Dashboard .pm-v17-kpi',
+    '.pm-v3-status-grid .pm-v3-status',
+    '#pmDashboard .pm-plan-summary .pm-plan-stat'
+  ].join(',');
+
+  function dashContext(){
+    return {
+      period:(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week',
+      anchor:$('pmDashboardAnchor')?.value||((typeof today==='function')?today():'')||'',
+      department:$('pmDashboardDepartment')?.value||'',
+      machine:$('pmDashboardMachine')?.value||'',
+      trade:$('pmDashboardTrade')?.value||'',
+      workType:$('pmDashboardWorkType')?.value||''
+    };
+  }
+  function ensureStatusOption(value,label){
+    const st=$('pmPlannerStatus');if(!st||!value)return;
+    if(![...st.options].some(o=>o.value===value)){
+      const o=document.createElement('option');o.value=value;o.textContent=label||value;st.appendChild(o);
+    }
+  }
+  function setSelect(id,value){
+    const el=$(id);if(!el)return;
+    const v=value==null?'':String(value);
+    if([...el.options].some(o=>o.value===v))el.value=v;
+    else if(v==='')el.value='';
+  }
+  function applyPlannerContext(c,status,workType,period){
+    if($('pmPlannerStart'))$('pmPlannerStart').value=c.anchor;
+    if(typeof setPlanningPeriod==='function')setPlanningPeriod(period);
+    setSelect('pmPlannerDepartment',c.department);
+    if(typeof fillPlanningMachines==='function')fillPlanningMachines();
+    setSelect('pmPlannerMachine',c.machine);
+    setSelect('pmPlannerProfession',c.trade);
+    setSelect('pmPlannerTrade',c.trade);
+    setSelect('pmPlannerWorkType',workType===undefined?c.workType:workType);
+    setSelect('pmPlannerStatus',status);
+    try{pmPlanPage=0;}catch(e){}
+  }
+  function openPlannerFromDashboard(status='open',workType,periodOverride){
+    const c=dashContext();
+    const period=periodOverride||c.period||'week';
+    ensureStatusOption('open','פתוחות');
+    ensureStatusOption('near','עד 7 ימים / סוף התקופה');
+    applyPlannerContext(c,status,workType,period);
+    if(typeof window.showTab==='function')window.showTab('planner');
+    else if(typeof showTab==='function')showTab('planner');
+    applyPlannerContext(c,status,workType,period);
+    if(typeof window.renderPlanner==='function')window.renderPlanner();
+    else if(typeof renderPlanner==='function')renderPlanner();
+    if(typeof window.renderUnplannedPlanner==='function')window.renderUnplannedPlanner();
+    else if(typeof renderUnplannedPlanner==='function')renderUnplannedPlanner();
+    setTimeout(()=>{
+      applyPlannerContext(c,status,workType,period);
+      if(typeof window.renderPlanner==='function')window.renderPlanner();
+      else if(typeof renderPlanner==='function')renderPlanner();
+      if(typeof window.renderUnplannedPlanner==='function')window.renderUnplannedPlanner();
+      $('pmPlanner')?.scrollIntoView?.({block:'start'});
+    },0);
+    return false;
+  }
+  window.pmOpenPlannerFromDashboard=openPlannerFromDashboard;
+
+  window.pmV17OpenPlanner=function(kind){
+    if(kind==='wo')return openPlannerFromDashboard('open','WO');
+    if(kind==='overdue')return openPlannerFromDashboard('overdue',undefined);
+    if(kind==='week')return openPlannerFromDashboard('near',undefined,'week');
+    return openPlannerFromDashboard('open',undefined);
+  };
+  window.pmV31OpenPlanned=function(){return openPlannerFromDashboard('planned',undefined);};
+  window.pmV25OpenCancelled=function(){return openPlannerFromDashboard('cancelled',undefined);};
+
+  const mapping={
+    pmV17Open:{status:'open'},
+    pmV31Planned:{status:'planned'},
+    pmV17Overdue:{status:'overdue'},
+    pmV25Cancelled:{status:'cancelled'},
+    pmV17Week:{status:'near',period:'week'},
+    pmV17WO:{status:'open',workType:'WO'},
+    pmV3Waiting:{status:'waiting',workType:'PM'},
+    pmV3Planned:{status:'planned',workType:'PM'},
+    pmV3Completed:{status:'completed',workType:'PM'},
+    pmV3Postponed:{status:'postponed',workType:'PM'},
+    pmV3Cancelled:{status:'cancelled',workType:'PM'},
+    pmV3Overdue:{status:'overdue',workType:'PM'},
+    pmWOOpen:{status:'open',workType:'WO'},
+    pmWOPlanned:{status:'planned',workType:'WO'},
+    pmWODone:{status:'completed',workType:'WO'}
+  };
+  function tileAction(tile){
+    if(!tile)return null;
+    for(const [id,action] of Object.entries(mapping))if(tile.querySelector('#'+id))return action;
+    return null;
+  }
+  function bindTiles(){
+    document.querySelectorAll(tileSelector).forEach(tile=>{
+      if(!tileAction(tile))return;
+      tile.style.cursor='pointer';
+      tile.setAttribute('role','button');
+      tile.setAttribute('tabindex','0');
+      tile.dataset.pmDashNav='1';
+      tile.removeAttribute('onclick');
+    });
+  }
+  function activateTile(tile,event){
+    const action=tileAction(tile);if(!action)return;
+    event?.preventDefault?.();event?.stopPropagation?.();
+    return openPlannerFromDashboard(action.status,action.workType,action.period);
+  }
+  document.addEventListener('click',e=>{
+    const tile=e.target?.closest?.('[data-pm-dash-nav="1"]');if(tile)activateTile(tile,e);
+  },true);
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Enter'&&e.key!==' ')return;
+    const tile=e.target?.closest?.('[data-pm-dash-nav="1"]');if(tile)activateTile(tile,e);
+  },true);
+
+  const oldRender=window.renderDashboard;
+  if(typeof oldRender==='function'){
+    window.renderDashboard=function(){const r=oldRender.apply(this,arguments);bindTiles();return r;};
+    try{renderDashboard=window.renderDashboard;}catch(e){}
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',bindTiles);
+  else bindTiles();
+  setTimeout(bindTiles,0);
+})();
+</script>
+
 </body></html>
