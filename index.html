@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260823-v82-reports-profession-only"/>
+<meta name="fop-build" content="20260824-v83-real-pdf-print"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -438,6 +438,8 @@ body.pm-report-printing.pm-print-checklists .pm-report-checklist-detail{display:
 .pm-completion-checklist .pm-checklist-item:last-child{border-bottom:0}.pm-checklist-progress{font-size:11px;color:var(--muted);margin-top:7px;font-weight:800}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 
 <style id="pm-login-language-placement">
 .pm-lang-switch.pm-login-lang{position:static;display:flex;justify-content:center;width:max-content;margin:0 auto 14px;direction:ltr;background:#fff;padding:5px;border-radius:12px;box-shadow:0 2px 12px #0002;border:1px solid #ddd;z-index:auto}
@@ -6677,4 +6679,73 @@ async function saveHistoryEdit(){
 })();
 </script>
 
+<script id="fop-v83-real-pdf-print">
+/* V83 — real native print + real PDF file from the exact selective-print snapshot. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const toast=(msg,type='')=>{if(typeof window.pmToast==='function')return window.pmToast(msg,type);alert(msg);};
+  function prepareSnapshot(){
+    const count=typeof window.pmRefreshPrintSnapshot==='function'?window.pmRefreshPrintSnapshot():0;
+    if(!count){toast('לא נבחרו טיפולים להדפסה','error');return null;}
+    const snap=$('pmReportsPrintSnapshot'),sheet=snap?.querySelector('.pm-report-sheet');
+    if(!sheet){toast('לא ניתן להכין את הדוח להדפסה','error');return null;}
+    return {count,snap,sheet};
+  }
+  window.printWorkPlanReport=function(){
+    const prepared=prepareSnapshot();if(!prepared)return false;
+    document.body.classList.add('pm-print-ready');void document.body.offsetHeight;
+    try{window.print();}catch(err){document.body.classList.remove('pm-print-ready');console.error('Native print failed',err);toast('לא ניתן לפתוח את ממשק ההדפסה במכשיר זה','error');}
+    return false;
+  };
+  async function waitForImages(root){
+    const imgs=[...root.querySelectorAll('img')];
+    await Promise.all(imgs.map(img=>{if(img.complete)return Promise.resolve();return new Promise(resolve=>{const done=()=>resolve();img.addEventListener('load',done,{once:true});img.addEventListener('error',done,{once:true});setTimeout(done,1500);});}));
+  }
+  function makeStage(){
+    const stage=document.createElement('div');stage.id='pmPdfRenderStage';stage.setAttribute('aria-hidden','true');
+    Object.assign(stage.style,{position:'fixed',left:'-100000px',top:'0',width:'1120px',background:'#fff',zIndex:'-1',pointerEvents:'none'});
+    document.body.appendChild(stage);return stage;
+  }
+  function normalizePdfSheet(sheet){
+    Object.assign(sheet.style,{width:'1120px',margin:'0',padding:'22px',border:'0',borderRadius:'0',overflow:'visible',boxSizing:'border-box',background:'#fff'});
+    const wrap=sheet.querySelector('.pm-report-table-wrap');if(wrap)wrap.style.overflow='visible';
+    const table=sheet.querySelector('.pm-report-table');if(table){table.style.minWidth='0';table.style.width='100%';table.style.fontSize='10px';}
+    sheet.querySelectorAll('.pm-report-checklist-detail').forEach(x=>x.style.display='block');return sheet;
+  }
+  function splitRowsForPdf(sourceSheet){
+    const sourceRows=[...sourceSheet.querySelectorAll('tbody tr')];if(!sourceRows.length)return [[]];
+    const budget=535,groups=[];let group=[],used=0;
+    for(const row of sourceRows){const h=Math.max(34,Math.ceil(row.getBoundingClientRect().height||34));if(group.length&&used+h>budget){groups.push(group);group=[];used=0;}group.push(row.cloneNode(true));used+=h;}
+    if(group.length)groups.push(group);return groups;
+  }
+  function buildPdfPage(sourceSheet,rows,pageIndex,pageCount){
+    const page=normalizePdfSheet(sourceSheet.cloneNode(true));const tbody=page.querySelector('tbody');if(tbody){tbody.innerHTML='';rows.forEach(r=>tbody.appendChild(r.cloneNode(true)));}
+    page.querySelectorAll('.pm-report-select-col').forEach(x=>x.remove());const selectHead=page.querySelector('#pmReportsSelectHead');if(selectHead)selectHead.remove();
+    const footer=page.querySelector('.pm-report-footer');if(footer){const marker=document.createElement('div');marker.style.cssText='text-align:left;font-size:9px;color:#667085;margin-top:4px;direction:ltr';marker.textContent='Page '+(pageIndex+1)+' / '+pageCount;footer.appendChild(marker);}return page;
+  }
+  async function renderRealPdf(sourceSheet){
+    if(typeof window.html2canvas!=='function'||!window.jspdf?.jsPDF)throw new Error('PDF libraries are unavailable');
+    const stage=makeStage();
+    try{
+      const measure=normalizePdfSheet(sourceSheet.cloneNode(true));stage.appendChild(measure);await waitForImages(measure);await new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));const groups=splitRowsForPdf(measure);measure.remove();
+      const {jsPDF}=window.jspdf;const pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true});const pageW=pdf.internal.pageSize.getWidth(),pageH=pdf.internal.pageSize.getHeight();const margin=4,maxW=pageW-margin*2,maxH=pageH-margin*2;
+      for(let i=0;i<groups.length;i++){
+        if(i>0)pdf.addPage('a4','landscape');const page=buildPdfPage(sourceSheet,groups[i],i,groups.length);stage.appendChild(page);await waitForImages(page);await new Promise(resolve=>requestAnimationFrame(resolve));
+        const canvas=await window.html2canvas(page,{backgroundColor:'#ffffff',scale:1.45,useCORS:true,allowTaint:true,logging:false,windowWidth:1120,scrollX:0,scrollY:0});
+        const ratio=Math.min(maxW/canvas.width,maxH/canvas.height),w=canvas.width*ratio,h=canvas.height*ratio,x=(pageW-w)/2,y=(pageH-h)/2;const img=canvas.toDataURL('image/jpeg',0.93);pdf.addImage(img,'JPEG',x,y,w,h,undefined,'FAST');page.remove();
+      }
+      return pdf.output('blob');
+    }finally{stage.remove();}
+  }
+  window.pdfWorkPlanReport=async function(){
+    const prepared=prepareSnapshot();if(!prepared)return false;
+    const viewer=window.open('about:blank','_blank');if(viewer){try{viewer.document.open();viewer.document.write('<!doctype html><html dir="rtl"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>מכין PDF…</title><body style="font-family:Arial,sans-serif;padding:32px;text-align:center">מכין PDF…</body></html>');viewer.document.close();}catch(_e){}}
+    const btn=document.querySelector('button[onclick="pdfWorkPlanReport()"]'),original=btn?.innerHTML;if(btn){btn.disabled=true;btn.textContent='מכין PDF…';}
+    try{const blob=await renderRealPdf(prepared.sheet),url=URL.createObjectURL(blob);if(viewer&&!viewer.closed)viewer.location.replace(url);else{const a=document.createElement('a');a.href=url;a.target='_blank';a.rel='noopener';a.download='maintenance_work_plan.pdf';document.body.appendChild(a);a.click();a.remove();}setTimeout(()=>URL.revokeObjectURL(url),5*60*1000);toast('PDF נוצר בהצלחה','success');}
+    catch(err){console.error('PDF generation failed',err);if(viewer&&!viewer.closed)viewer.close();toast('יצירת ה‑PDF נכשלה. בדוק חיבור לאינטרנט ונסה שוב.','error');}
+    finally{if(btn){btn.disabled=false;btn.innerHTML=original||'📄 PDF';}}return false;
+  };
+  window.addEventListener('afterprint',()=>document.body.classList.remove('pm-print-ready'));
+})();
+</script>
 </body></html>
