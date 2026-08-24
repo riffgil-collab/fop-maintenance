@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260824-v86-bilingual-qa-final"/>
+<meta name="fop-build" content="20260824-v87-bilingual-checklist-restored"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -1468,18 +1468,29 @@ function visibleTaskNotes(notes){return String(notes||'').split(/\r?\n/).filter(
 
 /* V47 — parse consolidated checklist data already stored in pm_tasks.notes. */
 function pmChecklistItems(taskOrNotes){
-  const notes=typeof taskOrNotes==='string'?taskOrNotes:String(taskOrNotes?.notes||'');
+  let notes=typeof taskOrNotes==='string'?taskOrNotes:String(taskOrNotes?.notes||'');
   if(!notes)return [];
-  return notes.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(line=>{
-    const m=line.match(/^(?:☐|•|-\s*\[\s*\]|- )\s*(.+)$/);
-    return m?m[1].trim():'';
-  }).filter(Boolean);
+  // Normalize both real line breaks and legacy escaped \n sequences stored by some restored PM rows.
+  notes=notes.replace(/\\+n/g,'\n');
+  const items=[];
+  const add=v=>{const x=String(v||'').trim().replace(/[.;]+$/,'').trim();if(x&&!items.includes(x))items.push(x)};
+  for(const rawLine of notes.split(/\r?\n/)){
+    const line=rawLine.trim();if(!line)continue;
+    const bullet=line.match(/^(?:☐|•|-\s*\[\s*\]|- )\s*(.+)$/);
+    if(bullet){add(bullet[1]);continue;}
+    // Restored Finishing rows use one inline checklist separated by semicolons.
+    const inline=line.match(/^CHECKLIST(?:\s+[^:]+)?\s*:\s*(.+)$/i);
+    if(inline){inline[1].split(/\s*;\s*/).forEach(add);continue;}
+  }
+  return items;
 }
 function pmNonChecklistNotes(notes){
-  return String(notes||'').split(/\r?\n/).map(x=>x.trim()).filter(line=>{
+  let raw=String(notes||'').replace(/\\+n/g,'\n');
+  return raw.split(/\r?\n/).map(x=>x.trim()).filter(line=>{
     if(!line)return false;
     if(/^\[(?:CONSOLIDATED_|PM_)/.test(line))return false;
-    if(/^CHECKLIST\s*:?$/i.test(line))return false;
+    if(/^\[FINISHING_RESTORE\|/i.test(line))return false;
+    if(/^CHECKLIST(?:\s+[^:]+)?\s*:/i.test(line))return false;
     if(/^(?:☐|•|-\s*\[\s*\]|- )\s*/.test(line))return false;
     if(/^\d+\s+פעולות\s+מקוריות\s*:?$/i.test(line))return false;
     return true;
@@ -1491,8 +1502,9 @@ function pmChecklistHtml(t,interactive=false){
 }
 function pmChecklistToggleHtml(t){
   const items=pmChecklistItems(t);if(!items.length)return '';
-  const id='pcl-'+String(t.id).replace(/[^a-zA-Z0-9_-]/g,'_');
-  return `<button type="button" class="pm-checklist-toggle" onclick="event.stopPropagation();const e=document.getElementById('${id}');if(e)e.hidden=!e.hidden">פעולות הטיפול (${items.length})</button><div id="${id}" class="pm-checklist-box pm-checklist-readonly" hidden>${pmChecklistHtml(t,false)}</div>`;
+  // Toggle the checklist next to the clicked button. This avoids duplicate-id collisions
+  // when the same recurring PM appears more than once in a planning/report horizon.
+  return `<button type="button" class="pm-checklist-toggle" onclick="event.stopPropagation();const e=this.nextElementSibling;if(e)e.hidden=!e.hidden">פעולות הטיפול (${items.length})</button><div class="pm-checklist-box pm-checklist-readonly" hidden>${pmChecklistHtml(t,false)}</div>`;
 }
 function pmRenderCompletionChecklist(t){
   const box=document.getElementById('pmCompletionChecklist');if(!box)return;
@@ -6875,8 +6887,8 @@ async function saveHistoryEdit(){
 })();
 </script>
 
-<script id="fop-v86-bilingual-qa-final">
-/* V86 — Bilingual QA final: static UI + dynamic messages/patterns, preserving DB-originating machine/task text. */
+<script id="fop-v87-bilingual-checklist-restored">
+/* V87 — Bilingual QA + consolidated checklist restoration across legacy and Finishing formats. */
 (function(){
   const oldRefresh=window.pmRefreshPrintSnapshot;
   if(typeof oldRefresh==='function'&&!oldRefresh.__pmBilingualWrapped){
