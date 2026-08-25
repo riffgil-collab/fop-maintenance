@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260825-v91-history-reports-sync-audit"/>
+<meta name="fop-build" content="20260825-v92-history-trade-sync"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -860,6 +860,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div class="history-filters">
 <div class="field"><label>מחלקה</label><select id="pmHistoryDepartment" onchange="fillHistoryMachines();renderHistory()"></select></div>
 <div class="field"><label>מכונה</label><select id="pmHistoryMachine" onchange="renderHistory()"><option value="">מכונות</option></select></div>
+<div class="field"><label>מקצוע</label><select id="pmHistoryTrade" onchange="renderHistory()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
 <div class="field"><label>מתאריך</label><input id="pmHistoryFrom" onchange="renderHistory()" type="date"/></div>
 <div class="field"><label>עד תאריך</label><input id="pmHistoryTo" onchange="renderHistory()" type="date"/></div>
 <div class="field"><label>חיפוש</label><input id="pmHistorySearch" oninput="renderHistory()" placeholder="מכונה / טיפול / מבצע" type="text"/></div>
@@ -7389,5 +7390,90 @@ async function saveHistoryEdit(){
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(refresh,0));else setTimeout(refresh,0);
 })();
 
+</script>
+<script id="fop-v92-history-trade-sync">
+/* V92 — History is profession-first.
+   "טכנאי אחזקה" is a generic performer class and is intentionally not used
+   for analysis/export. The trade (מכונאי/חשמלאי) is resolved from the linked
+   PM task. PM and completed WO rows share one history filter/export source. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const escH=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const norm=v=>String(v??'').trim();
+  const pmTaskFor=h=>(Array.isArray(tasks)?tasks:[]).find(t=>String(t.id)===String(h?.taskId??h?.task_id))||h?.taskRef||null;
+  function tradeForPM(h){
+    const t=pmTaskFor(h);
+    const direct=norm(h?.trade||h?.profession||t?.trade);
+    if(direct)return direct;
+    try{return norm(typeof maintenanceTrade==='function'?maintenanceTrade(t):'')||'—';}catch(e){return '—';}
+  }
+  function historyPMRows(){
+    return (typeof allHistoryEvents==='function'?allHistoryEvents():[]).map(h=>({
+      source:'PM',eventType:h.eventType||'completed',date:String(h.date||''),department:h.department||pmTaskFor(h)?.department||'',machine:h.machine||pmTaskFor(h)?.machine||'',
+      task:h.task||pmTaskFor(h)?.task||'',frequency:h.frequency||pmTaskFor(h)?.frequency||'',trade:tradeForPM(h),reportedBy:h.reportedBy||'',completionNotes:h.completionNotes||'',
+      oldDue:h.oldDue||'',newDue:h.newDue||'',reason:h.reason||'',photo1Path:h.photo1Path||'',photo2Path:h.photo2Path||'',id:h.id,taskId:h.taskId,raw:h
+    }));
+  }
+  function historyWORows(){
+    return (Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>String(w.status||'').toLowerCase()==='completed').map(w=>({
+      source:'WO',eventType:'completed',date:String((w.completedDate??w.completed_date)||''),department:w.department||'',machine:w.machine||'',task:w.description||'',frequency:w.priority||'',
+      trade:norm(w.trade)||'—',reportedBy:'',completionNotes:(w.completionNotes??w.completion_notes)||'',oldDue:'',newDue:'',reason:'',photo1Path:(w.photo1Path??w.photo_1_path)||'',photo2Path:(w.photo2Path??w.photo_2_path)||'',id:w.id,raw:w
+    }));
+  }
+  function historyFilterState(){return {department:$('pmHistoryDepartment')?.value||'',machine:$('pmHistoryMachine')?.value||'',trade:$('pmHistoryTrade')?.value||'',from:$('pmHistoryFrom')?.value||'',to:$('pmHistoryTo')?.value||'',q:($('pmHistorySearch')?.value||'').trim().toLowerCase()};}
+  function matches(r,o){
+    if(o.department&&r.department!==o.department)return false;
+    if(o.machine&&r.machine!==o.machine)return false;
+    if(o.trade&&r.trade!==o.trade)return false;
+    if(o.from&&r.date<o.from)return false;
+    if(o.to&&r.date>o.to)return false;
+    if(o.q&&!`${r.machine} ${r.task} ${r.department} ${r.trade} ${r.reportedBy} ${r.reason} ${r.completionNotes} ${r.source}`.toLowerCase().includes(o.q))return false;
+    return true;
+  }
+  function unifiedHistoryRows(){
+    const o=historyFilterState();
+    return [...historyPMRows(),...historyWORows()].filter(r=>matches(r,o)).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(b.raw?.reportedAt||'').localeCompare(String(a.raw?.reportedAt||'')));
+  }
+  window.pmHistoryUnifiedRows=unifiedHistoryRows;
+
+  function rowHtml(r){
+    const postponed=r.eventType==='postponed';
+    const eventLabel=r.source==='WO'?'WO בוצע':(postponed?'נדחה':'בוצע');
+    const freqLabel=r.source==='WO'?`עדיפות: ${r.frequency||'—'}`:`תדירות: ${r.frequency||'—'}`;
+    const reporter=r.reportedBy?`<div class="history-user"><small>דווח על ידי</small><strong>${escH(r.reportedBy)}</strong></div>`:'';
+    const details=postponed?`<div class="pm-postpone-detail">מועד מקורי: ${escH(typeof fDate==='function'?fDate(r.oldDue):r.oldDue)} → מועד חדש: ${escH(typeof fDate==='function'?fDate(r.newDue):r.newDue)}<br>סיבה: ${escH(r.reason||'—')}</div>`:'';
+    const notes=!postponed&&r.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${escH(r.completionNotes)}</div>`:'';
+    const photos=!postponed&&(r.photo1Path||r.photo2Path)?`<div class="pm-history-photos">${r.photo1Path?`<button type="button" onclick="openMaintenancePhoto('${escH(r.photo1Path)}')">📷 תמונה 1</button>`:''}${r.photo2Path?`<button type="button" onclick="openMaintenancePhoto('${escH(r.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:'';
+    const actions=r.source==='PM'&&!postponed?`<div class="pm-history-actions">${typeof pmCan==='function'&&pmCan('manageExceptions')?`<button class="secondary-btn" type="button" onclick="openHistoryEdit('${escH(String(r.id??''))}')">✏️ עריכת תיעוד</button><button class="pm-undo" type="button" onclick="undoCompletion('${escH(String(r.id??''))}','${escH(String(r.taskId??''))}','${escH(String(r.date??''))}')">↩ החזר לתוכנית</button>`:''}</div>`:'';
+    return `<div class="history-row"><div><strong>${escH(typeof fDate==='function'?fDate(r.date):r.date)}</strong><span class="pm-history-event ${postponed?'postponed':'completed'}">${eventLabel}</span></div><div><strong>${escH(r.machine)}</strong><small>${escH(r.task)}</small><small>${escH(r.department)} · <strong>מקצוע: ${escH(r.trade)}</strong> · ${escH(freqLabel)}</small>${details}${notes}${photos}</div>${reporter}${actions}</div>`;
+  }
+  function renderHistoryV92(){
+    const el=$('pmHistoryList');if(!el)return;
+    const rows=unifiedHistoryRows();
+    el.innerHTML=rows.length?rows.slice(0,500).map(rowHtml).join(''):'<div class="empty">לא נמצאו דיווחי טיפול.</div>';
+    window.pmV92LastHistory={filters:historyFilterState(),count:rows.length,byTrade:rows.reduce((a,r)=>(a[r.trade]=(a[r.trade]||0)+1,a),{})};
+  }
+  window.renderHistory=renderHistoryV92;try{renderHistory=renderHistoryV92;}catch(e){}
+
+  window.exportHistoryCSV=function(){
+    const rows=unifiedHistoryRows();
+    const data=[['תאריך','סוג עבודה','אירוע','מחלקה','מכונה','משימת טיפול','תדירות / עדיפות','מקצוע','דווח על ידי','הערות','מועד מקורי','מועד חדש','סיבה'],
+      ...rows.map(r=>[r.date,r.source,r.eventType==='postponed'?'נדחה':'בוצע',r.department,r.machine,r.task,r.frequency,r.trade,r.reportedBy||'',r.completionNotes||'',r.oldDue||'',r.newDue||'',r.reason||''])];
+    const csv='\ufeff'+data.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download='maintenance_history_by_trade.csv';document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(a.href);
+  };
+  try{exportHistoryCSV=window.exportHistoryCSV;}catch(e){}
+
+  const previousAudit=window.pmHistoryAudit;
+  window.pmHistoryAudit=function(){
+    const base=typeof previousAudit==='function'?previousAudit():{};
+    const pm=historyPMRows(),wo=historyWORows(),missingTrade=pm.filter(r=>!r.trade||r.trade==='—'),genericPerformerLeak=unifiedHistoryRows().filter(r=>String(r.trade).includes('טכנאי אחזקה'));
+    return {...base,historyUI:{pmRows:pm.length,woRows:wo.length,totalRows:pm.length+wo.length,missingTrade:missingTrade.length,genericPerformerLeak:genericPerformerLeak.length,ok:missingTrade.length===0&&genericPerformerLeak.length===0},byTrade:pm.reduce((a,r)=>(a[r.trade]=(a[r.trade]||0)+1,a),{})};
+  };
+
+  const style=document.createElement('style');style.textContent='.history-filters{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}.history-user strong{font-size:12px}.history-row>div:nth-child(2)>small strong{display:inline;font-size:inherit}';document.head.appendChild(style);
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(renderHistoryV92,0));else setTimeout(renderHistoryV92,0);
+})();
 </script>
 </body></html>
