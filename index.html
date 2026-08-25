@@ -1378,7 +1378,7 @@ async function loadCloudData(){
     refillAll();
     refreshAll();
     fillDashboardMachines();
-    const tc=maintenanceTradeCounts(); statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב: ${maintenanceTasks().length} עבודות אחזקה, ${maintenanceInspectionTasks().length} בדיקות אחזקה, ${operatorTasks().length} מפעיל · מקצוע: ${tc['מכונאי']} מכונאי / ${tc['חשמלאי']} חשמלאי · ${history.length} דיווחים.`,'success');
+    const tc=maintenanceTradeCounts(); const completedWOReports=(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>String(w.status||'').trim().toLowerCase()==='completed').length; statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב: ${maintenanceTasks().length} עבודות אחזקה, ${maintenanceInspectionTasks().length} בדיקות אחזקה, ${operatorTasks().length} מפעיל · מקצוע: ${tc['מכונאי']} מכונאי / ${tc['חשמלאי']} חשמלאי · ${history.length+completedWOReports} דיווחי ביצוע (${history.length} PM + ${completedWOReports} WO).`,'success');
     return true;
   }catch(err){
     pmCloudReady=false;
@@ -3297,7 +3297,7 @@ loadCloudData=async function(){
     refillAll();
     refreshAll();
     try{updatePMInitUI()}catch(e){}
-    statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב, ${pmWorkPlan.length} משימות בתוכנית, ${history.length} דיווחים.`,'success');
+    const completedWOReports=(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>String(w.status||'').trim().toLowerCase()==='completed').length; statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב, ${pmWorkPlan.length} משימות בתוכנית, ${history.length+completedWOReports} דיווחי ביצוע (${history.length} PM + ${completedWOReports} WO).`,'success');
     return true;
   }catch(err){
     console.error('pm_work_plan load:',err);
@@ -7474,6 +7474,18 @@ async function saveHistoryEdit(){
 
   const style=document.createElement('style');style.textContent='.history-filters{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}.history-user strong{font-size:12px}.history-row>div:nth-child(2)>small strong{display:inline;font-size:inherit}';document.head.appendChild(style);
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(renderHistoryV92,0));else setTimeout(renderHistoryV92,0);
+})();
+</script>
+
+<script id="fop-v93-total-execution-count-sync">
+/* V93 — total execution reports = PM history + completed WO. */
+(function(){
+  window.pmExecutionCountAudit=function(){
+    const pm=(typeof history!=='undefined'&&Array.isArray(history))?history.length:0;
+    const wo=(typeof pmWorkOrders!=='undefined'&&Array.isArray(pmWorkOrders))?pmWorkOrders.filter(w=>String(w.status||'').trim().toLowerCase()==='completed').length:0;
+    const unified=(typeof window.pmHistoryUnifiedRows==='function')?window.pmHistoryUnifiedRows().length:null;
+    return {pm,wo,total:pm+wo,unifiedHistory:unified,match:unified===null?null:unified===pm+wo};
+  };
 })();
 </script>
 </body></html>
