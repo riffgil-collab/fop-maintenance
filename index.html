@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260824-v89-dashboard-navigation-hardfix"/>
+<meta name="fop-build" content="20260825-v90-canonical-open-partition"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -7042,4 +7042,296 @@ async function saveHistoryEdit(){
 })();
 </script>
 
+
+<script id="fop-v90-canonical-open-partition">
+/* V90 — canonical rolling horizon + mutually exclusive Open/Overdue/Near classification.
+   Core invariants:
+   1) Rolling periods start at the selected anchor (week = anchor..anchor+6 days).
+   2) Effective execution date = planned/postponed date when one exists; otherwise PM due date.
+   3) In WEEK view, Open = Overdue + Next 7 Days, with zero overlap and zero unclassified rows.
+   4) Work moved beyond the selected horizon is excluded from that horizon's open workload.
+   5) A missed explicit plan is overdue even when the PM due date itself is later.
+   6) Dashboard, Planning and Reports read the same canonical row source.
+*/
+(function(){
+  const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const iso10=v=>String(v||'').slice(0,10);
+  const DONE=new Set(['completed','done','בוצע']);
+  const CANCELLED=new Set(['cancelled','canceled','בוטל']);
+  const PLANNED=new Set(['planned','מתוכנן','מתוכננת']);
+  const POSTPONED=new Set(['postponed','deferred','נדחה','נדחתה']);
+  const ACTIVE_PLAN=new Set(['planned','postponed']);
+  const oldSource=window.pmCanonicalForecast||window.fopUnifiedWorkSource||null;
+  const legacyWO=window.fopUnifiedWorkSourceV59WO||oldSource?.getWO?.bind(oldSource)||(()=>[]);
+
+  const parse=s=>{const a=iso10(s).split('-').map(Number);return a.length===3&&a.every(Number.isFinite)?new Date(a[0],a[1]-1,a[2]):new Date(NaN)};
+  const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  const dadd=(d,n)=>new Date(d.getFullYear(),d.getMonth(),d.getDate()+n);
+  function madd(d,n){const x=new Date(d),day=x.getDate();x.setDate(1);x.setMonth(x.getMonth()+n);x.setDate(Math.min(day,new Date(x.getFullYear(),x.getMonth()+1,0).getDate()));return x;}
+  function advance(d,f){
+    f=String(f||'').trim();
+    if(f==='יומי')return dadd(d,1);
+    if(f==='שבועי')return dadd(d,7);
+    if(f==='דו שבועי')return dadd(d,14);
+    if(f==='חודשי')return madd(d,1);
+    if(f==='תלת חודשי')return madd(d,3);
+    if(f==='חצי שנתי')return madd(d,6);
+    if(f==='שנתי')return madd(d,12);
+    if(f==='5 שנתי')return madd(d,60);
+    return null;
+  }
+  function bounds(period='week',anchor){
+    const a=parse(anchor||((typeof today==='function')?today():''));
+    if(isNaN(a))return {start:iso10(anchor),end:iso10(anchor),period:period||'week'};
+    let e;
+    if(period==='month')e=madd(a,1);
+    else if(period==='half')e=madd(a,6);
+    else if(period==='year')e=madd(a,12);
+    else e=dadd(a,6);
+    return {start:iso(a),end:iso(e),period:period||'week'};
+  }
+  function rangeLabel(period,anchor){
+    const b=bounds(period,anchor), en=document.documentElement.lang==='en';
+    const fd=x=>(typeof fDate==='function'?fDate(x):x);
+    const prefix=en
+      ? (period==='month'?'Next Month':period==='half'?'Next 6 Months':period==='year'?'Next Year':'Next 7 Days')
+      : (period==='month'?'חודש קדימה':period==='half'?'חצי שנה קדימה':period==='year'?'שנה קדימה':'שבוע קדימה');
+    return `${prefix} · ${fd(b.start)} – ${fd(b.end)}`;
+  }
+
+  // Make every legacy range consumer use the same rolling semantics.
+  function rollingV3Bounds(period='week',anchor=null){const b=bounds(period,anchor||$('pmDashboardAnchor')?.value||((typeof today==='function')?today():''));return {...b,label:rangeLabel(period,b.start)};}
+  window.v3PeriodBounds=rollingV3Bounds;
+  try{v3PeriodBounds=rollingV3Bounds;}catch(e){}
+  window.planningBounds=function(){const p=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',a=$('pmPlannerStart')?.value||((typeof today==='function')?today():'');const b=bounds(p,a);return {...b,label:rangeLabel(p,a)};};
+  try{planningBounds=window.planningBounds;}catch(e){}
+
+  function allTasks(){return (typeof tasks!=='undefined'&&Array.isArray(tasks))?tasks:[];}
+  function physicalPMTasks(){
+    return allTasks().filter(t=>t&&t.active!==false&&String(t.performer||'').trim()==='טכנאי אחזקה'&&norm(t.taskType??t.task_type)==='maintenance'&&iso10(t.nextDue??t.next_due));
+  }
+  function tradeOf(t){return String(t?.trade||((typeof maintenanceTrade==='function')?maintenanceTrade(t):'')||'').trim()||'מכונאי';}
+  function baseMatch(t,o){const tr=tradeOf(t);return (!o.department||t.department===o.department)&&(!o.machine||t.machine===o.machine)&&(!o.trade||tr===o.trade);}
+  function planRows(){return (typeof pmWorkPlan!=='undefined'&&Array.isArray(pmWorkPlan))?pmWorkPlan:[];}
+  function dueKey(p){return iso10((typeof wpDueFromNotes==='function'?wpDueFromNotes(p?.notes):'')||p?.dueDate||p?.due_date||'');}
+  function latestPlansMap(){
+    const m=new Map();
+    for(const p of planRows()){
+      const d=dueKey(p);if(!d)continue;
+      const k=String(p.taskId??p.task_id)+'|'+d, old=m.get(k);
+      const stamp=String(p.updatedAt??p.updated_at??p.createdAt??p.created_at??'');
+      const oldStamp=String(old?.updatedAt??old?.updated_at??old?.createdAt??old?.created_at??'');
+      if(!old||stamp>=oldStamp)m.set(k,p);
+    }
+    return m;
+  }
+  function latestPlan(taskId,due,map){return map.get(String(taskId)+'|'+iso10(due))||null;}
+  function pmState(due,p,anchor){
+    const ps=norm(p?.status), a=iso10(anchor), pd=iso10(p?.plannedDate??p?.planned_date);
+    if(DONE.has(ps))return 'completed';
+    if(CANCELLED.has(ps))return 'cancelled';
+    if(PLANNED.has(ps)){const e=pd||due;return e<a?'overdue':'planned';}
+    if(POSTPONED.has(ps)){const e=pd||due;return e<a?'overdue':'postponed';}
+    return due<a?'overdue':'waiting';
+  }
+  function effectiveDate(due,p,state){
+    const ps=norm(p?.status),pd=iso10(p?.plannedDate??p?.planned_date);
+    if((PLANNED.has(ps)||POSTPONED.has(ps))&&pd)return pd;
+    if(state==='completed')return iso10(p?.completedDate??p?.completed_date)||due;
+    return due;
+  }
+  function pmRow(t,due,o,map,backlog=false){
+    const p=latestPlan(t.id,due,map),state=pmState(due,p,o.anchor),effective=effectiveDate(due,p,state);
+    return {kind:'PM',key:`PM:${t.id}:${due}`,id:t.id,task:t,item:{t,due,plan:p,backlog},plan:p,state,due,date:effective,effectiveDate:effective,
+      department:t.department||'',machine:t.machine||'',trade:tradeOf(t),description:t.task||'',frequency:t.frequency||'',duration:Number(t.duration||0),
+      assignee:p?.assignedTo??p?.assigned_to??t.performer??'',priority:p?.priority||'',note:p?.postponedReason??p?.postponed_reason??''};
+  }
+  function currentPMUniverse(opts={}){
+    const o={period:'week',anchor:(typeof today==='function'?today():''),department:'',machine:'',trade:'',status:'open',...opts};
+    const b=bounds(o.period,o.anchor),start=parse(b.start),end=parse(b.end),map=latestPlansMap(),rows=[],seen=new Set();
+    const add=(t,due,backlog=false)=>{due=iso10(due);if(!due)return;const k=String(t.id)+'|'+due;if(seen.has(k))return;seen.add(k);rows.push(pmRow(t,due,o,map,backlog));};
+    for(const t of physicalPMTasks()){
+      if(!baseMatch(t,o))continue;
+      const original=iso10(t.nextDue??t.next_due);let d=parse(original),guard=0;
+      if(isNaN(d))continue;
+      if(d<start){
+        add(t,original,true);
+        let nd=advance(d,t.frequency);
+        while(nd&&nd<start&&guard++<5000)nd=advance(nd,t.frequency);
+        d=nd;
+      }
+      while(d&&d<=end&&guard++<5000){add(t,iso(d),false);d=advance(d,t.frequency);}
+
+      // Explicit active commitments belong to the horizon by their execution date,
+      // even when the PM due date itself lies after the selected horizon.
+      for(const p of map.values()){
+        if(String(p.taskId??p.task_id)!==String(t.id))continue;
+        const ps=norm(p.status),pd=iso10(p.plannedDate??p.planned_date),dk=dueKey(p);
+        if(!ACTIVE_PLAN.has(ps)||!pd||pd>b.end||!dk)continue;
+        add(t,dk,dk<b.start);
+      }
+    }
+    return rows.sort((a,b)=>String(a.effectiveDate||a.due).localeCompare(String(b.effectiveDate||b.due))||String(a.due).localeCompare(String(b.due))||String(a.department).localeCompare(String(b.department),'he')||String(a.machine).localeCompare(String(b.machine),'he'));
+  }
+  function historicalPM(opts={}){
+    const o={period:'week',anchor:(typeof today==='function'?today():''),department:'',machine:'',trade:'',status:'completed',...opts},b=bounds(o.period,o.anchor),taskMap=new Map(physicalPMTasks().map(t=>[String(t.id),t])),map=latestPlansMap(),out=[];
+    for(const [k,p] of map){
+      const ps=norm(p.status),want=o.status==='cancelled'?CANCELLED:DONE;if(!want.has(ps))continue;
+      const t=taskMap.get(String(p.taskId??p.task_id));if(!t||!baseMatch(t,o))continue;
+      const due=dueKey(p);if(!due)continue;
+      const eventDate=o.status==='completed'?(iso10(p.completedDate??p.completed_date)||iso10(p.plannedDate??p.planned_date)||due):(iso10(p.updatedAt??p.updated_at)||iso10(p.plannedDate??p.planned_date)||due);
+      if(!eventDate||eventDate<b.start||eventDate>b.end)continue;
+      const r=pmRow(t,due,o,map,due<b.start);r.state=o.status;r.date=eventDate;r.effectiveDate=eventDate;out.push(r);
+    }
+    return out.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.department).localeCompare(String(b.department),'he'));
+  }
+  function getPM(opts={}){
+    const o={period:'week',anchor:(typeof today==='function'?today():''),department:'',machine:'',trade:'',status:'open',...opts},b=bounds(o.period,o.anchor);
+    if(o.status==='completed'||o.status==='cancelled')return historicalPM(o);
+    const rows=currentPMUniverse(o);
+    return rows.filter(r=>{
+      const e=iso10(r.effectiveDate||r.date||r.due),st=r.state;
+      if(!e)return false;
+      if(o.status==='open'||!o.status)return !['completed','cancelled'].includes(st)&&e<=b.end;
+      if(o.status==='overdue')return st==='overdue'&&e<b.start;
+      if(o.status==='near')return st!=='overdue'&&!['completed','cancelled'].includes(st)&&e>=b.start&&e<=b.end;
+      if(o.status==='waiting')return st==='waiting'&&e>=b.start&&e<=b.end;
+      if(o.status==='planned')return st==='planned'&&e>=b.start&&e<=b.end;
+      if(o.status==='postponed')return st==='postponed'&&e>=b.start&&e<=b.end;
+      return false;
+    });
+  }
+
+  function allWOs(){return (typeof pmWorkOrders!=='undefined'&&Array.isArray(pmWorkOrders))?pmWorkOrders:[];}
+  function woState(w,anchor){
+    const s=norm(w?.status),due=iso10(w?.dueDate??w?.due_date),pd=iso10(w?.plannedDate??w?.planned_date),a=iso10(anchor);
+    if(DONE.has(s))return 'completed';
+    if(CANCELLED.has(s))return 'cancelled';
+    if(POSTPONED.has(s)){const e=pd||due;return e&&e<a?'overdue':'postponed';}
+    if(PLANNED.has(s)){const e=pd||due;return e&&e<a?'overdue':'planned';}
+    return due&&due<a?'overdue':'waiting';
+  }
+  function woRow(w,o){
+    const state=woState(w,o.anchor),due=iso10(w.dueDate??w.due_date),pd=iso10(w.plannedDate??w.planned_date),effective=(PLANNED.has(norm(w.status))||POSTPONED.has(norm(w.status)))?(pd||due):due;
+    return {kind:'WO',key:`WO:${w.id}`,id:w.id,wo:w,state,due,date:state==='completed'?(iso10(w.completedDate??w.completed_date)||effective):effective,effectiveDate:effective,
+      department:w.department||'',machine:w.machine||'',trade:w.trade||'מכונאי',description:w.description||'',frequency:'WO',duration:Number(w.duration||0),assignee:w.assignee??w.assigned_to??w.trade??'',priority:w.priority||'רגילה',note:w.completionNotes??w.completion_notes??w.notes??''};
+  }
+  function getWO(opts={}){
+    const o={period:'week',anchor:(typeof today==='function'?today():''),department:'',machine:'',trade:'',status:'open',...opts},b=bounds(o.period,o.anchor);
+    // Keep the historical implementation for closed WOs; V90 changes current-work classification only.
+    if(o.status==='completed'||o.status==='cancelled'){
+      try{return legacyWO({...o});}catch(e){return [];}
+    }
+    return allWOs().map(w=>woRow(w,o)).filter(r=>{
+      const e=iso10(r.effectiveDate||r.date||r.due),st=r.state;if(!e)return false;
+      if(o.department&&r.department!==o.department)return false;if(o.machine&&r.machine!==o.machine)return false;if(o.trade&&r.trade!==o.trade)return false;
+      if(o.status==='open'||!o.status)return !['completed','cancelled'].includes(st)&&e<=b.end;
+      if(o.status==='overdue')return st==='overdue'&&e<b.start;
+      if(o.status==='near')return st!=='overdue'&&!['completed','cancelled'].includes(st)&&e>=b.start&&e<=b.end;
+      if(o.status==='waiting')return st==='waiting'&&e>=b.start&&e<=b.end;
+      if(o.status==='planned')return st==='planned'&&e>=b.start&&e<=b.end;
+      if(o.status==='postponed')return st==='postponed'&&e>=b.start&&e<=b.end;
+      return false;
+    }).sort((a,b)=>String(a.effectiveDate).localeCompare(String(b.effectiveDate))||String(a.department).localeCompare(String(b.department),'he'));
+  }
+  function getWork(opts={}){const wt=opts.workType||'';return [...(wt==='WO'?[]:getPM(opts)),...(wt==='PM'?[]:getWO(opts))].sort((a,b)=>String(a.effectiveDate||a.date||a.due).localeCompare(String(b.effectiveDate||b.date||b.due))||String(a.kind).localeCompare(String(b.kind)));}
+
+  const engine={bounds,periodBounds:bounds,getPM,getWO,getWork,pmState:(item,a)=>item?.t?pmState(iso10(item.due),item.plan||latestPlan(item.t.id,item.due,latestPlansMap()),a||((typeof today==='function')?today():'')):'waiting'};
+  window.pmCanonicalForecast=engine;
+  window.fopUnifiedWorkSource=engine;
+
+  // Keep legacy state consumers aligned with the canonical engine.
+  window.v3OccurrenceState=function(item,refDate=(typeof today==='function'?today():'')){
+    if(!item?.t)return 'waiting';
+    const p=item.plan||latestPlan(item.t.id,item.due,latestPlansMap());
+    return pmState(iso10(item.due),p,refDate);
+  };
+  try{v3OccurrenceState=window.v3OccurrenceState;}catch(e){}
+
+  function dashOpts(status='open'){return {period:(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week',anchor:$('pmDashboardAnchor')?.value||((typeof today==='function')?today():''),department:$('pmDashboardDepartment')?.value||'',machine:$('pmDashboardMachine')?.value||'',trade:$('pmDashboardTrade')?.value||'',workType:$('pmDashboardWorkType')?.value||'',status};}
+  const escH=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const setText=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
+  const hours=rows=>(rows.reduce((a,r)=>a+Number(r.duration||0),0)/60).toFixed(1);
+  const pct=(n,d)=>d?Math.round(n/d*100):0;
+  function statusLabel(s){return ({waiting:'ממתינה',planned:'מתוכננת',postponed:'נדחתה',overdue:'באיחור',completed:'בוצעה',cancelled:'בוטלה'})[s]||s;}
+
+  const preV90Dashboard=window.renderDashboard;
+  function renderDashboardV90(){
+    try{preV90Dashboard?.apply(this,arguments);}catch(e){console.warn('V90 legacy dashboard pre-render',e);}
+    const o=dashOpts('open'),b=bounds(o.period,o.anchor),open=getWork(o),over=getWork({...o,status:'overdue'}),near=getWork({...o,period:'week',status:'near'}),planned=getWork({...o,status:'planned'}),postponed=getWork({...o,status:'postponed'}),cancelled=getWork({...o,status:'cancelled'}),completed=getWork({...o,status:'completed'});
+    const pm=open.filter(r=>r.kind==='PM'),wo=open.filter(r=>r.kind==='WO'),pmOver=over.filter(r=>r.kind==='PM'),pmNear=(o.period==='week'?near:getPM({...o,period:'week',status:'near'}));
+    const urgent=wo.filter(r=>['דחופה','משביתה'].includes(String(r.priority||'')));
+
+    setText('pmV17Open',open.length);setText('pmV31Planned',planned.length);setText('pmV17Overdue',over.length);setText('pmV17Week',near.length);setText('pmV17WO',wo.length);setText('pmV17WOUrgent',`מתוכן ${urgent.length} דחופות / משביתות`);setText('pmV25Cancelled',cancelled.length);
+    setText('pmV3Waiting',pm.length);setText('pmV3Planned',planned.filter(r=>r.kind==='PM').length);setText('pmV3Completed',completed.filter(r=>r.kind==='PM').length);setText('pmV3Postponed',postponed.filter(r=>r.kind==='PM').length);setText('pmV3Cancelled',cancelled.filter(r=>r.kind==='PM').length);setText('pmV3Overdue',pmOver.length);setText('pmV3BacklogTotal',pm.length);
+    setText('pmWOOpen',wo.length);setText('pmWOUrgent',urgent.length);setText('pmWOPlanned',planned.filter(r=>r.kind==='WO').length);setText('pmWODone',completed.filter(r=>r.kind==='WO').length);
+
+    const range=$('pmV3RangeText');if(range)range.textContent=`${rangeLabel(o.period,o.anchor)} · ${open.length} עבודות פתוחות בטווח שנבחר`;
+    const wd=$('pmV3WaitingDetail'),bd=$('pmV3BacklogDetail'),en=document.documentElement.lang==='en';
+    const pmInPeriod=pm.filter(r=>r.state!=='overdue').length;
+    if(wd)wd.textContent=en?`${pmOver.length} overdue | ${pmInPeriod} in selected period`:`${pmOver.length} באיחור | ${pmInPeriod} בתקופה שנבחרה`;
+    if(bd)bd.textContent=en?`${pmOver.length} overdue + ${pmInPeriod} in horizon`:`${pmOver.length} באיחור + ${pmInPeriod} בטווח`;
+
+    const pmPlanned=planned.filter(r=>r.kind==='PM'),pmPost=postponed.filter(r=>r.kind==='PM'),pmDone=completed.filter(r=>r.kind==='PM');
+    setText('pmV3PlannedHours',hours([...pmPlanned,...pmPost]));setText('pmV3DoneHours',hours(pmDone));
+    const covered=pm.filter(r=>r.plan&&ACTIVE_PLAN.has(norm(r.plan.status))).length,cov=pct(covered,pm.length);setText('pmV3Coverage',cov+'%');setText('pmV3CoverageDetail',`${covered} מתוך ${pm.length}`);const cb=$('pmV3CoverageBar');if(cb)cb.style.width=Math.min(100,cov)+'%';
+
+    const trades={'מכונאי':0,'חשמלאי':0};pm.forEach(r=>{const k=r.trade==='חשמלאי'?'חשמלאי':'מכונאי';trades[k]=(trades[k]||0)+1;});const tb=$('pmV17Trade'),mx=Math.max(1,...Object.values(trades));if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${escH(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${v}</strong></div>`).join('');
+    const types={PM:pm.length,WO:wo.length},ty=$('pmV17Type'),my=Math.max(1,...Object.values(types));if(ty)ty.innerHTML=Object.entries(types).map(([k,v])=>`<div class="pm-v17-bar"><span>${k}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/my*100)}%"></div></div><strong>${v}</strong></div>`).join('');
+
+    const attention=[...over,...near].filter((r,i,a)=>a.findIndex(x=>x.key===r.key)===i).sort((a,b)=>String(a.effectiveDate||a.due).localeCompare(String(b.effectiveDate||b.due))).slice(0,8),at=$('pmV17Attention');
+    if(at)at.innerHTML=attention.length?attention.map(r=>`<div class="pm-v3-mini"><div><strong>${escH(r.machine)} — ${escH(r.description)}</strong><small>${r.kind} · ${escH(r.trade)} · ${r.state==='overdue'?'יעד/תכנון':'לביצוע'} ${escH(typeof fDate==='function'?fDate(r.effectiveDate||r.due):(r.effectiveDate||r.due))}</small></div><span class="tag ${r.state==='overdue'?'red':''}">${escH(statusLabel(r.state))}</span></div>`).join(''):'<div class="empty">אין כרגע פריטים חריגים או דחופים בתקופה שנבחרה.</div>';
+
+    const overlap=new Set(over.map(r=>r.key));const overlapCount=near.filter(r=>overlap.has(r.key)).length;
+    window.pmV90LastDashboard={opts:o,bounds:b,open:open.length,overdue:over.length,next7:near.length,planned:planned.length,postponed:postponed.length,closed:{completed:completed.length,cancelled:cancelled.length},weekPartition:o.period!=='week'||(open.length===over.length+near.length&&overlapCount===0),overlapCount,hours:hours(open)};
+    return undefined;
+  }
+  window.renderDashboard=renderDashboardV90;try{renderDashboard=renderDashboardV90;}catch(e){}
+
+  // Planning detail uses the same canonical PM rows. WO remains in its dedicated panel.
+  window.filteredPlanningItems=function(){
+    const wt=$('pmPlannerWorkType')?.value||'';if(wt==='WO')return [];
+    const status=$('pmPlannerStatus')?.value||'open';
+    return getPM({period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||((typeof today==='function')?today():''),department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:($('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||''),status}).map(r=>r.item);
+  };
+  try{filteredPlanningItems=window.filteredPlanningItems;}catch(e){}
+
+  const preV90Planner=window.renderPlanner;
+  function renderPlannerV90(){
+    try{preV90Planner?.apply(this,arguments);}catch(e){console.warn('V90 legacy planner pre-render',e);}
+    const o={period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||((typeof today==='function')?today():''),department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:($('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||''),workType:$('pmPlannerWorkType')?.value||'',status:$('pmPlannerStatus')?.value||'open'},b=bounds(o.period,o.anchor),allRows=getWork(o),pmRows=allRows.filter(r=>r.kind==='PM');
+    const detail=$('pmPlannerDetail');if(detail){const size=(typeof PM_PLAN_PAGE_SIZE!=='undefined'?PM_PLAN_PAGE_SIZE:50),pages=Math.max(1,Math.ceil(pmRows.length/size));try{pmPlanPage=Math.max(0,Math.min(pages-1,pmPlanPage||0));}catch(e){}const page=(typeof pmPlanPage!=='undefined'?pmPlanPage:0),pageRows=pmRows.slice(page*size,(page+1)*size),info=$('pmPlanPageInfo');if(info)info.textContent=`עמוד ${page+1} מתוך ${pages} · ${pmRows.length} דרישות PM`;
+      detail.innerHTML=pageRows.length?pageRows.map(r=>{const active=r.plan&&ACTIVE_PLAN.has(norm(r.plan.status)),late=r.state==='overdue',badge=late?'risk':r.state==='postponed'?'risk':active?'planned':'open',label=statusLabel(r.state),key=`${String(r.id)}@@${r.due}`;return `<div class="pm-plan-row ${active?'planned':''}"><input class="pm-plan-check" type="checkbox" value="${escH(key)}" onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${escH(r.machine)} — ${escH(r.description)}</strong><small>${escH(r.department)} · <strong>מקצוע: ${escH(r.trade||'—')}</strong> · מבצע: ${escH(r.assignee||r.task?.performer||'')} · תדירות: ${escH(r.frequency||'—')} · ${Number(r.duration||0)} דק׳${r.item?.backlog?' · פיגור קודם':''}</small>${active?`<small>שובץ: ${escH(typeof fDate==='function'?fDate(r.effectiveDate):r.effectiveDate)}${r.assignee?' · '+escH(r.assignee):''}</small>`:''}${r.task&&typeof pmChecklistToggleHtml==='function'?pmChecklistToggleHtml(r.task):''}</div><div class="pm-plan-meta pm-plan-hide-mobile">${escH(r.frequency||'')}</div><div class="pm-plan-meta">${escH(typeof fDate==='function'?fDate(r.due):r.due)}</div><div class="pm-plan-meta pm-plan-hide-mobile">${active?escH(typeof fDate==='function'?fDate(r.effectiveDate):r.effectiveDate):'—'}</div><span class="pm-plan-badge ${badge}">${escH(label)}</span></div>`;}).join(''):'<div class="empty">אין דרישות PM בתקופה ובסינון שנבחרו.</div>';
+    }
+    setText('pmPlanRequired',allRows.length);setText('pmWorkRequiredHours',hours(allRows));setText('pmWorkTechnicianHours',hours(pmRows));const scheduled=pmRows.filter(r=>['planned','postponed'].includes(r.state));setText('pmWorkScheduledHours',hours(scheduled));setText('pmWorkUnplannedHours',hours(pmRows.filter(r=>!['planned','postponed'].includes(r.state))));const range=$('pmPlanRangeLabel');if(range)range.textContent=rangeLabel(o.period,o.anchor);const note=document.querySelector('.pm-workload-note');if(note)note.textContent=`מקור קנוני יחיד: ${b.start}–${b.end} · ${allRows.length} עבודות · ${hours(allRows)} שעות.`;window.pmPlannerParity={opts:o,count:allRows.length,pmCount:pmRows.length,bounds:b};
+    try{window.renderUnplannedPlanner?.();}catch(e){}
+    return undefined;
+  }
+  window.renderPlanner=renderPlannerV90;try{renderPlanner=renderPlannerV90;}catch(e){}
+
+  const oldUnplanned=window.renderUnplannedPlanner;
+  window.renderUnplannedPlanner=function(){
+    const el=$('pmWOPlannerList');if(!el)return;const wt=$('pmPlannerWorkType')?.value||'';if(wt==='PM'){el.innerHTML='<div class="empty">מסונן ל‑PM.</div>';return;}
+    const rows=getWO({period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||((typeof today==='function')?today():''),department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:($('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||''),status:$('pmPlannerStatus')?.value||'open'});
+    if(typeof woCard==='function')el.innerHTML=rows.length?rows.map(r=>woCard(r.wo,'planner')).join(''):'<div class="empty">אין WO המתאימות לתקופה ולפילטרים שנבחרו.</div>';else try{return oldUnplanned?.apply(this,arguments);}catch(e){}
+  };
+  try{renderUnplannedPlanner=window.renderUnplannedPlanner;}catch(e){}
+
+  // Reports V77 resolves window.pmCanonicalForecast dynamically, so no duplicate renderer is needed.
+  // Still update labels whenever the dashboard/planner is rendered after late legacy patches.
+  function refresh(){try{renderDashboardV90();}catch(e){console.error('V90 dashboard',e)}try{window.renderReports?.();}catch(e){console.error('V90 reports',e)}try{renderPlannerV90();}catch(e){console.error('V90 planner',e)}}
+
+  window.pmV90Audit=function(){
+    const d=dashOpts('open'),open=getWork(d),over=getWork({...d,status:'overdue'}),near=getWork({...d,period:'week',status:'near'}),okKeys=x=>new Set(x.map(r=>r.key)),O=okKeys(over),N=okKeys(near),overlap=[...O].filter(k=>N.has(k));
+    const report={period:$('pmReportsPeriod')?.value||d.period,anchor:$('pmReportsAnchor')?.value||d.anchor,department:$('pmReportsDepartment')?.value||'',machine:$('pmReportsMachine')?.value||'',trade:$('pmReportsTrade')?.value||'',workType:$('pmReportsWorkType')?.value||'',status:'open'},rr=getWork(report);
+    const sameContext=d.period===report.period&&d.anchor===report.anchor&&d.department===report.department&&d.machine===report.machine&&d.trade===report.trade&&d.workType===report.workType;
+    return {ok:(d.period!=='week'||(open.length===over.length+near.length&&overlap.length===0))&&(!sameContext||open.length===rr.length),dashboard:{open:open.length,overdue:over.length,next7:near.length,partition:d.period!=='week'||open.length===over.length+near.length,overlap:overlap.length,hours:hours(open),bounds:bounds(d.period,d.anchor)},reports:{sameContext,count:rr.length,hours:hours(rr)},unclassified:d.period==='week'?open.filter(r=>!O.has(r.key)&&!N.has(r.key)).map(r=>({key:r.key,state:r.state,due:r.due,effective:r.effectiveDate,machine:r.machine,task:r.description})):[]};
+  };
+
+  // Replace misleading "unique" wording left by legacy renderers.
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(refresh,0));else setTimeout(refresh,0);
+})();
+
+</script>
 </body></html>
