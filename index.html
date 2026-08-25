@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260825-v90-canonical-open-partition"/>
+<meta name="fop-build" content="20260825-v91-history-reports-sync-audit"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -1262,21 +1262,39 @@ const FREQ_DAYS={'יומי':1,'שבועי':7,'דו שבועי':14,'חודשי':3
    ============================================================ */
 const STORE_TASKS='fop_pm_tasks_v2', STORE_HISTORY='fop_pm_history_v2';
 let tasks=[], history=[];
+let pmReporterProfiles=new Map();
 
+function pmLocalDateFromStamp(stamp){
+  if(!stamp)return '';
+  const d=new Date(stamp);
+  if(Number.isNaN(d.getTime()))return String(stamp).slice(0,10);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+function pmLooksLikeUuid(v){return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(v||'').trim())}
+function pmReporterDisplay(raw){
+  const value=String(raw??'').trim();
+  if(!value)return '—';
+  const profile=pmReporterProfiles.get(value);
+  if(profile)return profile.full_name||profile.email||value;
+  if(pmCurrentUser&&value===String(pmCurrentUser.id))return pmCurrentProfile?.full_name||pmCurrentUser.email||'משתמש';
+  // Never expose an internal auth UUID as the visible reporter name.
+  return pmLooksLikeUuid(value)?'משתמש FOP':value;
+}
 
 function normalizeHistoryRow(h){
   const taskId=h.taskId??h.task_id??h.pm_task_id??null;
   const task=tasks.find(t=>String(t.id)===String(taskId))||{};
   const stamp=h.reportedAt??h.reported_at??h.completed_at??h.performed_at??h.created_at??null;
-  const date=h.date??h.completed_date??h.done_date??(stamp?String(stamp).slice(0,10):today());
-  let reportedBy=h.reportedBy??h.reported_by??h.performed_by??h.completed_by_name??h.user_email??h.completed_by??'—';
-  if(pmCurrentUser && String(reportedBy)===String(pmCurrentUser.id)) reportedBy=pmCurrentUser.email||reportedBy;
+  const date=h.date??h.completed_date??h.done_date??pmLocalDateFromStamp(stamp)??today();
+  const reportedByRaw=h.reportedBy??h.reported_by??h.performed_by??h.completed_by_name??h.user_email??h.completed_by??'—';
+  const reportedBy=pmReporterDisplay(reportedByRaw);
   return {
     ...h,
     taskId,
-    date,
+    date:date||today(),
     reportedAt:stamp,
     reportedBy,
+    reportedByRaw,
     department:h.department??task.department??'',
     machine:h.machine??task.machine??'',
     task:h.task??task.task??'',
@@ -1320,6 +1338,14 @@ async function loadCloudData(){
       return true;
     });
     if(classificationIssues.length)console.warn(`V46 classification integrity: ${classificationIssues.length} active task(s) need task_type/trade correction.`,classificationIssues.slice(0,20));
+
+    // Reporter IDs in pm_history are auth/profile UUIDs in the current schema.
+    // Resolve them once during cloud load so History always shows a human name/email.
+    try{
+      const profileRes=await supabaseClient.from('profiles').select('id,full_name,email');
+      if(profileRes.error)console.warn('profiles load for history reporters:',profileRes.error.message);
+      else pmReporterProfiles=new Map((profileRes.data||[]).map(p=>[String(p.id),{full_name:p.full_name||'',email:p.email||''}]));
+    }catch(profileErr){console.warn('profiles load for history reporters:',profileErr)}
 
     let historyRows=[];
     for(let from=0;;from+=1000){
@@ -2368,6 +2394,18 @@ function renderHistory(){
     </div>`;
   }).join('')
 }
+
+window.pmHistoryAudit=function(){
+  const completed=(history||[]).filter(h=>!isCompletionUndone(h));
+  const planRows=(typeof pmWorkPlan!=='undefined'&&Array.isArray(pmWorkPlan))?pmWorkPlan:[];
+  const matched=completed.filter(h=>planRows.some(p=>String(p.taskId)===String(h.taskId)&&['completed','done','בוצע'].includes(String(p.status||'').trim().toLowerCase())&&String(p.completedDate||'')===String(h.date)));
+  const unresolved=completed.filter(h=>pmLooksLikeUuid(h.reportedByRaw)&&!pmReporterProfiles.has(String(h.reportedByRaw)));
+  const missingTasks=completed.filter(h=>!tasks.some(t=>String(t.id)===String(h.taskId)));
+  const duplicateKeys=new Map();
+  completed.forEach(h=>{const k=`${h.taskId}|${h.date}`;duplicateKeys.set(k,(duplicateKeys.get(k)||0)+1)});
+  const duplicates=[...duplicateKeys.entries()].filter(([,n])=>n>1).map(([key,count])=>({key,count}));
+  return {ok:matched.length===completed.length&&!unresolved.length&&!missingTasks.length&&!duplicates.length,total:completed.length,matchedPlan:matched.length,unmatchedPlan:completed.length-matched.length,unresolvedReporters:unresolved.length,missingTasks:missingTasks.length,duplicates};
+};
 
 async function deleteCompletionHistoryRow(h){
   // Supabase DELETE can return no error even when RLS matched zero rows.
@@ -6670,13 +6708,31 @@ async function saveHistoryEdit(){
   const labels={open:'פתוחות',waiting:'ממתינה לתכנון',planned:'מתוכננת',postponed:'נדחתה',overdue:'באיחור',cancelled:'בוטלה',completed:'בוצעה'};
   function opts(){return {period:$('pmReportsPeriod')?.value||'week',anchor:$('pmReportsAnchor')?.value||$('pmDashboardAnchor')?.value||today(),department:$('pmReportsDepartment')?.value||'',machine:$('pmReportsMachine')?.value||'',trade:$('pmReportsTrade')?.value||'',workType:$('pmReportsWorkType')?.value||'',status:$('pmReportsStatus')?.value||'open'};}
   function source(){return window.pmCanonicalForecast;}
-  function rowsFor(o){const s=source();if(!s||typeof s.getWork!=='function')throw new Error('Canonical PM engine unavailable');return s.getWork(o);}
+  function shiftClosedAnchorBack(period,anchor){
+    const raw=String(anchor||today()).slice(0,10),parts=raw.split('-').map(Number);
+    if(parts.length!==3||parts.some(n=>!Number.isFinite(n)))return raw;
+    const d=new Date(parts[0],parts[1]-1,parts[2],12),day=d.getDate();
+    if(period==='week'){d.setDate(d.getDate()-6);}
+    else{
+      const months=period==='year'?12:period==='half'?6:1;
+      d.setDate(1);d.setMonth(d.getMonth()-months);
+      d.setDate(Math.min(day,new Date(d.getFullYear(),d.getMonth()+1,0,12).getDate()));
+    }
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+  function sourceOpts(o){
+    // Open/planned work is a forward rolling horizon. Closed work is historical:
+    // Week/Month/Half/Year means the look-back period ending on the selected anchor.
+    return ['completed','cancelled'].includes(o.status)?{...o,anchor:shiftClosedAnchorBack(o.period,o.anchor)}:o;
+  }
+  function rowsFor(o){const s=source();if(!s||typeof s.getWork!=='function')throw new Error('Canonical PM engine unavailable');return s.getWork(sourceOpts(o));}
+  function boundsFor(o){const s=source(),so=sourceOpts(o);if(!s||typeof s.bounds!=='function')throw new Error('Canonical PM engine unavailable');return s.bounds(so.period,so.anchor);}
   function reportKey(r){return `${r.kind||''}|${r.id||r.task?.id||r.description||''}|${r.date||r.due||''}`;}
   function checklistHtml(r){if(r.kind!=='PM'||!r.task||typeof pmChecklistItems!=='function')return '';const a=pmChecklistItems(r.task)||[];return a.length?`<div class="pm-report-checklist-detail"><strong>פעולות הטיפול (${a.length}):</strong>${a.map(x=>`<span class="pm-report-check-item">☐ ${escH(x)}</span>`).join('')}</div>`:'';}
   function rowHtml(r){return `<tr data-report-key="${escH(reportKey(r))}"><td class="pm-report-select-col" style="display:none"><input type="checkbox" class="pm-report-row-select" data-key="${escH(reportKey(r))}" checked onchange="pmUpdateSelectedCount()"></td><td>${escH(typeof fDate==='function'?fDate(r.date||r.due):(r.date||r.due))}</td><td>${escH(r.department||'')}</td><td><strong>${escH(r.machine||'')}</strong></td><td>${escH(r.description||'')}${checklistHtml(r)}</td><td>${escH(r.kind==='PM'?`PM · ${r.frequency||'—'}`:'WO')}</td><td>${Number(r.duration||0)} דק׳</td><td>${escH(r.trade||'')}</td><td class="status-cell">${escH(labels[r.state]||r.state||'')}</td><td>${r.note?escH(r.note):'________________'}</td></tr>`;}
   function strictRenderReports(){
     const body=$('pmReportsBody');if(!body)return;const o=opts();if($('pmReportsAnchor')&&!$('pmReportsAnchor').value)$('pmReportsAnchor').value=o.anchor;
-    const b=source().bounds(o.period,o.anchor),rows=rowsFor(o),mins=rows.reduce((a,r)=>a+Number(r.duration||0),0);window.pmUnifiedReportRows=rows;
+    const b=boundsFor(o),rows=rowsFor(o),mins=rows.reduce((a,r)=>a+Number(r.duration||0),0);window.pmUnifiedReportRows=rows;
     if($('pmReportsCount'))$('pmReportsCount').textContent=rows.length;if($('pmReportsHours'))$('pmReportsHours').textContent=fmtHours(mins)+' שעות';if($('pmReportsFooterCount'))$('pmReportsFooterCount').textContent=rows.length;if($('pmReportsFooterHours'))$('pmReportsFooterHours').textContent=fmtHours(mins);if($('pmReportsMeta'))$('pmReportsMeta').textContent=`${b.start}–${b.end} · ${labels[o.status]||o.status} · ${rows.length} משימות · ${fmtHours(mins)} שעות`;
     body.innerHTML=rows.length?rows.map(rowHtml).join(''):'<tr><td colspan="10" style="text-align:center;padding:26px;color:#6d7b91">אין משימות המתאימות לתקופה ולפילטרים שנבחרו.</td></tr>';
     try{window.pmApplySelectivePrintUI?.();window.pmRefreshPrintSnapshot?.();window.pmUpdateSelectedCount?.();}catch(e){}
@@ -6692,7 +6748,7 @@ async function saveHistoryEdit(){
   window.pmV77Audit=function(){const o=opts(),r=rowsFor(o),mins=r.reduce((a,x)=>a+Number(x.duration||0),0);return {opts:o,count:r.length,hours:fmtHours(mins),canonical:true};};
   window.pmV78FilterAudit=function(){
     const base=opts(), statuses=['open','waiting','planned','postponed','overdue','cancelled','completed'];
-    const result={base,bounds:source().bounds(base.period,base.anchor),statuses:{},checks:{}};
+    const result={base,bounds:boundsFor(base),statuses:{},checks:{}};
     statuses.forEach(status=>{try{const rr=rowsFor({...base,status});result.statuses[status]={count:rr.length,hours:fmtHours(rr.reduce((a,x)=>a+Number(x.duration||0),0))};}catch(e){result.statuses[status]={error:String(e)}}});
     try{
       const rr=rowsFor(base);
