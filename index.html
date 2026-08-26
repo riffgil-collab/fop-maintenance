@@ -2191,7 +2191,7 @@ function renderReport(){
   const list=[...planned,...extras]
     .sort((a,b)=>(a.plan?0:1)-(b.plan?0:1)||a.s.n-b.s.n||a.t.machine.localeCompare(b.t.machine,'he'));
 
-  repOpen.textContent=list.length+' משימות להצגה';
+  repOpen.textContent=list.length+' טיפולים פתוחים';
   repLate.textContent=list.filter(x=>x.s.state==='overdue').length+' באיחור';
   repToday.textContent=planned.length+' בתוכנית העבודה';
 
@@ -3570,7 +3570,7 @@ renderReport=function(){
     .filter(x=>(!machine||x.t.machine===machine)&&(!performer||x.t.performer===performer)):[];
   const list=[...planned,...extras].sort((a,b)=>(a.plan?0:1)-(b.plan?0:1)||a.s.n-b.s.n||a.t.machine.localeCompare(b.t.machine,'he'));
 
-  repOpen.textContent=list.length+' משימות להצגה';
+  repOpen.textContent=list.length+' טיפולים פתוחים';
   repLate.textContent=pmWorkPlan.filter(p=>wpPending(p)&&p.plannedDate<reportDate&&(!dep||wpTask(p)?.department===dep)).length+' באיחור';
   repToday.textContent=planned.length+' בתוכנית העבודה';
 
@@ -4072,18 +4072,14 @@ renderReport=function(){
   }
   const list=[...planned,...extras];
 
-  repOpen.textContent=list.length+' משימות להצגה';
+  repOpen.textContent=list.length+' טיפולים פתוחים';
   repLate.textContent=list.filter(x=>v3OccurrenceState(x,reportDate)==='overdue').length+' באיחור';
   repToday.textContent=planned.length+' בתוכנית העבודה';
 
-  // Progress must be filtered by the exact same department/machine/profession.
-  const completedRows=pmWorkPlan.filter(p=>{
-    if(v3RowStatus(p)!=='completed'||p.completedDate!==reportDate)return false;
-    const t=wpTask(p);return !!t&&taskMatches(t);
-  });
-  const doneForDate=completedRows.length,total=planned.length+doneForDate;
-  pmProgressFill.style.width=(total?doneForDate/total*100:0)+'%';
-  pmProgressText.textContent=`${doneForDate} מתוך ${total} בוצעו`;
+  // V95: Maintenance Execution is an OPEN-work queue only.
+  // Completed PM work is intentionally excluded here and belongs only in Execution Log.
+  pmProgressFill.style.width='0%';
+  pmProgressText.textContent='';
 
   if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין משימות לביצוע בתאריך ובסינון שנבחרו.</div>';return}
   const canManage=pmCan('manageExceptions');
@@ -4748,27 +4744,12 @@ function renderUnplannedReport(){
   const baseToday=showPM?(parseInt(String(repToday.textContent||'0'),10)||0):0;
   const woLate=a.filter(w=>w.dueDate&&w.dueDate<date).length;
   const woPlannedToday=a.filter(w=>w.plannedDate===date).length;
-  repOpen.textContent=(baseOpen+a.length)+' משימות להצגה';
+  repOpen.textContent=(baseOpen+a.length)+' טיפולים פתוחים';
   repLate.textContent=(baseLate+woLate)+' באיחור';
   repToday.textContent=(baseToday+woPlannedToday)+' בתוכנית העבודה';
 
-  // Add completed/planned WO for the selected date to execution progress without counting future open WOs.
-  const m=String(pmProgressText.textContent||'').match(/(\d+)\s+מתוך\s+(\d+)/);
-  const baseDone=showPM&&m?Number(m[1]):0,baseTotal=showPM&&m?Number(m[2]):0;
-  const woDone=pmWorkOrders.filter(w=>w.status==='Completed'&&w.completedDate===date&&(!dep||w.department===dep)&&(!machine||w.machine===machine)&&(!trade||w.trade===trade)).length;
-  const woForDate=a.filter(w=>w.plannedDate===date).length;
-
-  // In WO-only mode, the list intentionally shows OPEN WOs, while completed WOs are no longer in that list.
-  // Therefore a "done out of total" sentence is misleading (it can look as if the visible open WO is already completed).
-  if(workType==='WO'){
-    const woOpen=a.length,woPool=woOpen+woDone;
-    pmProgressFill.style.width=(woPool?woDone/woPool*100:0)+'%';
-    pmProgressText.textContent=`${woOpen} WO פתוחות · ${woDone} בוצעו היום`;
-  }else{
-    const done=baseDone+woDone,total=baseTotal+woDone+woForDate;
-    pmProgressFill.style.width=(total?done/total*100:0)+'%';
-    pmProgressText.textContent=`${done} מתוך ${total} בוצעו`;
-  }
+  // V95: completed WO work is not part of Maintenance Execution.
+  // Only OPEN WO cards and open-work KPIs are shown here; completed WO appears in Execution Log.
 }
 function pmOpenWOCompletion(id){const w=pmWorkOrders.find(x=>String(x.id)===String(id));if(!w)return false;pmCompletionIsWO=true;pmCompletionTaskId=id;pmCompletionWorkPlanId='';pmCompletionOccurrenceDue='';pmCompletionReportDate=pmReportDate?.value||today();pmCompleteTaskText.textContent=`WO · ${w.machine} — ${w.description}`;pmCompletionNotes.value='';if(document.getElementById('pmCompletionChecklist')){pmCompletionChecklist.hidden=true;pmCompletionChecklist.innerHTML='';}for(const n of [1,2]){const inp=document.getElementById('pmPhoto'+n),img=document.getElementById('pmPhotoPreview'+n);if(inp)inp.value='';if(img){img.removeAttribute('src');img.style.display='none';}}pmCompleteStatus.textContent='';pmCompleteModal.classList.add('open');document.body.style.overflow='hidden';return false;}
 const _closeCompleteModalV13=closeCompleteModal;closeCompleteModal=function(){pmCompletionIsWO=false;_closeCompleteModalV13();};
@@ -7654,4 +7635,9 @@ async function saveHistoryEdit(){
   }else setTimeout(()=>applyWOState(false),0);
 })();
 </script>
+
+<style id="fop-v95-execution-open-only-style">
+/* V95 — Maintenance Execution shows only work that still requires execution. */
+#pmReport .progress-wrap{display:none!important}
+</style>
 </body></html>
