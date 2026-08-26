@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260825-v92-history-trade-sync"/>
+<meta name="fop-build" content="20260826-v94-wo-planner-parity"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -7486,6 +7486,121 @@ async function saveHistoryEdit(){
     const unified=(typeof window.pmHistoryUnifiedRows==='function')?window.pmHistoryUnifiedRows().length:null;
     return {pm,wo,total:pm+wo,unifiedHistory:unified,match:unified===null?null:unified===pm+wo};
   };
+})();
+</script>
+
+<style id="fop-v94-wo-planner-parity-style">
+/* Final WO planner parity layer. Kept at the end of the document so it wins over legacy V17 CSS. */
+#pmPlanner .panel-box:has(#pmWOPlannerList){display:block!important}
+#pmPlanner.pm-wo-only #pmPlannerDetail,
+#pmPlanner.pm-wo-only .pm-plan-pager,
+#pmPlanner.pm-wo-only .pm-plan-actions,
+#pmPlanner.pm-wo-only #pmPlanSelectionInfo{display:none!important}
+#pmPlanner.pm-wo-only #pmWOPlannerList{min-height:72px}
+</style>
+<script id="fop-v94-wo-planner-parity">
+/* V94 — Dashboard WO -> Planning parity and WO-only UX. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
+
+  function plannerOptions(){
+    return {
+      period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',
+      anchor:$('pmPlannerStart')?.value||((typeof today==='function')?today():''),
+      department:$('pmPlannerDepartment')?.value||'',
+      machine:$('pmPlannerMachine')?.value||'',
+      trade:($('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||''),
+      workType:$('pmPlannerWorkType')?.value||'',
+      status:$('pmPlannerStatus')?.value||'open'
+    };
+  }
+
+  function workRows(){
+    const engine=window.pmCanonicalForecast||window.fopUnifiedWorkSource;
+    try{return engine?.getWork?engine.getWork(plannerOptions()):[];}catch(e){console.warn('V94 getWork',e);return [];}
+  }
+
+  function hours(rows){
+    return (rows.reduce((a,r)=>a+Number(r?.duration||0),0)/60).toFixed(1);
+  }
+
+  function isScheduled(r){
+    if(r?.kind==='PM') return !!r.plan && ['planned','postponed'].includes(norm(r.plan.status));
+    if(r?.kind==='WO'){
+      const w=r.wo||{};
+      const planned=String(w.plannedDate??w.planned_date??'').slice(0,10);
+      return !!planned && !['completed','done','cancelled','canceled','בוטל','בוצע'].includes(norm(w.status));
+    }
+    return false;
+  }
+
+  function applyWOState(scrollToWO){
+    const planner=$('pmPlanner');
+    const list=$('pmWOPlannerList');
+    const panel=list?.closest('.panel-box');
+    if(!planner||!list||!panel)return;
+
+    const wt=$('pmPlannerWorkType')?.value||'';
+    const woOnly=wt==='WO';
+    planner.classList.toggle('pm-wo-only',woOnly);
+
+    // Do not rely on :has cascade order; set the actual panel inline with !important.
+    if(wt==='PM') panel.style.setProperty('display','none','important');
+    else panel.style.setProperty('display','block','important');
+
+    try{window.renderUnplannedPlanner?.();}catch(e){console.warn('V94 render WO',e);}
+
+    const rows=workRows();
+    const scheduled=rows.filter(isScheduled);
+    const remaining=rows.filter(r=>!isScheduled(r));
+
+    // WO is technician maintenance work too. Keep all four workload cards on the same PM+WO source.
+    if($('pmPlanRequired'))$('pmPlanRequired').textContent=String(rows.length);
+    if($('pmWorkRequiredHours'))$('pmWorkRequiredHours').textContent=hours(rows);
+    if($('pmWorkTechnicianHours'))$('pmWorkTechnicianHours').textContent=hours(rows);
+    if($('pmWorkScheduledHours'))$('pmWorkScheduledHours').textContent=hours(scheduled);
+    if($('pmWorkUnplannedHours'))$('pmWorkUnplannedHours').textContent=hours(remaining);
+
+    if(woOnly){
+      const woRows=rows.filter(r=>r.kind==='WO');
+      const info=$('pmPlanPageInfo');
+      if(info)info.textContent=`WO פתוחות: ${woRows.length}`;
+    }
+
+    if(scrollToWO){
+      setTimeout(()=>{
+        try{panel.scrollIntoView({behavior:'smooth',block:'start'});}catch(e){panel.scrollIntoView();}
+      },80);
+    }
+  }
+
+  // Wrap the final V90 planner renderer, not an earlier legacy layer.
+  const previousRenderPlanner=window.renderPlanner;
+  window.renderPlanner=function(){
+    const r=typeof previousRenderPlanner==='function'?previousRenderPlanner.apply(this,arguments):undefined;
+    applyWOState(false);
+    return r;
+  };
+  try{renderPlanner=window.renderPlanner;}catch(e){}
+
+  // Keep the existing dashboard context transfer, then land on the WO cards themselves.
+  const previousOpenPlanner=window.pmV17OpenPlanner;
+  window.pmV17OpenPlanner=function(kind){
+    const r=typeof previousOpenPlanner==='function'?previousOpenPlanner.apply(this,arguments):undefined;
+    if(kind==='wo') setTimeout(()=>applyWOState(true),120);
+    return r;
+  };
+  try{pmV17OpenPlanner=window.pmV17OpenPlanner;}catch(e){}
+
+  // Manual work-type changes must refresh both PM and WO portions of Planning.
+  $('pmPlannerWorkType')?.addEventListener('change',()=>{
+    try{window.renderPlanner();}catch(e){applyWOState(false);}
+  });
+
+  if(document.readyState==='loading'){
+    document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>applyWOState(false),0));
+  }else setTimeout(()=>applyWOState(false),0);
 })();
 </script>
 </body></html>
