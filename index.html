@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v112-restore-invalid-postponements"/>
+<meta name="fop-build" content="20260828-v113-postpone-report-parity"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -791,7 +791,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="field"><label>סוג עבודה</label>
       <select id="pmReportsWorkType" onchange="renderReports()">
         <option value="">הכול</option>
-        <option value="PM">PM</option>
+        <option value="PM" selected>PM — כמו הדשבורד</option>
         <option value="WO">WO</option>
       </select>
     </div>
@@ -9346,14 +9346,14 @@ window.pmHistoryParityAudit=function(){
 @media(max-width:600px){.pm-v99-kpis{grid-template-columns:repeat(2,1fr)!important}#pmPlannerDetail .pm-plan-row{grid-template-columns:30px minmax(0,1fr) 72px;gap:9px}.pm-v110-card-footer{gap:7px;flex-wrap:nowrap}.pm-v110-status{flex:1;min-width:0;padding:7px 8px}.pm-v110-defer{flex:0 0 auto;padding:7px 9px}}
 </style>
 <script id="fop-v109-due-window-lifecycle">
-window.FOP_PLANNER_UI_BUILD="20260828-v112-restore-invalid-postponements";
+window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
 /* V109 — Due-driven PM lifecycle.
    1) pm_tasks.next_due is the OPENING date of the current PM occurrence.
    2) The occurrence has a fixed 7-calendar-day execution window: due..due+6.
    3) Assignment is a managerial flag inside that window; it NEVER restarts the clock.
    4) At due+7 the unresolved occurrence becomes overdue, assigned or not.
    5) Only one current PM occurrence is operational. The next recurrence is created only by completion/cancellation advancing next_due.
-   6) Postpone shifts the CURRENT occurrence exactly +7 days, requires a reason, and stores the postponed target on the Postponed plan row.
+   6) Postpone shifts the CURRENT occurrence to 7 days from the action date, requires a reason, and stores the postponed target on the Postponed plan row.
    7) Completion re-anchors next_due to actual completion date + task frequency (V108 completion contract retained).
 */
 (function(){
@@ -9483,9 +9483,9 @@ window.FOP_PLANNER_UI_BUILD="20260828-v112-restore-invalid-postponements";
   };
 
   const auditSafe=v=>String(v??'').replace(/[|\]\r\n]/g,' ').trim();
-  function postponeTo(oldDue){return add(oldDue,7);}
+  function postponeTo(oldDue){return add(tday(),7);}
   window.openPostponeModal=openPostponeModal=function(id){
-    if(!pmCan('manageExceptions'))return statusLine('דחיית טיפול זמינה למנהל אחזקה או Admin בלבד.','error');const t=taskOf(id);if(!t)return false;const oldDue=iso(t.nextDue??t.next_due);if(!oldDue)return false;if(oldDue>tday()){statusLine('המשימה עדיין לא נפתחה ולכן אין צורך לדחות אותה.','error');return false;}pmPostponeTaskId=t.id;const newDue=postponeTo(oldDue);if($('pmPostponeDate'))$('pmPostponeDate').value=newDue;if($('pmPostponeTaskText'))$('pmPostponeTaskText').textContent=`${t.machine} — ${t.task} · דחייה של שבוע: ${fd(oldDue)} ← ${fd(newDue)}`;if($('pmPostponeReason'))$('pmPostponeReason').value='';if($('pmPostponeStatus')){$('pmPostponeStatus').textContent='';$('pmPostponeStatus').className='pm-modal-status';}$('pmPostponeModal')?.classList.add('open');return false;
+    if(!pmCan('manageExceptions'))return statusLine('דחיית טיפול זמינה למנהל אחזקה או Admin בלבד.','error');const t=taskOf(id);if(!t)return false;const oldDue=iso(t.nextDue??t.next_due);if(!oldDue)return false;if(oldDue>tday()){statusLine('המשימה עדיין לא נפתחה ולכן אין צורך לדחות אותה.','error');return false;}pmPostponeTaskId=t.id;const newDue=postponeTo(oldDue);if($('pmPostponeDate'))$('pmPostponeDate').value=newDue;if($('pmPostponeTaskText'))$('pmPostponeTaskText').textContent=`${t.machine} — ${t.task} · דחייה של שבוע מהיום: ${fd(oldDue)} ← ${fd(newDue)}`;if($('pmPostponeReason'))$('pmPostponeReason').value='';if($('pmPostponeStatus')){$('pmPostponeStatus').textContent='';$('pmPostponeStatus').className='pm-modal-status';}$('pmPostponeModal')?.classList.add('open');return false;
   };
   async function postponeCurrent(t,reason){
     const oldDue=iso(t.nextDue??t.next_due),newDue=postponeTo(oldDue),stamp=new Date().toISOString(),actor=who(),current=latestPlan(t.id,oldDue),snap=current?planSnapshot(current):null,created=[],future=rows().filter(p=>taskId(p)===String(t.id)&&pDue(p)>oldDue&&['planned','postponed'].includes(pStatus(p))),futureSnaps=future.map(planSnapshot),oldTask={next_due:t.nextDue??t.next_due??null,notes:t.notes||null};
@@ -9543,10 +9543,58 @@ window.FOP_PLANNER_UI_BUILD="20260828-v112-restore-invalid-postponements";
 
   window.pmV109Audit=function(){
     const o=dashOpts('open'),open=opPM(o),planned=opPM({...o,status:'planned'}),waiting=opPM({...o,status:'waiting'}),over=opPM({...o,status:'overdue'}),post=opPM({...o,status:'postponed'}),up=opPM({...o,status:'near'}),dup=[...open.reduce((m,r)=>(m.set(String(r.task?.id||r.id),(m.get(String(r.task?.id||r.id))||0)+1),m),new Map())].filter(([,n])=>n>1);
-    return {build:'20260828-v112-restore-invalid-postponements',windowDays:7,windowStartsAtNextDue:true,assignmentDoesNotResetClock:true,postponeDays:7,nextRecurrenceFromCompletion:true,open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,upcoming7:up.length,partitionOk:open.length===planned.length+waiting.length+over.length,duplicateCurrentTasks:dup,ok:open.length===planned.length+waiting.length+over.length&&dup.length===0};
+    return {build:'20260828-v113-postpone-report-parity',windowDays:7,windowStartsAtNextDue:true,assignmentDoesNotResetClock:true,postponeDays:7,nextRecurrenceFromCompletion:true,open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,upcoming7:up.length,partitionOk:open.length===planned.length+waiting.length+over.length,duplicateCurrentTasks:dup,ok:open.length===planned.length+waiting.length+over.length&&dup.length===0};
   };
   function boot(){applyUi();try{refreshDashboard();renderPlanner();window.renderReport?.();}catch(e){console.warn('V109 boot',e)}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
+
+<script id="fop-v113-postpone-report-parity">
+/* V113 — Postpone + Reports parity.
+   - Postpone target for an already-open PM is always action-date + 7 calendar days.
+   - Reports use the exact same operational PM lifecycle source as Dashboard/Planner.
+   - Dashboard and Reports therefore share one status truth for open/waiting/planned/overdue/postponed. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const op=window.pmV109Operational;
+  const canon=window.pmCanonicalForecast||window.fopUnifiedWorkSource;
+  if(op&&canon){
+    canon.getPM=op.getPM;
+    canon.getWork=op.getWork;
+    window.pmCanonicalForecast=canon;
+    window.fopUnifiedWorkSource=canon;
+  }
+  function gstate(){
+    const g=window.pmV99GlobalState||{};
+    return {
+      period:g.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),
+      anchor:g.anchor||$('pmDashboardAnchor')?.value||((typeof today==='function')?today():new Date().toISOString().slice(0,10)),
+      department:g.department??$('pmDashboardDepartment')?.value??'',
+      machine:g.machine??$('pmDashboardMachine')?.value??'',
+      trade:g.trade??$('pmDashboardTrade')?.value??'',
+      workType:'PM'
+    };
+  }
+  let reportWorkTypeInitialized=false;
+  function initReportWorkType(){const wt=$('pmReportsWorkType');if(!reportWorkTypeInitialized&&wt&&!wt.value)wt.value='PM';reportWorkTypeInitialized=true;}
+  function count(status){const o={...gstate(),status};return op?.getPM?op.getPM(o).length:0;}
+  function refreshParity(){
+    initReportWorkType();
+    try{
+      window.renderReports?.();
+      window.pmV113Parity={
+        open:count('open'),waiting:count('waiting'),planned:count('planned'),overdue:count('overdue'),postponed:count('postponed'),
+        dashboard:{open:Number($('pmV17Open')?.textContent||0),waiting:Number($('pmV105Unassigned')?.textContent||0),planned:Number($('pmV31Planned')?.textContent||0),overdue:Number($('pmV17Overdue')?.textContent||0),postponed:Number($('pmV97Postponements')?.textContent||0)}
+      };
+    }catch(e){console.warn('V113 parity refresh',e)}
+  }
+  const prevShow=window.showTab;
+  window.showTab=function(name){const r=prevShow?.apply(this,arguments);if(String(name||'').toLowerCase()==='reports'){initReportWorkType();setTimeout(refreshParity,0);}return r;};
+  ['pmReportsStatus','pmReportsPeriod','pmReportsAnchor','pmReportsDepartment','pmReportsMachine','pmReportsTrade','pmReportsWorkType'].forEach(id=>$(id)?.addEventListener('change',()=>setTimeout(refreshParity,0)));
+  window.pmV113Audit=function(){refreshParity();return {build:'20260828-v113-postpone-report-parity',postponeFromActionDate:true,operationalSourceShared:!!(op&&canon),parity:window.pmV113Parity||null};};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(refreshParity,0));else setTimeout(refreshParity,0);
 })();
 </script>
 
