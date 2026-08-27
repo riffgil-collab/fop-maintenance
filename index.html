@@ -7702,7 +7702,7 @@ async function saveHistoryEdit(){
 /* V96 — PM/WO execution-log parity: explicit PM/WO completed labels and editable notes/photos for both. */
 window.pmHistoryParityAudit=function(){
   const wo=(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>String(w.status||'').toLowerCase()==='completed');
-  return {build:'20260827-v96-history-parity',pmEdit:true,woEdit:true,pmLabel:'PM בוצע',woLabel:'WO בוצע',completedWO:wo.length};
+  return {build:'20260827-v101-planner-assigned-parity',pmEdit:true,woEdit:true,pmLabel:'PM בוצע',woLabel:'WO בוצע',completedWO:wo.length};
 };
 </script>
 
@@ -8366,4 +8366,184 @@ window.pmHistoryParityAudit=function(){
 })();
 </script>
 
+
+<script id="fop-v100-assigned-report-parity">
+/* V100 — "Assigned for execution" is an assignment dimension, not a mutually-exclusive current state.
+   A job can be both assigned AND overdue. Dashboard KPI, Planning and Reports use identical assignment semantics. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const ACTIVE_ASSIGNMENT=new Set(['planned','postponed','מתוכנן','מתוכננת','נדחה','נדחתה']);
+  const CLOSED=new Set(['completed','done','cancelled','canceled','בוצע','בוטל']);
+  const eng=window.pmCanonicalForecast||window.fopUnifiedWorkSource;
+  if(!eng||typeof eng.getPM!=='function'||typeof eng.getWO!=='function')return;
+
+  const basePM=eng.getPM.bind(eng), baseWO=eng.getWO.bind(eng);
+  function pmAssigned(r){
+    const ps=norm(r?.plan?.status??r?.plan?.Status);
+    return !!r?.plan && ACTIVE_ASSIGNMENT.has(ps) && !CLOSED.has(ps);
+  }
+  function woAssigned(r){
+    const w=r?.wo||{}, s=norm(w.status??r?.status);
+    const pd=String(w.plannedDate??w.planned_date??r?.plannedDate??r?.planned_date??'').slice(0,10);
+    return !!pd && !CLOSED.has(s);
+  }
+  function assignedPM(opts={}){
+    return basePM({...opts,status:'open'}).filter(pmAssigned);
+  }
+  function assignedWO(opts={}){
+    return baseWO({...opts,status:'open'}).filter(woAssigned);
+  }
+  function getPM(opts={}){
+    // Backward compatible: old UI value "planned" now means "assigned for execution".
+    if(opts.status==='planned'||opts.status==='assigned')return assignedPM(opts);
+    return basePM(opts);
+  }
+  function getWO(opts={}){
+    if(opts.status==='planned'||opts.status==='assigned')return assignedWO(opts);
+    return baseWO(opts);
+  }
+  function getWork(opts={}){
+    const wt=opts.workType||'';
+    return [
+      ...(wt==='WO'?[]:getPM(opts)),
+      ...(wt==='PM'?[]:getWO(opts))
+    ].sort((a,b)=>String(a.effectiveDate||a.date||a.due||'').localeCompare(String(b.effectiveDate||b.date||b.due||''))||String(a.kind||'').localeCompare(String(b.kind||'')));
+  }
+  eng.getPM=getPM; eng.getWO=getWO; eng.getWork=getWork;
+  window.pmCanonicalForecast=eng; window.fopUnifiedWorkSource=eng;
+
+  function relabel(){
+    document.querySelectorAll('#pmPlannerStatus option[value="planned"],#pmReportsStatus option[value="planned"]').forEach(o=>o.textContent='שובצו לביצוע');
+    const meta=$('pmReportsMeta');
+    if(meta)meta.textContent=meta.textContent.replace(/מתוכננת|מתוכנן/g,'שובצו לביצוע');
+  }
+
+  // Dashboard Assigned KPI drill-down uses the same assignment semantic.
+  window.pmV31OpenPlanned=function(){
+    try{
+      if($('pmPlannerStatus'))$('pmPlannerStatus').value='planned';
+      window.showTab?.('planner');
+      setTimeout(()=>{try{window.renderPlanner?.()}catch(e){}},0);
+    }catch(e){}
+    return false;
+  };
+
+  const prevReports=window.renderReports;
+  if(typeof prevReports==='function'){
+    window.renderReports=function(){const r=prevReports.apply(this,arguments);relabel();return r;};
+    try{renderReports=window.renderReports}catch(e){}
+  }
+  const prevPlanner=window.renderPlanner;
+  if(typeof prevPlanner==='function'){
+    window.renderPlanner=function(){const r=prevPlanner.apply(this,arguments);relabel();return r;};
+    try{renderPlanner=window.renderPlanner}catch(e){}
+  }
+
+  window.pmV100Audit=function(opts={}){
+    const base={
+      period:opts.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),
+      anchor:opts.anchor||$('pmDashboardAnchor')?.value||((typeof today==='function')?today():''),
+      department:(opts.department??$('pmDashboardDepartment')?.value) || '',
+      machine:(opts.machine??$('pmDashboardMachine')?.value) || '',
+      trade:(opts.trade??$('pmDashboardTrade')?.value) || '',
+      workType:(opts.workType??$('pmDashboardWorkType')?.value) || ''
+    };
+    const open=getWork({...base,status:'open'}),assigned=getWork({...base,status:'planned'}),overdue=getWork({...base,status:'overdue'});
+    const openKeys=new Set(open.map(r=>r.key));
+    const bad=assigned.filter(r=>!openKeys.has(r.key));
+    return {build:'20260827-v101-planner-assigned-parity',filters:base,open:open.length,assigned:assigned.length,overdue:overdue.length,assignedAlsoOverdue:assigned.filter(r=>r.state==='overdue').length,assignedOutsideOpen:bad.length,ok:bad.length===0};
+  };
+  relabel();
+  setTimeout(()=>{relabel();try{window.renderDashboard?.();window.renderPlanner?.();window.renderReports?.()}catch(e){}},0);
+})();
+</script>
+
+
+<script id="fop-v101-planner-assigned-parity">
+/* V101 — Planning must resolve the canonical source dynamically.
+   Fixes V90 closure capture that could hide active assigned rows (especially assigned+overdue). */
+(function(){
+  const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const ACTIVE=new Set(['planned','postponed','מתוכנן','מתוכננת','נדחה','נדחתה']);
+  const esc2=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  const tday=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
+  function engine(){return window.pmCanonicalForecast||window.fopUnifiedWorkSource||null;}
+  function opts(){return {
+    period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',
+    anchor:$('pmPlannerStart')?.value||tday(),
+    department:$('pmPlannerDepartment')?.value||'',
+    machine:$('pmPlannerMachine')?.value||'',
+    trade:($('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||''),
+    workType:$('pmPlannerWorkType')?.value||'',
+    status:$('pmPlannerStatus')?.value||'open'
+  };}
+  function rows(){const e=engine();return e&&typeof e.getWork==='function'?e.getWork(opts()):[];}
+  function pmRows(){return rows().filter(r=>r.kind==='PM');}
+  function itemFromRow(r){return r.item||{t:r.task,due:r.due,plan:r.plan,backlog:r.due<tday()};}
+  window.filteredPlanningItems=function(){
+    if(($('pmPlannerWorkType')?.value||'')==='WO')return [];
+    return pmRows().map(itemFromRow);
+  };
+  try{filteredPlanningItems=window.filteredPlanningItems;}catch(e){}
+
+  function stateLabel(r){
+    if(r.state==='overdue')return 'באיחור';
+    if(r.state==='postponed')return 'נדחתה';
+    if(r.state==='completed')return 'בוצעה';
+    if(r.state==='cancelled')return 'בוטלה';
+    if(r.plan&&ACTIVE.has(norm(r.plan.status)))return 'שובצה לביצוע';
+    return 'טרם שובצה';
+  }
+  function badgeClass(r){
+    if(r.state==='overdue'||r.state==='postponed')return 'risk';
+    if(r.state==='completed')return 'done';
+    if(r.state==='cancelled')return 'cancelled';
+    if(r.plan&&ACTIVE.has(norm(r.plan.status)))return 'planned';
+    return 'open';
+  }
+  function fmtDate(d){return typeof fDate==='function'?fDate(d):(d||'—');}
+  function hrs(list){return (list.reduce((a,r)=>a+Number(r.duration||0),0)/60).toFixed(1);}
+
+  window.renderPlanner=function(){
+    const all=rows(), pm=all.filter(r=>r.kind==='PM');
+    const detail=$('pmPlannerDetail');
+    const size=(typeof PM_PLAN_PAGE_SIZE!=='undefined'?PM_PLAN_PAGE_SIZE:50);
+    const pages=Math.max(1,Math.ceil(pm.length/size));
+    try{pmPlanPage=Math.max(0,Math.min(pages-1,pmPlanPage||0));}catch(e){}
+    const page=(typeof pmPlanPage!=='undefined'?pmPlanPage:0), pageRows=pm.slice(page*size,(page+1)*size);
+    const info=$('pmPlanPageInfo'); if(info)info.textContent=`עמוד ${page+1} מתוך ${pages} · ${pm.length} דרישות PM`;
+    if(detail){
+      detail.innerHTML=pageRows.length?pageRows.map(r=>{
+        const active=!!r.plan&&ACTIVE.has(norm(r.plan.status)), key=(typeof planKey==='function'?planKey(itemFromRow(r)):`${String(r.id)}@@${r.due}`);
+        return `<div class="pm-plan-row ${active?'planned':''}"><input class="pm-plan-check" type="checkbox" value="${esc2(key)}" onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${esc2(r.machine)} — ${esc2(r.description)}</strong><small>${esc2(r.department)} · <strong>מקצוע: ${esc2(r.trade||'—')}</strong> · מבצע: ${esc2(r.assignee||r.task?.performer||'')} · תדירות: ${esc2(r.frequency||'—')} · ${Number(r.duration||0)} דק׳${r.item?.backlog?' · פיגור קודם':''}</small>${active?`<small><strong>שובץ לביצוע:</strong> ${esc2(fmtDate(r.effectiveDate||r.date))}${r.assignee?' · '+esc2(r.assignee):''}${r.state==='overdue'?' · <strong>באיחור</strong>':''}</small>`:''}${r.task&&typeof pmChecklistToggleHtml==='function'?pmChecklistToggleHtml(r.task):''}</div><div class="pm-plan-meta pm-plan-hide-mobile">${esc2(r.frequency||'')}</div><div class="pm-plan-meta">${esc2(fmtDate(r.due))}</div><div class="pm-plan-meta pm-plan-hide-mobile">${active?esc2(fmtDate(r.effectiveDate||r.date)):'—'}</div><span class="pm-plan-badge ${badgeClass(r)}">${esc2(stateLabel(r))}</span></div>`;
+      }).join(''):'<div class="empty">אין דרישות PM בתקופה ובסינון שנבחרו.</div>';
+    }
+    const set=(id,v)=>{const e=$(id);if(e)e.textContent=v};
+    set('pmPlanRequired',all.length);
+    set('pmWorkRequiredHours',hrs(all));
+    set('pmWorkTechnicianHours',hrs(pm));
+    const assigned=pm.filter(r=>r.plan&&ACTIVE.has(norm(r.plan.status)));
+    set('pmWorkScheduledHours',hrs(assigned));
+    set('pmWorkUnplannedHours',hrs(pm.filter(r=>!r.plan||!ACTIVE.has(norm(r.plan.status)))));
+    const range=$('pmPlanRangeLabel');
+    if(range){const e=engine();const b=e?.periodBounds?.(opts().period,opts().anchor);range.textContent=b?`${fmtDate(b.start)}–${fmtDate(b.end)}`:'';}
+    try{window.renderUnplannedPlanner?.();}catch(e){}
+    try{updatePlanSelectionInfo?.();}catch(e){}
+    window.pmV101PlannerAudit={build:'20260827-v101-planner-assigned-parity',filters:opts(),rows:all.length,pm:pm.length,assigned:assigned.length,assignedOverdue:assigned.filter(r=>r.state==='overdue').length,keys:assigned.map(r=>r.key)};
+  };
+  try{renderPlanner=window.renderPlanner;}catch(e){}
+
+  // Dashboard drill-down must land on the exact same assigned set.
+  window.pmV31OpenPlanned=function(){
+    if($('pmPlannerStatus'))$('pmPlannerStatus').value='planned';
+    try{window.showTab?.('planner');}catch(e){}
+    setTimeout(()=>{try{window.renderPlanner()}catch(e){}},0);
+    return false;
+  };
+
+  setTimeout(()=>{try{window.renderPlanner()}catch(e){console.error('V101 planner init',e)}},0);
+})();
+</script>
 </body></html>
