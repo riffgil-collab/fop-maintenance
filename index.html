@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v114-history-wo-filter-sync"/>
+<meta name="fop-build" content="20260828-v115-execution-history-only"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -9792,6 +9792,157 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
   };
 
   function boot(){ensureHistoryWorkType();hideHistoryCommon();applyHistoryGlobal(false);if($('pmHistory')?.classList.contains('active'))renderHistoryV114();if($('pmReports')?.classList.contains('active')){maybeChooseCompletedWO();window.renderReports?.();}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+<style id="fop-v115-execution-history-only-style">
+#pmHistory .pm-v114-sync-note{display:none!important}
+#pmHistory .pm-v115-history-note{margin:0 0 12px;padding:9px 12px;border:1px solid #d9e4f1;border-radius:12px;background:#f8fbff;color:#52647c;font-size:11px;font-weight:800}
+#pmHistory .pm-v115-history-note strong{color:#14345e}
+</style>
+<script id="fop-v115-execution-history-only">
+/* V115 — Execution Log is execution-only.
+   Source of truth:
+   - PM: pm_history (completed reports only; no postpone audit events)
+   - WO: pm_work_orders where status=Completed
+   Global period/filter semantics are shared with the other operational tabs.
+   Reports WO selection uses the report-local work type first and falls back to Completed
+   when the selected operational status has no WO but completed WO exist in the history window. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const iso=v=>String(v||'').slice(0,10);
+  const tday=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
+  const escH=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fd=v=>{try{return typeof fDate==='function'?fDate(v):String(v||'')}catch(e){return String(v||'')}};
+  const allTasks=()=>Array.isArray(tasks)?tasks:[];
+  const allHistory=()=>Array.isArray(history)?history:[];
+  const allWOs=()=>Array.isArray(pmWorkOrders)?pmWorkOrders:[];
+  const taskFor=h=>allTasks().find(t=>String(t.id)===String(h?.taskId??h?.task_id))||{};
+  const tradeForTask=t=>String(t?.trade||((typeof maintenanceTrade==='function')?maintenanceTrade(t):'')||'').trim()||'מכונאי';
+  const globalState=()=>window.pmV99GlobalState||{period:'week',anchor:tday(),department:'',machine:'',trade:'',workType:''};
+  function backWindow(period,anchor){
+    const end=new Date((iso(anchor)||tday())+'T12:00:00'),start=new Date(end);
+    if(period==='month')start.setMonth(start.getMonth()-1);
+    else if(period==='half')start.setMonth(start.getMonth()-6);
+    else if(period==='year')start.setFullYear(start.getFullYear()-1);
+    else start.setDate(start.getDate()-6);
+    const fmt=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return {start:fmt(start),end:fmt(end)};
+  }
+  function pmRows(){
+    return allHistory().filter(h=>{
+      try{return typeof isCompletionUndone==='function'?!isCompletionUndone(h):true}catch(e){return true}
+    }).map(h=>{
+      const t=taskFor(h),date=iso(h.date??h.completed_date??h.completedAt??h.completed_at);
+      return {source:'PM',eventType:'completed',date,department:h.department||t.department||'',machine:h.machine||t.machine||'',task:h.task||t.task||'',frequency:h.frequency||t.frequency||'',trade:String(h.trade||t.trade||tradeForTask(t)),reportedBy:h.reportedBy||'',completionNotes:h.completionNotes??h.completion_notes??'',photo1Path:h.photo1Path??h.photo_1_path??'',photo2Path:h.photo2Path??h.photo_2_path??'',id:h.id,taskId:h.taskId??h.task_id,raw:h};
+    }).filter(r=>!!r.date);
+  }
+  function woRows(){
+    return allWOs().filter(w=>['completed','done','בוצע'].includes(norm(w.status))).map(w=>{
+      const date=iso(w.completedDate??w.completed_date);
+      const reporterRaw=w.completedBy??w.completed_by??w.createdBy??w.created_by??'';
+      const reporter=reporterRaw&&typeof pmReporterDisplay==='function'?pmReporterDisplay(reporterRaw):reporterRaw;
+      return {source:'WO',eventType:'completed',date,department:w.department||'',machine:w.machine||'',task:w.description||'',frequency:w.priority||'',trade:String(w.trade||'מכונאי'),reportedBy:reporter||'',completionNotes:w.completionNotes??w.completion_notes??'',photo1Path:w.photo1Path??w.photo_1_path??'',photo2Path:w.photo2Path??w.photo_2_path??'',id:w.id,taskId:null,raw:w};
+    }).filter(r=>!!r.date);
+  }
+  function executionRows(){
+    const g=globalState(),win=backWindow(g.period||'week',g.anchor||tday()),q=($('pmHistorySearch')?.value||'').trim().toLowerCase(),wt=String(g.workType||'');
+    return [...pmRows(),...woRows()].filter(r=>{
+      if(wt&&r.source!==wt)return false;
+      if(g.department&&r.department!==g.department)return false;
+      if(g.machine&&r.machine!==g.machine)return false;
+      if(g.trade&&r.trade!==g.trade)return false;
+      if(r.date<win.start||r.date>win.end)return false;
+      if(q&&!`${r.machine} ${r.task} ${r.department} ${r.trade} ${r.reportedBy} ${r.completionNotes} ${r.source}`.toLowerCase().includes(q))return false;
+      return true;
+    }).sort((a,b)=>String(b.date).localeCompare(String(a.date))||String(b.raw?.reportedAt??b.raw?.reported_at??b.raw?.completed_at??'').localeCompare(String(a.raw?.reportedAt??a.raw?.reported_at??a.raw?.completed_at??'')));
+  }
+  window.pmHistoryUnifiedRows=executionRows;
+  window.pmExecutionHistoryRows=executionRows;
+  function rowHtml(r){
+    const eventLabel=r.source==='WO'?'WO בוצע':'PM בוצע';
+    const freqLabel=r.source==='WO'?`עדיפות: ${r.frequency||'—'}`:`תדירות: ${r.frequency||'—'}`;
+    const reporter=r.reportedBy?`<div class="history-user"><small>דווח על ידי</small><strong>${escH(r.reportedBy)}</strong></div>`:'';
+    const notes=r.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${escH(r.completionNotes)}</div>`:'';
+    const photos=(r.photo1Path||r.photo2Path)?`<div class="pm-history-photos">${r.photo1Path?`<button type="button" onclick="openMaintenancePhoto('${escH(r.photo1Path)}')">📷 תמונה 1</button>`:''}${r.photo2Path?`<button type="button" onclick="openMaintenancePhoto('${escH(r.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:'';
+    const canEdit=typeof pmCan==='function'&&pmCan('manageExceptions');
+    const edit=canEdit?`<button class="secondary-btn" type="button" onclick="openHistoryEdit('${escH(r.source)}','${escH(String(r.id??''))}')">✏️ עריכת תיעוד</button>`:'';
+    const undo=canEdit&&r.source==='PM'?`<button class="pm-undo" type="button" onclick="undoCompletion('${escH(String(r.id??''))}','${escH(String(r.taskId??''))}','${escH(String(r.date??''))}')">↩ החזר לתוכנית</button>`:'';
+    return `<div class="history-row"><div><strong>${escH(fd(r.date))}</strong><span class="pm-history-event completed">${eventLabel}</span></div><div><strong>${escH(r.machine)}</strong><small>${escH(r.task)}</small><small>${escH(r.department)} · <strong>מקצוע: ${escH(r.trade||'—')}</strong> · ${escH(freqLabel)}</small>${notes}${photos}</div>${reporter}${(edit||undo)?`<div class="pm-history-actions">${edit}${undo}</div>`:''}</div>`;
+  }
+  function ensureNote(){
+    const sec=$('pmHistory');if(!sec||$('pmHistoryV115Note'))return;
+    const note=document.createElement('div');note.id='pmHistoryV115Note';note.className='pm-v115-history-note';
+    note.innerHTML='<strong>יומן ביצועים מציג ביצועים בלבד.</strong> PM מתוך דיווחי הביצוע ו-WO שהושלמו. דחיות, שיבוצים ומשימות פתוחות אינם נכנסים ליומן.';
+    sec.querySelector('.history-filters')?.insertAdjacentElement('beforebegin',note);
+  }
+  function renderExecutionHistory(){
+    ensureNote();
+    const el=$('pmHistoryList');if(!el)return;
+    const rows=executionRows();
+    el.innerHTML=rows.length?rows.slice(0,500).map(rowHtml).join(''):'<div class="empty">לא נמצאו משימות שבוצעו לפי הסינון שנבחר.</div>';
+    const g=globalState(),win=backWindow(g.period||'week',g.anchor||tday());
+    window.pmV115HistoryAudit={build:'20260828-v115-execution-history-only',filters:{...g,window:win},rows:rows.length,pm:rows.filter(r=>r.source==='PM').length,wo:rows.filter(r=>r.source==='WO').length,postponed:0};
+  }
+  window.renderHistory=renderExecutionHistory;try{renderHistory=renderExecutionHistory}catch(e){}
+  window.exportHistoryCSV=function(){
+    const rows=executionRows();
+    const data=[['תאריך','סוג עבודה','מחלקה','מכונה','משימת טיפול','תדירות / עדיפות','מקצוע','דווח על ידי','הערות'],...rows.map(r=>[r.date,r.source,r.department,r.machine,r.task,r.frequency,r.trade,r.reportedBy||'',r.completionNotes||''])];
+    const csv='\ufeff'+data.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='maintenance_execution_history.csv';document.body.appendChild(a);a.click();const u=a.href;a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);
+  };try{exportHistoryCSV=window.exportHistoryCSV}catch(e){}
+
+  /* Reports — make WO selection deterministic. */
+  const priorRenderReports=window.renderReports;
+  const statusLabels={open:'פתוחות',waiting:'טרם שובצה',planned:'שובצה לביצוע',completed:'בוצעה',postponed:'נדחתה',cancelled:'בוטלה',overdue:'באיחור'};
+  function reportBackWindow(){const g=globalState(),period=$('pmReportsPeriod')?.value||g.period||'week',anchor=$('pmReportsAnchor')?.value||g.anchor||tday();return backWindow(period,anchor)}
+  function completedWOsForReport(){
+    const g=globalState(),w=reportBackWindow(),dep=$('pmReportsDepartment')?.value||g.department||'',machine=$('pmReportsMachine')?.value||g.machine||'',trade=$('pmReportsTrade')?.value||g.trade||'';
+    return allWOs().filter(x=>{
+      if(!['completed','done','בוצע'].includes(norm(x.status)))return false;
+      const d=iso(x.completedDate??x.completed_date);if(!d||d<w.start||d>w.end)return false;
+      if(dep&&x.department!==dep)return false;if(machine&&x.machine!==machine)return false;if(trade&&String(x.trade||'')!==trade)return false;return true;
+    });
+  }
+  function reportWOHtml(w){
+    const d=iso(w.completedDate??w.completed_date),key=`WO|${String(w.id||'')}|${d}`;
+    return `<tr data-report-key="${escH(key)}"><td class="pm-report-select-col" style="display:none"><input type="checkbox" class="pm-report-row-select" data-key="${escH(key)}" checked onchange="pmUpdateSelectedCount()"></td><td>${escH(fd(d))}</td><td>${escH(w.department||'')}</td><td><strong>${escH(w.machine||'')}</strong></td><td>${escH(w.description||'')}</td><td>WO</td><td>${Number(w.duration||0)} דק׳</td><td>${escH(w.trade||'')}</td><td class="status-cell">בוצעה</td><td>${escH(w.completionNotes??w.completion_notes??w.notes??'')}</td></tr>`;
+  }
+  function renderCompletedWOReport(){
+    const body=$('pmReportsBody');if(!body)return;
+    const rows=completedWOsForReport(),mins=rows.reduce((a,w)=>a+Number(w.duration||0),0),win=reportBackWindow();window.pmUnifiedReportRows=rows.map(w=>({kind:'WO',wo:w,id:w.id,state:'completed',date:iso(w.completedDate??w.completed_date)}));
+    if($('pmReportsCount'))$('pmReportsCount').textContent=rows.length;if($('pmReportsHours'))$('pmReportsHours').textContent=((mins/60).toFixed(1).replace(/\.0$/,''))+' שעות';if($('pmReportsFooterCount'))$('pmReportsFooterCount').textContent=rows.length;if($('pmReportsFooterHours'))$('pmReportsFooterHours').textContent=(mins/60).toFixed(1).replace(/\.0$/,'');
+    if($('pmReportsMeta'))$('pmReportsMeta').textContent=`WO · בוצעה · ${fd(win.start)} – ${fd(win.end)} · ${rows.length} עבודות`;
+    body.innerHTML=rows.length?rows.map(reportWOHtml).join(''):'<tr><td colspan="10" style="text-align:center;padding:26px;color:#6d7b91">אין WO שבוצעו בתקופה ובסינון שנבחרו.</td></tr>';
+    if($('pmReportsStatusLine')){$('pmReportsStatusLine').className=rows.length?'status-line success':'status-line';$('pmReportsStatusLine').textContent=rows.length?`מוצגות ${rows.length} פקודות עבודה WO שבוצעו.`:'לא נמצאו WO שבוצעו בתקופה שנבחרה.';}
+    window.pmApplySelectivePrintUI?.();window.pmRefreshPrintSnapshot?.();
+  }
+  window.renderReports=function(){
+    const localWT=String($('pmReportsWorkType')?.value||''),g=globalState(),wt=localWT||String(g.workType||'');
+    if(wt==='WO'&&String($('pmReportsStatus')?.value||'open')==='completed')return renderCompletedWOReport();
+    return typeof priorRenderReports==='function'?priorRenderReports.apply(this,arguments):undefined;
+  };try{renderReports=window.renderReports}catch(e){}
+  function normalizeWOReportSelection(){
+    const wt=String($('pmReportsWorkType')?.value||'');if(wt!=='WO')return;
+    const st=$('pmReportsStatus');if(!st)return;
+    // If the current status has no visible WO but completed WO exist, show the useful WO history automatically.
+    const current=st.value||'open',completed=completedWOsForReport().length;
+    if(current!=='completed'&&completed>0){
+      const g=globalState(),period=$('pmReportsPeriod')?.value||g.period||'week',anchor=$('pmReportsAnchor')?.value||g.anchor||tday();
+      let openCount=0;
+      try{openCount=window.fopUnifiedWorkSource?.getWO?.({period,anchor,department:$('pmReportsDepartment')?.value||g.department||'',machine:$('pmReportsMachine')?.value||g.machine||'',trade:$('pmReportsTrade')?.value||g.trade||'',status:current})?.length||0}catch(e){}
+      if(openCount===0)st.value='completed';
+    }
+  }
+  const prevShow=window.showTab;
+  window.showTab=function(name){const r=typeof prevShow==='function'?prevShow.apply(this,arguments):undefined;const key=String(name||'').toLowerCase();if(key==='history')setTimeout(renderExecutionHistory,0);if(key==='reports')setTimeout(()=>{normalizeWOReportSelection();window.renderReports?.()},0);return r;};
+  $('pmHistorySearch')?.addEventListener('input',()=>setTimeout(renderExecutionHistory,0));
+  ['pmV99Period','pmV99Anchor','pmV99Department','pmV99Machine','pmV99Trade','pmV99WorkType'].forEach(id=>$(id)?.addEventListener('change',()=>setTimeout(()=>{if($('pmHistory')?.classList.contains('active'))renderExecutionHistory();if($('pmReports')?.classList.contains('active')){normalizeWOReportSelection();window.renderReports?.();}},20)));
+  $('pmReportsWorkType')?.addEventListener('change',()=>setTimeout(()=>{normalizeWOReportSelection();window.renderReports?.();},30));
+  $('pmReportsStatus')?.addEventListener('change',()=>setTimeout(()=>window.renderReports?.(),20));
+  window.pmV115Audit=function(){const h=executionRows(),wo=completedWOsForReport();return {build:'20260828-v115-execution-history-only',history:{rows:h.length,pm:h.filter(r=>r.source==='PM').length,wo:h.filter(r=>r.source==='WO').length,postponed:h.filter(r=>r.eventType==='postponed').length},reportCompletedWO:wo.length,ok:h.every(r=>r.eventType==='completed')};};
+  function boot(){ensureNote();if($('pmHistory')?.classList.contains('active'))renderExecutionHistory();if($('pmReports')?.classList.contains('active')){normalizeWOReportSelection();window.renderReports?.();}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
 })();
 </script>
