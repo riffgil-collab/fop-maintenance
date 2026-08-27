@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260826-v94-wo-planner-parity"/>
+<meta name="fop-build" content="20260827-v95-wo-reporter-parity"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -4621,7 +4621,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 let pmWorkOrders=[];
 let pmWorkOrdersReady=false;
 let pmCompletionIsWO=false;
-function normWO(r){return {id:r.id,department:r.department||'',machine:r.machine||'',description:r.description||'',trade:r.trade||'מכונאי',priority:r.priority||'רגילה',dueDate:r.due_date||'',plannedDate:r.planned_date||'',duration:Number(r.duration||0),assignee:r.assigned_to||'',notes:r.notes||'',status:r.status||'Open',createdAt:r.created_at||'',createdBy:r.created_by||'',completedDate:r.completed_date||'',completionNotes:r.completion_notes||'',photo1Path:r.photo_1_path||'',photo2Path:r.photo_2_path||''};}
+function normWO(r){return {id:r.id,department:r.department||'',machine:r.machine||'',description:r.description||'',trade:r.trade||'מכונאי',priority:r.priority||'רגילה',dueDate:r.due_date||'',plannedDate:r.planned_date||'',duration:Number(r.duration||0),assignee:r.assigned_to||'',notes:r.notes||'',status:r.status||'Open',createdAt:r.created_at||'',createdBy:r.created_by||'',completedDate:r.completed_date||'',completedBy:r.completed_by||'',completionNotes:r.completion_notes||'',photo1Path:r.photo_1_path||'',photo2Path:r.photo_2_path||''};}
 async function loadWorkOrders(){
   const r=await supabaseClient.from('pm_work_orders').select('*').order('created_at',{ascending:false});
   if(r.error){pmWorkOrdersReady=false;console.warn('pm_work_orders:',r.error.message);return false;}
@@ -4756,7 +4756,7 @@ const _closeCompleteModalV13=closeCompleteModal;closeCompleteModal=function(){pm
 const _saveCompletionV13=saveCompletionWithDocumentation;saveCompletionWithDocumentation=async function(){
  if(!pmCan('report'))return statusLine('אין הרשאה לדווח ביצוע טיפול.','error');
  if(!pmCompletionIsWO)return _saveCompletionV13();
- const w=pmWorkOrders.find(x=>String(x.id)===String(pmCompletionTaskId));if(!w)return;const date=pmCompletionReportDate||today(),btn=pmCompleteSaveButton,st=pmCompleteStatus;btn.disabled=true;let p1='',p2='';try{st.textContent='מעבד ושומר WO…';const pseudo={id:'WO_'+w.id};const f1=pmPhoto1.files?.[0],f2=pmPhoto2.files?.[0];if(f1)p1=await uploadMaintenancePhoto(f1,pseudo,date,1);if(f2)p2=await uploadMaintenancePhoto(f2,pseudo,date,2);const r=await supabaseClient.from('pm_work_orders').update({status:'Completed',completed_date:date,completion_notes:pmCompletionNotes.value.trim()||null,photo_1_path:p1||null,photo_2_path:p2||null}).eq('id',w.id);if(r.error)throw r.error;
+ const w=pmWorkOrders.find(x=>String(x.id)===String(pmCompletionTaskId));if(!w)return;const date=pmCompletionReportDate||today(),btn=pmCompleteSaveButton,st=pmCompleteStatus;btn.disabled=true;let p1='',p2='';try{st.textContent='מעבד ושומר WO…';const pseudo={id:'WO_'+w.id};const f1=pmPhoto1.files?.[0],f2=pmPhoto2.files?.[0];if(f1)p1=await uploadMaintenancePhoto(f1,pseudo,date,1);if(f2)p2=await uploadMaintenancePhoto(f2,pseudo,date,2);const actor=pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';const r=await supabaseClient.from('pm_work_orders').update({status:'Completed',completed_date:date,completed_by:actor,completion_notes:pmCompletionNotes.value.trim()||null,photo_1_path:p1||null,photo_2_path:p2||null}).eq('id',w.id);if(r.error)throw r.error;
 /* V41: WO completion is independent from the PM schedule created from it.
    The PM keeps the first due date explicitly chosen during creation. */
 await reloadCloudData();st.textContent='ה-WO הושלמה ונשמרה בהיסטוריה.';st.className='pm-modal-status success';setTimeout(closeCompleteModal,450);}catch(e){if(p1)await supabaseClient.storage.from('maintenance-photos').remove([p1]);if(p2)await supabaseClient.storage.from('maintenance-photos').remove([p2]);st.textContent='שמירה נכשלה: '+(e?.message||e);st.className='pm-modal-status error';}finally{btn.disabled=false;}
@@ -4775,7 +4775,7 @@ function renderWOHistory(){
     return true;
   });
   if(!done.length)return;
-  const html=done.map(w=>`<div class="history-row"><div><strong>${esc(fDate(w.completedDate))}</strong><span class="pm-history-event completed">WO בוצע</span></div><div><strong>${esc(w.machine)}</strong><small>${esc(w.description)}</small><small>${esc(w.department)} · ${esc(w.trade)} · ${esc(w.priority)}</small>${w.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${esc(w.completionNotes)}</div>`:''}${(w.photo1Path||w.photo2Path)?`<div class="pm-history-photos">${w.photo1Path?`<button onclick="openMaintenancePhoto('${esc(w.photo1Path)}')">📷 תמונה 1</button>`:''}${w.photo2Path?`<button onclick="openMaintenancePhoto('${esc(w.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:''}</div></div>`).join('');
+  const html=done.map(w=>{const rawReporter=w.completedBy||w.createdBy||'';const reporter=rawReporter?(typeof pmReporterDisplay==='function'?pmReporterDisplay(rawReporter):rawReporter):'';return `<div class="history-row"><div><strong>${esc(fDate(w.completedDate))}</strong><span class="pm-history-event completed">WO בוצע</span></div><div><strong>${esc(w.machine)}</strong><small>${esc(w.description)}</small><small>${esc(w.department)} · ${esc(w.trade)} · ${esc(w.priority)}</small>${w.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${esc(w.completionNotes)}</div>`:''}${(w.photo1Path||w.photo2Path)?`<div class="pm-history-photos">${w.photo1Path?`<button onclick="openMaintenancePhoto('${esc(w.photo1Path)}')">📷 תמונה 1</button>`:''}${w.photo2Path?`<button onclick="openMaintenancePhoto('${esc(w.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:''}</div>${reporter?`<div class="history-user"><small>דווח על ידי</small><strong>${esc(reporter)}</strong></div>`:''}</div>`}).join('');
   // If the base PM history renderer showed its empty state, replace it before appending WO rows.
   if(el.querySelector('.empty'))el.innerHTML='';
   el.insertAdjacentHTML('beforeend',html);
@@ -7449,7 +7449,7 @@ async function saveHistoryEdit(){
   function historyWORows(){
     return (Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>String(w.status||'').toLowerCase()==='completed').map(w=>({
       source:'WO',eventType:'completed',date:String((w.completedDate??w.completed_date)||''),department:w.department||'',machine:w.machine||'',task:w.description||'',frequency:w.priority||'',
-      trade:norm(w.trade)||'—',reportedBy:'',completionNotes:(w.completionNotes??w.completion_notes)||'',oldDue:'',newDue:'',reason:'',photo1Path:(w.photo1Path??w.photo_1_path)||'',photo2Path:(w.photo2Path??w.photo_2_path)||'',id:w.id,raw:w
+      trade:norm(w.trade)||'—',reportedBy:(typeof pmReporterDisplay==='function'?pmReporterDisplay(w.completedBy||w.completed_by||w.createdBy||w.created_by||''):(w.completedBy||w.completed_by||w.createdBy||w.created_by||'')),completionNotes:(w.completionNotes??w.completion_notes)||'',oldDue:'',newDue:'',reason:'',photo1Path:(w.photo1Path??w.photo_1_path)||'',photo2Path:(w.photo2Path??w.photo_2_path)||'',id:w.id,raw:w
     }));
   }
   function historyFilterState(){return {department:$('pmHistoryDepartment')?.value||'',machine:$('pmHistoryMachine')?.value||'',trade:$('pmHistoryTrade')?.value||'',from:$('pmHistoryFrom')?.value||'',to:$('pmHistoryTo')?.value||'',q:($('pmHistorySearch')?.value||'').trim().toLowerCase()};}
@@ -7500,8 +7500,8 @@ async function saveHistoryEdit(){
   const previousAudit=window.pmHistoryAudit;
   window.pmHistoryAudit=function(){
     const base=typeof previousAudit==='function'?previousAudit():{};
-    const pm=historyPMRows(),wo=historyWORows(),missingTrade=pm.filter(r=>!r.trade||r.trade==='—'),genericPerformerLeak=unifiedHistoryRows().filter(r=>String(r.trade).includes('טכנאי אחזקה'));
-    return {...base,historyUI:{pmRows:pm.length,woRows:wo.length,totalRows:pm.length+wo.length,missingTrade:missingTrade.length,genericPerformerLeak:genericPerformerLeak.length,ok:missingTrade.length===0&&genericPerformerLeak.length===0},byTrade:pm.reduce((a,r)=>(a[r.trade]=(a[r.trade]||0)+1,a),{})};
+    const pm=historyPMRows(),wo=historyWORows(),missingTrade=pm.filter(r=>!r.trade||r.trade==='—'),missingWOReporter=(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>String(w.status||'').toLowerCase()==='completed'&&!String(w.completedBy||w.completed_by||'').trim()),genericPerformerLeak=unifiedHistoryRows().filter(r=>String(r.trade).includes('טכנאי אחזקה'));
+    return {...base,historyUI:{pmRows:pm.length,woRows:wo.length,totalRows:pm.length+wo.length,missingTrade:missingTrade.length,missingWOReporter:missingWOReporter.length,genericPerformerLeak:genericPerformerLeak.length,ok:missingTrade.length===0&&genericPerformerLeak.length===0},byTrade:pm.reduce((a,r)=>(a[r.trade]=(a[r.trade]||0)+1,a),{})};
   };
 
   const style=document.createElement('style');style.textContent='.history-filters{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}.history-user strong{font-size:12px}.history-row>div:nth-child(2)>small strong{display:inline;font-size:inherit}';document.head.appendChild(style);
