@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260827-v104-cancelled-kpi"/>
+<meta name="fop-build" content="20260827-v105-unassigned-kpi"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -572,6 +572,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
   <div class="pm-v17-kpis pm-v99-kpis">
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('open')"><strong id="pmV17Open">0</strong><span>פתוחות</span><small>כל העבודה שעדיין דורשת טיפול</small></div>
     <div class="pm-v17-kpi" onclick="pmV31OpenPlanned()"><strong id="pmV31Planned">0</strong><span>שובצו לביצוע</span><small>מתוך הפתוחות · קיבלו מועד ביצוע</small></div>
+    <div class="pm-v17-kpi pm-v105-unassigned-kpi" onclick="return pmV105OpenUnassignedPlanner()"><strong id="pmV105Unassigned">0</strong><span>טרם שובצו לביצוע</span><small>פתוחות שעדיין לא קיבלו מועד ביצוע</small></div>
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('overdue')"><strong id="pmV17Overdue">0</strong><span>באיחור</span><small>מועד הביצוע עבר ועדיין פתוח</small></div>
     <div class="pm-v17-kpi" onclick="pmV99OpenCompletedReport()"><strong id="pmV99Completed">0</strong><span>בוצעו</span><small id="pmV99CompletedDetail">הושלמו בתקופת הביצוע</small></div>
     <div class="pm-v17-kpi pm-v97-postpone-kpi"><strong id="pmV97Postponements">0</strong><span>דחיות</span><small id="pmV97PostponementsDetail">אירועי דחייה בתקופת הביצוע</small></div>
@@ -8735,6 +8736,82 @@ window.pmHistoryParityAudit=function(){
   const prevShow=window.showTab;window.showTab=function(name){const r=prevShow?.apply(this,arguments);if(String(name||'').toLowerCase()==='reports')setTimeout(renderReportsV104,0);return r;};
   window.pmV104Audit=function(){const g=globalState(),c=cancelledForGlobal(),report=window.pmV104LastReport;return {build:'20260827-v104-cancelled-kpi',filters:g,cancelledKpi:c.length,reportCancelled:(report?.opts?.status==='cancelled'?report.count:null),parity:(report?.opts?.status==='cancelled'?report.count===c.length:null),kpiCount:document.querySelectorAll('#pmV17Dashboard .pm-v99-kpis>.pm-v17-kpi').length};};
   const boot=()=>{updateCancelledKpi();setTimeout(updateCancelledKpi,300);};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
+<style id="fop-v105-unassigned-kpi-style">
+.pm-v99-kpis{grid-template-columns:repeat(8,minmax(0,1fr))!important}
+.pm-v105-unassigned-kpi{cursor:pointer}
+@media(max-width:1200px){.pm-v99-kpis{grid-template-columns:repeat(4,minmax(0,1fr))!important}}
+@media(max-width:700px){.pm-v99-kpis{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+</style>
+<script id="fop-v105-unassigned-kpi">
+/* V105 — Unassigned KPI parity.
+   "טרם שובצו לביצוע" is an operational slice of the same canonical open-work
+   population used by Dashboard and Planning. It is not a separate lifecycle.
+   Clicking the KPI opens Planning with status=waiting and preserves global filters. */
+(function(){
+  const $=id=>document.getElementById(id);
+  function tday(){return typeof today==='function'?today():new Date().toISOString().slice(0,10);}
+  function eng(){return window.pmCanonicalForecast||window.fopUnifiedWorkSource||null;}
+  function state(){
+    const g=window.pmV99GlobalState||{};
+    return {
+      period:g.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),
+      anchor:g.anchor||$('pmDashboardAnchor')?.value||tday(),
+      department:g.department??$('pmDashboardDepartment')?.value??'',
+      machine:g.machine??$('pmDashboardMachine')?.value??'',
+      trade:g.trade??$('pmDashboardTrade')?.value??'',
+      workType:g.workType??$('pmDashboardWorkType')?.value??''
+    };
+  }
+  function rows(){
+    const e=eng(),g=state();
+    if(!e?.getWork)return [];
+    return e.getWork({...g,status:'waiting'})||[];
+  }
+  function render(){
+    const list=rows(),el=$('pmV105Unassigned');
+    if(el)el.textContent=String(list.length);
+    window.pmV105UnassignedRows=list;
+    if(window.pmV99LastKpis)window.pmV99LastKpis.unassigned=list.length;
+  }
+  window.pmV105OpenUnassignedPlanner=function(){
+    const g=state();
+    // Global filter is the authority; mirror it to Planning before drill-down.
+    if($('pmPlannerStart'))$('pmPlannerStart').value=g.anchor||'';
+    if($('pmPlannerDepartment'))$('pmPlannerDepartment').value=g.department||'';
+    try{window.fillPlanningMachines?.();}catch(e){}
+    if($('pmPlannerMachine'))$('pmPlannerMachine').value=g.machine||'';
+    if($('pmPlannerTrade'))$('pmPlannerTrade').value=g.trade||'';
+    if($('pmPlannerProfession'))$('pmPlannerProfession').value=g.trade||'';
+    if($('pmPlannerWorkType'))$('pmPlannerWorkType').value=g.workType||'';
+    if($('pmPlannerStatus'))$('pmPlannerStatus').value='waiting';
+    try{if(typeof pmPlanningPeriod!=='undefined')pmPlanningPeriod=g.period||'week';}catch(e){}
+    try{window.showTab?.('planner');}catch(e){}
+    setTimeout(()=>{try{window.renderPlanner?.()}catch(e){console.warn('V105 planner drilldown',e)}},0);
+    return false;
+  };
+  const prev=window.renderDashboard;
+  window.renderDashboard=function(){
+    const r=typeof prev==='function'?prev.apply(this,arguments):undefined;
+    try{render()}catch(e){console.warn('V105 unassigned KPI',e)}
+    return r;
+  };
+  try{renderDashboard=window.renderDashboard}catch(e){}
+  window.pmV105Audit=function(){
+    const list=rows();
+    return {
+      build:'20260827-v105-unassigned-kpi',
+      filters:state(),
+      unassignedKpi:list.length,
+      kpiCount:document.querySelectorAll('#pmV17Dashboard .pm-v99-kpis>.pm-v17-kpi').length,
+      plannerWaitingOption:!!document.querySelector('#pmPlannerStatus option[value="waiting"]'),
+      ok:document.querySelectorAll('#pmV17Dashboard .pm-v99-kpis>.pm-v17-kpi').length===8
+    };
+  };
+  const boot=()=>{try{render()}catch(e){console.warn('V105 boot',e)}};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
 })();
 </script>
 </body></html>
