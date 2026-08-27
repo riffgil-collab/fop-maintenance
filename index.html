@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260827-v105-unassigned-kpi"/>
+<meta name="fop-build" content="20260827-v106-unassigned-complement"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -8811,6 +8811,122 @@ window.pmHistoryParityAudit=function(){
     };
   };
   const boot=()=>{try{render()}catch(e){console.warn('V105 boot',e)}};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
+<script id="fop-v106-unassigned-complement">
+/* V106 — Assignment partition invariant.
+   Business rule:
+     OPEN = ASSIGNED FOR EXECUTION + NOT YET ASSIGNED
+   "Not yet assigned" is an assignment dimension, not a lifecycle/state.
+   Therefore an overdue row without an active assignment is still unassigned.
+   This override makes Dashboard KPI, Planning and Reports use exactly that rule. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const ACTIVE_ASSIGNMENT=new Set(['planned','postponed','מתוכנן','מתוכננת','נדחה','נדחתה']);
+  const CLOSED=new Set(['completed','done','cancelled','canceled','בוצע','בוטל']);
+  const tday=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
+  function engine(){return window.pmCanonicalForecast||window.fopUnifiedWorkSource||null;}
+  const eng=engine();
+  if(!eng||typeof eng.getPM!=='function'||typeof eng.getWO!=='function')return;
+
+  const priorPM=eng.getPM.bind(eng), priorWO=eng.getWO.bind(eng);
+
+  function pmAssigned(r){
+    const p=r?.plan, s=norm(p?.status);
+    return !!p && ACTIVE_ASSIGNMENT.has(s) && !CLOSED.has(s);
+  }
+  function woAssigned(r){
+    const w=r?.wo||{}, s=norm(w.status??r?.status);
+    const pd=String(w.plannedDate??w.planned_date??r?.plannedDate??r?.planned_date??'').slice(0,10);
+    return !!pd && !CLOSED.has(s);
+  }
+  function openPM(opts={}){return priorPM({...opts,status:'open'})||[];}
+  function openWO(opts={}){return priorWO({...opts,status:'open'})||[];}
+
+  function getPM(opts={}){
+    if(opts.status==='waiting'||opts.status==='unassigned') return openPM(opts).filter(r=>!pmAssigned(r));
+    return priorPM(opts);
+  }
+  function getWO(opts={}){
+    if(opts.status==='waiting'||opts.status==='unassigned') return openWO(opts).filter(r=>!woAssigned(r));
+    return priorWO(opts);
+  }
+  function getWork(opts={}){
+    const wt=opts.workType||'';
+    return [
+      ...(wt==='WO'?[]:getPM(opts)),
+      ...(wt==='PM'?[]:getWO(opts))
+    ].sort((a,b)=>String(a.effectiveDate||a.date||a.due||'').localeCompare(String(b.effectiveDate||b.date||b.due||''))||String(a.kind||'').localeCompare(String(b.kind||'')));
+  }
+
+  eng.getPM=getPM; eng.getWO=getWO; eng.getWork=getWork;
+  window.pmCanonicalForecast=eng; window.fopUnifiedWorkSource=eng;
+
+  function globalState(){
+    const g=window.pmV99GlobalState||{};
+    return {
+      period:g.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),
+      anchor:g.anchor||$('pmDashboardAnchor')?.value||tday(),
+      department:g.department??$('pmDashboardDepartment')?.value??'',
+      machine:g.machine??$('pmDashboardMachine')?.value??'',
+      trade:g.trade??$('pmDashboardTrade')?.value??'',
+      workType:g.workType??$('pmDashboardWorkType')?.value??''
+    };
+  }
+  function partition(){
+    const g=globalState();
+    const open=getWork({...g,status:'open'});
+    const assigned=getWork({...g,status:'planned'});
+    const unassigned=getWork({...g,status:'waiting'});
+    return {g,open,assigned,unassigned};
+  }
+  function refreshKpi(){
+    const p=partition(), el=$('pmV105Unassigned');
+    if(el)el.textContent=String(p.unassigned.length);
+    window.pmV106LastPartition={
+      filters:{...p.g},open:p.open.length,assigned:p.assigned.length,unassigned:p.unassigned.length,
+      invariant:p.open.length===p.assigned.length+p.unassigned.length
+    };
+    if(window.pmV99LastKpis){
+      window.pmV99LastKpis.unassigned=p.unassigned.length;
+      window.pmV99LastKpis.assignmentInvariant=window.pmV106LastPartition.invariant;
+    }
+  }
+
+  // V105 drill-down already uses status=waiting. With the engine override above,
+  // it now lands on the exact complement of Assigned, including overdue rows.
+  const prevDash=window.renderDashboard;
+  window.renderDashboard=function(){
+    const r=typeof prevDash==='function'?prevDash.apply(this,arguments):undefined;
+    try{refreshKpi()}catch(e){console.warn('V106 unassigned complement KPI',e)}
+    return r;
+  };
+  try{renderDashboard=window.renderDashboard}catch(e){}
+
+  window.pmV106Audit=function(){
+    const p=partition();
+    const openKeys=new Set(p.open.map(r=>r.key));
+    const assignedKeys=new Set(p.assigned.map(r=>r.key));
+    const unassignedKeys=new Set(p.unassigned.map(r=>r.key));
+    const overlap=[...assignedKeys].filter(k=>unassignedKeys.has(k));
+    const outside=[...assignedKeys,...unassignedKeys].filter(k=>!openKeys.has(k));
+    const missing=[...openKeys].filter(k=>!assignedKeys.has(k)&&!unassignedKeys.has(k));
+    return {
+      build:'20260827-v106-unassigned-complement',filters:p.g,
+      open:p.open.length,assigned:p.assigned.length,unassigned:p.unassigned.length,
+      expectedUnassigned:p.open.length-p.assigned.length,
+      overlap:overlap.length,outsideOpen:outside.length,missingFromPartition:missing.length,
+      invariant:p.open.length===p.assigned.length+p.unassigned.length&&overlap.length===0&&outside.length===0&&missing.length===0
+    };
+  };
+
+  function boot(){
+    try{refreshKpi();window.renderPlanner?.();window.renderReports?.();}catch(e){console.warn('V106 boot',e)}
+    setTimeout(()=>{try{refreshKpi()}catch(e){}},300);
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
 })();
 </script>
