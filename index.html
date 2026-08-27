@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260827-v106-unassigned-complement"/>
+<meta name="fop-build" content="20260828-v109-due-window-lifecycle"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -570,12 +570,13 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 
 <div id="pmV17Dashboard">
   <div class="pm-v17-kpis pm-v99-kpis">
-    <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('open')"><strong id="pmV17Open">0</strong><span>פתוחות</span><small>כל העבודה שעדיין דורשת טיפול</small></div>
-    <div class="pm-v17-kpi" onclick="pmV31OpenPlanned()"><strong id="pmV31Planned">0</strong><span>שובצו לביצוע</span><small>מתוך הפתוחות · קיבלו מועד ביצוע</small></div>
-    <div class="pm-v17-kpi pm-v105-unassigned-kpi" onclick="return pmV105OpenUnassignedPlanner()"><strong id="pmV105Unassigned">0</strong><span>טרם שובצו לביצוע</span><small>פתוחות שעדיין לא קיבלו מועד ביצוע</small></div>
-    <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('overdue')"><strong id="pmV17Overdue">0</strong><span>באיחור</span><small>מועד הביצוע עבר ועדיין פתוח</small></div>
+    <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('open')"><strong id="pmV17Open">0</strong><span>פתוחות</span><small>PM שמועד הטיפול שלהן הגיע ועדיין לא נסגרו</small></div>
+    <div class="pm-v17-kpi" onclick="pmV31OpenPlanned()"><strong id="pmV31Planned">0</strong><span>שובצו לביצוע</span><small>פתוחות ששובצו ועדיין בתוך חלון הטיפול</small></div>
+    <div class="pm-v17-kpi pm-v105-unassigned-kpi" onclick="return pmV105OpenUnassignedPlanner()"><strong id="pmV105Unassigned">0</strong><span>טרם שובצו לביצוע</span><small>פתוחות בתוך חלון 7 הימים שטרם שובצו</small></div>
+    <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('overdue')"><strong id="pmV17Overdue">0</strong><span>באיחור</span><small>עברו 7 ימים ממועד פתיחת הטיפול והוא לא בוצע</small></div>
+    <div class="pm-v17-kpi pm-v109-upcoming-kpi" onclick="return pmV109OpenUpcoming()"><strong id="pmV109Upcoming">0</strong><span>7 ימים קרובים</span><small>PM שעדיין לא פתוחות וייפתחו בשבעת הימים הקרובים</small></div>
     <div class="pm-v17-kpi" onclick="pmV99OpenCompletedReport()"><strong id="pmV99Completed">0</strong><span>בוצעו</span><small id="pmV99CompletedDetail">הושלמו בתקופת הביצוע</small></div>
-    <div class="pm-v17-kpi pm-v97-postpone-kpi"><strong id="pmV97Postponements">0</strong><span>דחיות</span><small id="pmV97PostponementsDetail">אירועי דחייה בתקופת הביצוע</small></div>
+    <div class="pm-v17-kpi pm-v97-postpone-kpi" onclick="return pmV109OpenPostponed()"><strong id="pmV97Postponements">0</strong><span>נדחו</span><small id="pmV97PostponementsDetail">נדחו וממתינים למועד החדש</small></div>
     <div class="pm-v17-kpi pm-v104-cancelled-kpi" onclick="return pmV104OpenCancelledReport()"><strong id="pmV104Cancelled">0</strong><span>ביטולים</span><small id="pmV104CancelledDetail">ביטולים בתקופת הביצוע</small></div>
     <div class="pm-v17-kpi pm-v97-compliance-kpi"><strong id="pmV97OriginalCompliance">—</strong><span>עמידה בתוכנית המקורית</span><small id="pmV97OriginalComplianceDetail">נמדד מול מועדי ה-PM המקוריים</small></div>
   </div>
@@ -633,7 +634,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 
 <section class="pm-panel" id="pmPlanner">
   <div class="section-title"><h3>תכנון עבודה</h3><small id="pmPlanRangeLabel">—</small></div>
-  <div class="pm-plan-note">בחר תקופה, ראה את כל דרישות האחזקה, ושבץ אותן לתאריך ביצוע. תאריך היעד נשאר ללא שינוי; התאריך המתוכנן הוא החלטת מנהל האחזקה.</div>
+  <div class="pm-plan-note">בחר משימות פתוחות ולחץ “שבץ לביצוע”. חלון 7 הימים מתחיל במועד ה-PM ולא מתאפס בעת השיבוץ.</div>
 
   <div class="pm-plan-periods">
     
@@ -682,11 +683,11 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
   </div>
 
   <div class="pm-plan-actions">
-    <div class="field"><label>תאריך מתוכנן</label><input id="pmPlanDate" type="date"/></div>
+    <input id="pmPlanDate" type="hidden"/>
     <div class="field"><label>עדיפות</label><select id="pmPlanPriority"><option value="גבוהה">גבוהה</option><option value="בינונית" selected>בינונית</option><option value="נמוכה">נמוכה</option></select></div>
     <div class="field"><label>שיבוץ למבצע</label><input id="pmPlanAssignee" type="text" placeholder="למשל: טכנאי אחזקה"/></div>
     <div class="field"><label>בחירה</label><button type="button" class="secondary-btn" onclick="toggleAllPlanRows(true)">בחר הכל המוצג</button></div>
-    <button type="button" class="btn" onclick="saveSelectedPlanning()">שבץ לתוכנית</button>
+    <button type="button" class="btn" onclick="saveSelectedPlanning()">שבץ לביצוע</button>
     <button type="button" class="secondary-btn" onclick="unplanSelected()">הסר מהתוכנית</button>
     <button type="button" class="danger-btn" onclick="cancelSelectedPlanning()">בטל טיפול</button>
   </div>
@@ -994,13 +995,13 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div aria-labelledby="pmPostponeTitle" aria-modal="true" class="pm-modal-card" role="dialog">
 <h3 id="pmPostponeTitle">דחיית טיפול</h3>
 <p id="pmPostponeTaskText"></p>
-<label for="pmPostponeDate">מועד חדש</label>
-<input id="pmPostponeDate" type="date"/>
+<div class="pm-v108-postpone-note">דחייה = שבוע אחד אוטומטי. נדרשת רק סיבה.</div>
+<input id="pmPostponeDate" type="hidden"/>
 <label for="pmPostponeReason">סיבת הדחייה</label>
 <textarea id="pmPostponeReason" placeholder="יש להזין סיבה לדחיית הטיפול"></textarea>
 <div class="pm-modal-actions">
 <button class="cancel" onclick="closePostponeModal()" type="button">ביטול</button>
-<button class="create" id="pmPostponeSaveButton" onclick="savePostpone()" type="button">שמירת דחייה</button>
+<button class="create" id="pmPostponeSaveButton" onclick="savePostpone()" type="button">דחה בשבוע</button>
 </div>
 <div class="pm-modal-status" id="pmPostponeStatus"></div>
 </div>
@@ -9027,4 +9028,503 @@ window.pmHistoryParityAudit=function(){
   };
 })();
 </script>
+<style id="fop-v108-seven-day-assignment-style">
+.pm-v108-window{display:inline-flex;align-items:center;gap:5px;margin-inline-start:6px;padding:3px 7px;border-radius:999px;background:#eef6ff;color:#174d86;font-size:10px;font-weight:900}
+.pm-v108-window.late{background:#fff0f0;color:#b42318}
+.pm-v108-postpone-note{margin:4px 0 10px;padding:10px 12px;border-radius:11px;background:#fff8e8;border:1px solid #efd89a;color:#715216;font-size:12px;font-weight:800;line-height:1.5}
+</style>
+<script id="fop-v108-seven-day-assignment">
+/* V108 — Seven-day assignment window, no manual scheduling dates.
+   Business contract:
+   1) Assign = one click. planned_date stores the assignment START date (today).
+   2) The team has 7 calendar days including the assignment day to complete.
+   3) A task becomes overdue only after that 7-day assignment window expires.
+   4) Unassigned PM remains "not yet assigned"; passing the PM due date alone does not turn it overdue.
+   5) Completion re-anchors the next PM occurrence to actual completion date + frequency.
+   6) Postpone = exactly one automatic week; no date picker. Reason remains mandatory.
+*/
+(function(){
+  const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const iso10=v=>String(v||'').slice(0,10);
+  const PLANNED=new Set(['planned','מתוכנן','מתוכננת']);
+  const POSTPONED=new Set(['postponed','deferred','נדחה','נדחתה']);
+  const CLOSED=new Set(['completed','done','cancelled','canceled','בוצע','בוטל']);
+  const tday=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
+  const add=(d,n)=>typeof addDays==='function'?addDays(d,n):(()=>{const p=iso10(d).split('-').map(Number),x=new Date(p[0],p[1]-1,p[2]+n,12);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`})();
+  const fdate=d=>{try{return typeof fDate==='function'?fDate(d):d}catch(e){return d||''}};
+  const escH=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const actor=()=>pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
+  const planStatus=p=>norm(p?.status);
+  const planDate=p=>iso10(p?.plannedDate??p?.planned_date);
+  const planDue=p=>iso10((typeof wpDueFromNotes==='function'?wpDueFromNotes(p?.notes):'')||p?.dueDate||p?.due_date||'');
+  const taskById=id=>(Array.isArray(tasks)?tasks:[]).find(t=>String(t.id)===String(id));
+  const planRows=()=>Array.isArray(pmWorkPlan)?pmWorkPlan:[];
+  const assignmentEnd=p=>planDate(p)?add(planDate(p),6):'';
+  const isAssignedPlan=p=>!!p&&PLANNED.has(planStatus(p))&&!CLOSED.has(planStatus(p))&&!!planDate(p);
+  const isAssignmentOverdue=(p,asOf=tday())=>isAssignedPlan(p)&&!!assignmentEnd(p)&&iso10(asOf)>assignmentEnd(p);
+
+  function latestPlan(taskId,due){
+    const list=planRows().filter(p=>String(p.taskId??p.task_id)===String(taskId)&&planDue(p)===iso10(due));
+    return list.sort((a,b)=>String(b.updatedAt??b.updated_at??b.createdAt??b.created_at??'').localeCompare(String(a.updatedAt??a.updated_at??a.createdAt??a.created_at??'')))[0]||null;
+  }
+  function planSnapshot(p){return p?{id:p.id,planned_date:p.plannedDate??p.planned_date??null,assigned_to:p.assignedTo??p.assigned_to??null,priority:p.priority||'בינונית',status:p.status||'Unplanned',completed_date:p.completedDate??p.completed_date??null,postponed_reason:p.postponedReason??p.postponed_reason??null,notes:p.notes||null,created_by:p.createdBy??p.created_by??null}:null;}
+  async function restorePlan(s){if(!s)return;const r=await supabaseClient.from('pm_work_plan').update({planned_date:s.planned_date,assigned_to:s.assigned_to,priority:s.priority,status:s.status,completed_date:s.completed_date,postponed_reason:s.postponed_reason,notes:s.notes,created_by:s.created_by}).eq('id',s.id);if(r.error)console.error('V108 rollback plan',r.error);}
+
+  /* ---------- Canonical status semantics ---------- */
+  const eng=window.pmCanonicalForecast||window.fopUnifiedWorkSource;
+  if(eng&&typeof eng.getPM==='function'){
+    const priorPM=eng.getPM.bind(eng), priorWO=typeof eng.getWO==='function'?eng.getWO.bind(eng):(()=>[]);
+    function classify(r){
+      const p=r?.plan,ps=planStatus(p),pd=planDate(p);
+      if(CLOSED.has(ps))return {...r};
+      if(PLANNED.has(ps)&&pd){
+        const deadline=add(pd,6),late=tday()>deadline;
+        return {...r,state:late?'overdue':'planned',date:pd,effectiveDate:pd,assignmentDate:pd,executionDeadline:deadline};
+      }
+      if(POSTPONED.has(ps))return {...r,state:'postponed',assignmentDate:'',executionDeadline:'',date:r.due,effectiveDate:r.due};
+      return {...r,state:'waiting',assignmentDate:'',executionDeadline:'',date:r.due,effectiveDate:r.due};
+    }
+    function openPM(opts={}){return (priorPM({...opts,status:'open'})||[]).map(classify);}
+    function bounds(opts){try{return eng.periodBounds?.(opts.period||'week',opts.anchor||tday())||eng.bounds?.(opts.period||'week',opts.anchor||tday())}catch(e){return null}}
+    function getPM(opts={}){
+      const st=norm(opts.status||'open');
+      if(st==='completed'||st==='cancelled'||st==='canceled')return priorPM(opts);
+      const rows=openPM(opts);
+      if(!st||st==='open')return rows;
+      if(st==='planned'||st==='assigned')return rows.filter(r=>isAssignedPlan(r.plan));
+      if(st==='waiting'||st==='unassigned')return rows.filter(r=>!isAssignedPlan(r.plan));
+      if(st==='overdue')return rows.filter(r=>r.state==='overdue');
+      if(st==='postponed'||st==='deferred')return rows.filter(r=>POSTPONED.has(planStatus(r.plan)));
+      if(st==='near'){
+        const b=bounds(opts);return b?rows.filter(r=>iso10(r.due)>=iso10(b.start)&&iso10(r.due)<=iso10(b.end)):rows;
+      }
+      return rows.filter(r=>norm(r.state)===st);
+    }
+    function getWO(opts={}){return priorWO(opts);}
+    function getWork(opts={}){
+      const wt=opts.workType||'';
+      return [...(wt==='WO'?[]:getPM(opts)),...(wt==='PM'?[]:getWO(opts))].sort((a,b)=>String(a.effectiveDate||a.date||a.due||'').localeCompare(String(b.effectiveDate||b.date||b.due||''))||String(a.kind||'').localeCompare(String(b.kind||'')));
+    }
+    eng.getPM=getPM;eng.getWO=getWO;eng.getWork=getWork;
+    window.pmCanonicalForecast=eng;window.fopUnifiedWorkSource=eng;
+  }
+
+  /* ---------- One-click assignment ---------- */
+  window.saveSelectedPlanning=saveSelectedPlanning=async function(){
+    if(!pmCan('manageExceptions'))return statusLine('תכנון עבודה זמין למנהל אחזקה או Admin בלבד.','error');
+    const keys=typeof selectedPlanKeys==='function'?selectedPlanKeys():[];
+    if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
+    const assignedDate=tday(), deadline=add(assignedDate,6),priority=$('pmPlanPriority')?.value||'בינונית',assignee=String($('pmPlanAssignee')?.value||'').trim();
+    const lookup=new Map((typeof filteredPlanningItems==='function'?filteredPlanningItems():[]).map(x=>[typeof planKey==='function'?planKey(x):`${x.t.id}@@${x.due}`,x]));
+    const changes=[];let changed=0,already=0;
+    statusLine(`משבץ ${keys.length} משימות ומפעיל חלון ביצוע של 7 ימים…`);
+    try{
+      for(const key of keys){
+        const item=lookup.get(key);if(!item)continue;
+        const existing=latestPlan(item.t.id,item.due);
+        if(existing&&isAssignedPlan(existing)){already++;continue;}
+        const notes=`PM_DUE:${item.due}\nPM_ASSIGN_WINDOW:7D`;
+        const payload={task_id:item.t.id,planned_date:assignedDate,assigned_to:assignee||existing?.assignedTo||existing?.assigned_to||item.t.performer||null,priority,status:'Planned',completed_date:null,postponed_reason:null,notes,created_by:actor()};
+        if(existing){changes.push({kind:'update',before:planSnapshot(existing)});const r=await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id);if(r.error)throw r.error;}
+        else{const r=await supabaseClient.from('pm_work_plan').insert(payload).select('id').single();if(r.error)throw r.error;changes.push({kind:'insert',id:r.data.id});}
+        changed++;
+      }
+      await reloadCloudData();
+      try{window.renderDashboard?.();window.renderPlanner?.();window.renderReport?.();window.renderReports?.();}catch(e){}
+      const extra=already?` · ${already} כבר היו משובצות ולא אופס להן השעון.`:'';
+      statusLine(`${changed} משימות שובצו היום. חלון הביצוע פתוח עד ${fdate(deadline)}.${extra}`,'success');
+      try{pmToast?.(`שובצו ${changed} משימות · 7 ימים לביצוע`,'success')}catch(e){}
+    }catch(err){
+      for(const c of [...changes].reverse())try{if(c.kind==='insert')await supabaseClient.from('pm_work_plan').delete().eq('id',c.id);else await restorePlan(c.before)}catch(e){}
+      try{await reloadCloudData()}catch(e){}
+      statusLine('השיבוץ נכשל והשינויים הוחזרו: '+(err?.message||'שגיאה'),'error');
+    }
+  };
+
+  /* ---------- Automatic one-week postponement ---------- */
+  function automaticPostponeDue(oldDue){const base=iso10(oldDue)>tday()?iso10(oldDue):tday();return add(base,7);}
+  let postponePlanHint='';
+  window.openPostponeModal=openPostponeModal=function(id){
+    if(!pmCan('manageExceptions'))return statusLine('דחיית טיפול זמינה למנהל אחזקה או Admin בלבד.','error');
+    const t=taskById(id);if(!t)return;
+    pmPostponeTaskId=t.id;postponePlanHint='';
+    const oldDue=iso10(t.nextDue??t.next_due),newDue=automaticPostponeDue(oldDue);
+    if($('pmPostponeDate'))$('pmPostponeDate').value=newDue;
+    if($('pmPostponeTaskText'))$('pmPostponeTaskText').textContent=`${t.machine} — ${t.task} · דחייה אוטומטית של שבוע: ${fdate(oldDue)} ← ${fdate(newDue)}`;
+    if($('pmPostponeReason'))$('pmPostponeReason').value='';
+    if($('pmPostponeStatus')){$('pmPostponeStatus').textContent='';$('pmPostponeStatus').className='pm-modal-status';}
+    $('pmPostponeModal')?.classList.add('open');
+    return false;
+  };
+  async function postponeTaskOneWeek(t,reason){
+    const oldDue=iso10(t.nextDue??t.next_due);if(!oldDue)throw new Error('למשימה אין מועד PM נוכחי.');
+    const newDue=automaticPostponeDue(oldDue),stamp=new Date().toISOString(),who=actor();
+    const marker=`[PM_POSTPONE|${cleanAuditValue(oldDue)}|${cleanAuditValue(newDue)}|${cleanAuditValue(reason)}|${cleanAuditValue(who)}|${stamp}]`;
+    const oldTask={next_due:t.nextDue??t.next_due??null,notes:t.notes||null};
+    const current=latestPlan(t.id,oldDue),snap=current?planSnapshot(current):null,created=[];
+    const future=planRows().filter(p=>String(p.taskId??p.task_id)===String(t.id)&&planDue(p)>oldDue&&['planned','postponed'].includes(planStatus(p)));
+    const futureSnaps=future.map(planSnapshot);
+    try{
+      if(current){
+        const supersede=[String(current.notes||'').trim(),`PM_REBASE_SUPERSEDED:${oldDue}->${newDue}|${stamp}`].filter(Boolean).join('\n');
+        const r=await supabaseClient.from('pm_work_plan').update({status:'Postponed',completed_date:null,postponed_reason:reason,notes:supersede}).eq('id',current.id);if(r.error)throw r.error;
+      }else{
+        const r=await supabaseClient.from('pm_work_plan').insert({task_id:t.id,planned_date:null,assigned_to:null,priority:'בינונית',status:'Postponed',completed_date:null,postponed_reason:reason,notes:`PM_DUE:${oldDue}\nPM_REBASE_SUPERSEDED:${oldDue}->${newDue}|${stamp}`,created_by:who}).select('id').single();if(r.error)throw r.error;created.push(r.data.id);
+      }
+      for(const fp of future){const n=[String(fp.notes||'').trim(),`PM_REBASE_SUPERSEDED:${oldDue}->${newDue}|${stamp}`].filter(Boolean).join('\n');const r=await supabaseClient.from('pm_work_plan').update({status:'Unplanned',planned_date:null,completed_date:null,postponed_reason:null,notes:n}).eq('id',fp.id);if(r.error)throw r.error;}
+      const tr=await supabaseClient.from('pm_tasks').update({next_due:newDue,notes:[String(t.notes||'').trim(),marker].filter(Boolean).join('\n')}).eq('id',t.id);if(tr.error)throw tr.error;
+      return {oldDue,newDue};
+    }catch(e){
+      try{await supabaseClient.from('pm_tasks').update(oldTask).eq('id',t.id)}catch(_){}
+      if(snap)try{await restorePlan(snap)}catch(_){}
+      for(const s of futureSnaps)try{await restorePlan(s)}catch(_){}
+      for(const id of created)try{await supabaseClient.from('pm_work_plan').delete().eq('id',id)}catch(_){}
+      throw e;
+    }
+  }
+  window.savePostpone=savePostpone=async function(){
+    if(!pmCan('manageExceptions'))return;
+    const t=taskById(pmPostponeTaskId);if(!t)return;
+    const reason=String($('pmPostponeReason')?.value||'').trim(),st=$('pmPostponeStatus'),btn=$('pmPostponeSaveButton');
+    if(!reason){if(st){st.textContent='יש להזין סיבה לדחיית הטיפול.';st.className='pm-modal-status error';}return;}
+    if(btn)btn.disabled=true;if(st){st.textContent='דוחה את הטיפול בשבוע…';st.className='pm-modal-status';}
+    try{
+      const x=await postponeTaskOneWeek(t,reason);await reloadCloudData();
+      try{window.renderDashboard?.();window.renderPlanner?.();window.renderReport?.();window.renderReports?.();}catch(e){}
+      if(st){st.textContent=`הטיפול נדחה אוטומטית בשבוע, ל-${fdate(x.newDue)}.`;st.className='pm-modal-status success';}
+      try{pmToast?.(`הטיפול נדחה בשבוע ל-${fdate(x.newDue)}`,'success')}catch(e){}
+      setTimeout(()=>{try{closePostponeModal()}catch(e){}},550);
+    }catch(e){if(st){st.textContent='שמירת הדחייה נכשלה: '+(e?.message||e);st.className='pm-modal-status error';}}
+    finally{if(btn)btn.disabled=false;}
+  };
+  window.moveWorkPlan=moveWorkPlan=function(planId){
+    const p=planRows().find(x=>String(x.id)===String(planId));if(!p)return false;postponePlanHint=String(planId);return window.openPostponeModal(p.taskId??p.task_id);
+  };
+  window.pmPostponeDialog=async function(currentDate){
+    const reason=String(window.prompt('סיבת הדחייה (הטיפול יידחה אוטומטית בשבוע אחד):','')||'').trim();
+    if(!reason)return null;
+    return {date:automaticPostponeDue(currentDate),reason,note:'',combined:reason};
+  };
+
+  /* ---------- Completion re-anchors recurrence to actual completion ---------- */
+  const previousSaveCompletion=window.saveCompletionWithDocumentation||saveCompletionWithDocumentation;
+  async function supersedeFuturePlans(taskId,currentDue,newNext){
+    const changed=[];for(const p of planRows()){
+      if(String(p.taskId??p.task_id)!==String(taskId))continue;const d=planDue(p),st=planStatus(p);if(!d||d<=iso10(currentDue)||!['planned','postponed'].includes(st))continue;
+      const snap=planSnapshot(p),n=[String(p.notes||'').trim(),`PM_REANCHOR_SUPERSEDED:${currentDue}->${newNext}|${new Date().toISOString()}`].filter(Boolean).join('\n');
+      const r=await supabaseClient.from('pm_work_plan').update({status:'Unplanned',planned_date:null,completed_date:null,postponed_reason:null,notes:n}).eq('id',p.id);if(r.error){for(const s of changed.reverse())await restorePlan(s);throw r.error;}changed.push(snap);
+    }return changed;
+  }
+  window.saveCompletionWithDocumentation=saveCompletionWithDocumentation=async function(){
+    if(typeof pmCompletionIsWO!=='undefined'&&pmCompletionIsWO)return previousSaveCompletion();
+    if(!pmCan('report'))return statusLine('אין הרשאה לדווח ביצוע טיפול.','error');
+    const t=taskById(pmCompletionTaskId),date=iso10(pmCompletionReportDate||$('pmReportDate')?.value||tday());if(!t)return;
+    let p=pmCompletionWorkPlanId?planRows().find(x=>String(x.id)===String(pmCompletionWorkPlanId)):null;
+    const due=iso10(pmCompletionOccurrenceDue||planDue(p)||t.nextDue||t.next_due||date);if(!p)p=latestPlan(t.id,due);
+    const btn=$('pmCompleteSaveButton'),st=$('pmCompleteStatus');
+    if(typeof pmChecklistComplete==='function'&&!pmChecklistComplete()){if(st){st.textContent='יש לאשר את כל פעולות הטיפול לפני שמירה.';st.className='pm-modal-status error';}return;}
+    if(btn)btn.disabled=true;if(st)st.className='pm-modal-status';
+    let photo1Path='',photo2Path='',insertedHistory=null,insertedPlanId='',futureSnaps=[];
+    const oldLast=t.lastDone??t.last_done??null,oldNext=t.nextDue??t.next_due??null,oldPlan=p?planSnapshot(p):null;
+    try{
+      if(st)st.textContent='מעבד ושומר את הדיווח…';
+      const f1=$('pmPhoto1')?.files?.[0],f2=$('pmPhoto2')?.files?.[0];if(f1)photo1Path=await uploadMaintenancePhoto(f1,t,date,1);if(f2)photo2Path=await uploadMaintenancePhoto(f2,t,date,2);
+      const notes=String($('pmCompletionNotes')?.value||'').trim();
+      const next=typeof nextDueFrom==='function'?nextDueFrom(date,t.frequency):add(date,7);
+      const ur=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:next}).eq('id',t.id);if(ur.error)throw ur.error;
+      futureSnaps=await supersedeFuturePlans(t.id,due,next);
+      insertedHistory=await insertHistoryAdaptive(t,date,{notes,photo1Path,photo2Path});
+      if(p){const r=await supabaseClient.from('pm_work_plan').update({status:'Completed',completed_date:date}).eq('id',p.id);if(r.error)throw r.error;}
+      else{const r=await supabaseClient.from('pm_work_plan').insert({task_id:t.id,planned_date:null,assigned_to:t.performer||null,priority:'בינונית',status:'Completed',completed_date:date,postponed_reason:null,notes:`PM_DUE:${due}`,created_by:actor()}).select('id').single();if(r.error)throw r.error;insertedPlanId=r.data.id;}
+      await reloadCloudData();
+      if(st){st.textContent=`הטיפול נשמר. הטיפול הבא: ${fdate(next)}.`;st.classList.add('success');}
+      statusLine(`הטיפול בוצע. המחזור הבא חושב מתאריך הביצוע: ${fdate(next)}.`,'success');
+      try{window.renderDashboard?.();window.renderPlanner?.();window.renderReport?.();window.renderReports?.();}catch(e){}
+      setTimeout(()=>{try{closeCompleteModal()}catch(e){}},450);
+    }catch(err){
+      try{await supabaseClient.from('pm_tasks').update({last_done:oldLast,next_due:oldNext}).eq('id',t.id)}catch(_){}
+      if(oldPlan)try{await restorePlan(oldPlan)}catch(_){}
+      if(insertedPlanId)try{await supabaseClient.from('pm_work_plan').delete().eq('id',insertedPlanId)}catch(_){}
+      for(const s of futureSnaps.reverse())try{await restorePlan(s)}catch(_){}
+      if(insertedHistory?.id)try{await supabaseClient.from('pm_history').delete().eq('id',insertedHistory.id)}catch(_){}
+      if(photo1Path)try{await supabaseClient.storage.from('maintenance-photos').remove([photo1Path])}catch(_){}
+      if(photo2Path)try{await supabaseClient.storage.from('maintenance-photos').remove([photo2Path])}catch(_){}
+      if(st){st.textContent='שמירת הטיפול נכשלה: '+(err?.message||'שגיאה');st.className='pm-modal-status error';}
+    }finally{if(btn)btn.disabled=false;}
+  };
+  window.completeTask=completeTask=function(id,workPlanId='',occurrenceDue=''){return pmOpenCompletionModal(id,workPlanId,occurrenceDue);};
+
+  /* ---------- Execution queue state fix ---------- */
+  const prevExec=window.pmV98ExecutionRows;
+  if(typeof prevExec==='function')window.pmV98ExecutionRows=function(){
+    const x=prevExec(),pm=(x.pm||[]).map(r=>{
+      const p=r.plan;if(isAssignedPlan(p)){const pd=planDate(p),deadline=add(pd,6);return {...r,state:tday()>deadline?'overdue':'planned',date:pd,effectiveDate:pd,assignmentDate:pd,executionDeadline:deadline};}
+      return {...r,state:POSTPONED.has(planStatus(p))?'postponed':'waiting',assignmentDate:'',executionDeadline:''};
+    });return {...x,pm};
+  };
+
+  /* ---------- UI rendering / KPI parity ---------- */
+  function globalState(){const g=window.pmV99GlobalState||{};return {period:g.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),anchor:g.anchor||$('pmDashboardAnchor')?.value||tday(),department:g.department??$('pmDashboardDepartment')?.value??'',machine:g.machine??$('pmDashboardMachine')?.value??'',trade:g.trade??$('pmDashboardTrade')?.value??'',workType:g.workType??$('pmDashboardWorkType')?.value??''};}
+  function refreshDashboardKpis(){
+    const e=window.pmCanonicalForecast||window.fopUnifiedWorkSource;if(!e?.getWork)return;const g=globalState();
+    const open=e.getWork({...g,status:'open'})||[],assigned=e.getWork({...g,status:'planned'})||[],unassigned=e.getWork({...g,status:'waiting'})||[],overdue=e.getWork({...g,status:'overdue'})||[];
+    if($('pmV17Open'))$('pmV17Open').textContent=open.length;if($('pmV31Planned'))$('pmV31Planned').textContent=assigned.length;if($('pmV105Unassigned'))$('pmV105Unassigned').textContent=unassigned.length;if($('pmV17Overdue'))$('pmV17Overdue').textContent=overdue.length;
+    if($('pmV3Planned'))$('pmV3Planned').textContent=assigned.filter(r=>r.kind==='PM').length;if($('pmV3Waiting'))$('pmV3Waiting').textContent=unassigned.filter(r=>r.kind==='PM').length;if($('pmV3Overdue'))$('pmV3Overdue').textContent=overdue.filter(r=>r.kind==='PM').length;
+    window.pmV108Partition={filters:g,open:open.length,assigned:assigned.length,unassigned:unassigned.length,overdue:overdue.length,invariant:open.length===assigned.length+unassigned.length};
+    if(window.pmV99LastKpis)Object.assign(window.pmV99LastKpis,{open:open.length,assigned:assigned.length,unassigned:unassigned.length,overdue:overdue.length,assignmentInvariant:window.pmV108Partition.invariant});
+  }
+  const prevDash=window.renderDashboard;window.renderDashboard=function(){const r=typeof prevDash==='function'?prevDash.apply(this,arguments):undefined;try{refreshDashboardKpis();window.renderTodayWorkPlan?.()}catch(e){console.warn('V108 dashboard KPI',e)}return r;};try{renderDashboard=window.renderDashboard}catch(e){}
+
+  const prevPlanner=window.renderPlanner;window.renderPlanner=function(){
+    if($('pmPlanDate'))$('pmPlanDate').value=tday();const r=typeof prevPlanner==='function'?prevPlanner.apply(this,arguments):undefined;
+    try{
+      document.querySelectorAll('#pmPlannerDetail .pm-plan-row').forEach(row=>{
+        const key=row.querySelector('.pm-plan-check')?.value||'',parts=key.split('@@'),p=parts.length>1?latestPlan(parts[0],parts.slice(1).join('@@')):null;if(!isAssignedPlan(p))return;
+        const pd=planDate(p),end=assignmentEnd(p),late=isAssignmentOverdue(p);const main=row.querySelector('.pm-plan-main');if(!main)return;
+        const smalls=main.querySelectorAll('small');for(const s of smalls){if(s.textContent.includes('שובץ לביצוע:'))s.innerHTML=s.innerHTML.replace('שובץ לביצוע:','שובץ ב־:');}
+        if(!main.querySelector('.pm-v108-window'))main.insertAdjacentHTML('beforeend',`<span class="pm-v108-window ${late?'late':''}">${late?'⚠ באיחור':'⏱ חלון ביצוע'} · שובץ ${escH(fdate(pd))} · עד ${escH(fdate(end))}</span>`);
+      });
+      const e=window.pmCanonicalForecast||window.fopUnifiedWorkSource;if(e?.getWork){const g={period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||tday(),department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:$('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||'',workType:$('pmPlannerWorkType')?.value||'',status:$('pmPlannerStatus')?.value||'open'},rr=e.getWork(g)||[],pm=rr.filter(x=>x.kind==='PM'),as=pm.filter(x=>isAssignedPlan(x.plan)),mins=as.reduce((a,x)=>a+Number(x.duration||0),0),unmins=pm.filter(x=>!isAssignedPlan(x.plan)).reduce((a,x)=>a+Number(x.duration||0),0);if($('pmPlanScheduled'))$('pmPlanScheduled').textContent=as.length;if($('pmPlanCoverage'))$('pmPlanCoverage').textContent=(pm.length?Math.round(as.length/pm.length*100):100)+'%';if($('pmWorkScheduledHours'))$('pmWorkScheduledHours').textContent=(mins/60).toFixed(1);if($('pmWorkUnplannedHours'))$('pmWorkUnplannedHours').textContent=(unmins/60).toFixed(1);}
+    }catch(e){console.warn('V108 planner decoration',e)}
+    return r;
+  };try{renderPlanner=window.renderPlanner}catch(e){}
+
+  const prevReport=window.renderReport;window.renderReport=function(){
+    const r=typeof prevReport==='function'?prevReport.apply(this,arguments):undefined;
+    try{
+      const rows=typeof window.pmV98ExecutionRows==='function'?(window.pmV98ExecutionRows().pm||[]):[],cards=[...document.querySelectorAll('#pmOpenTasks .open-task')];
+      cards.forEach((card,i)=>{const rr=rows[i],note=card.querySelector('.pm-exec-plan-note');if(!rr||!note)return;if(rr.assignmentDate){note.classList.toggle('overdue',rr.state==='overdue');note.innerHTML=`${rr.state==='overdue'?'⚠ באיחור · ':''}שובץ ב־ <strong>${escH(fdate(rr.assignmentDate))}</strong> · חלון עד <strong>${escH(fdate(rr.executionDeadline))}</strong>${rr.assignee?' · '+escH(rr.assignee):''}`;}else if(rr.state==='postponed'){note.classList.remove('overdue');note.innerHTML='↪ נדחה בשבוע · ממתין לשיבוץ מחדש';}});
+      if($('repOpen'))$('repOpen').textContent=rows.length+' טיפולים פתוחים';if($('repLate'))$('repLate').textContent=rows.filter(x=>x.state==='overdue').length+' באיחור';if($('repToday'))$('repToday').textContent=rows.filter(x=>isAssignedPlan(x.plan)).length+' בחלון ביצוע';
+    }catch(e){console.warn('V108 execution decoration',e)}return r;
+  };try{renderReport=window.renderReport}catch(e){}
+
+  window.renderTodayWorkPlan=function(){
+    const e=window.pmCanonicalForecast||window.fopUnifiedWorkSource,box=$('pmTodayPlanList');if(!e?.getPM||!box)return;
+    const g=globalState(),assigned=(e.getPM({...g,status:'planned'})||[]).filter(r=>isAssignedPlan(r.plan)),done=[];
+    const mins=assigned.reduce((a,r)=>a+Number(r.duration||0),0);if($('pmTodayPlanned'))$('pmTodayPlanned').textContent=assigned.length;if($('pmTodayDone'))$('pmTodayDone').textContent=done.length;if($('pmTodayPending'))$('pmTodayPending').textContent=assigned.length;if($('pmTodayPlanHours'))$('pmTodayPlanHours').textContent=(mins/60).toFixed(1);
+    box.innerHTML=assigned.length?assigned.slice(0,8).map(r=>`<div class="pm-plan-mini-item"><div><strong>${escH(r.machine)}</strong><div>${escH(r.description)}</div></div><span>${r.state==='overdue'?'באיחור':'עד '+escH(fdate(r.executionDeadline))}</span></div>`).join(''):'<div class="empty">אין כרגע משימות בחלון ביצוע פעיל.</div>';
+  };
+  try{renderTodayWorkPlan=window.renderTodayWorkPlan}catch(e){}
+
+  function applyUi(){
+    if($('pmPlanDate')){$('pmPlanDate').type='hidden';$('pmPlanDate').value=tday();const f=$('pmPlanDate').closest('.field');if(f)f.style.display='none';}
+    const assignBtn=document.querySelector('#pmPlanner .pm-plan-actions button[onclick*="saveSelectedPlanning"]');if(assignBtn)assignBtn.textContent='שבץ עכשיו · 7 ימים';
+    const note=$('pmPlanner')?.querySelector('.pm-plan-note');if(note)note.textContent='בחר משימות ולחץ "שבץ עכשיו". השיבוץ מתחיל היום אוטומטית ופותח חלון ביצוע של 7 ימים. אין צורך לבחור תאריך.';
+    if($('pmPostponeDate')){$('pmPostponeDate').type='hidden';const lab=document.querySelector('label[for="pmPostponeDate"]');if(lab)lab.style.display='none';}
+    if($('pmPostponeTaskText')&&!$('pmPostponeTaskText').nextElementSibling?.classList?.contains('pm-v108-postpone-note'))$('pmPostponeTaskText').insertAdjacentHTML('afterend','<div class="pm-v108-postpone-note">דחייה = שבוע אחד אוטומטי. נדרשת רק סיבה.</div>');
+    if($('pmPostponeSaveButton'))$('pmPostponeSaveButton').textContent='דחה בשבוע';
+    const k=$('pmV31Planned')?.parentElement;if(k){const s=k.querySelector('small');if(s)s.textContent='נמצאות בתוך חלון ביצוע של 7 ימים';}
+    const p=$('pmV3Planned')?.parentElement;if(p){const s=p.querySelector('small');if(s)s.textContent='חלון ביצוע פעיל של 7 ימים';}
+    const pp=$('pmV3Postponed')?.parentElement;if(pp){const s=pp.querySelector('small');if(s)s.textContent='נדחו אוטומטית בשבוע';}
+    const todayBox=$('pmTodayPlanned')?.parentElement?.parentElement?.parentElement;const h=todayBox?.querySelector('h3');if(h&&h.textContent.includes('היום'))h.textContent='חלון ביצוע פעיל';
+  }
+
+  window.pmV108Audit=function(){
+    const e=window.pmCanonicalForecast||window.fopUnifiedWorkSource,g=globalState(),open=e?.getWork?.({...g,status:'open'})||[],assigned=e?.getWork?.({...g,status:'planned'})||[],unassigned=e?.getWork?.({...g,status:'waiting'})||[],overdue=e?.getWork?.({...g,status:'overdue'})||[];
+    const bad=assigned.filter(r=>r.kind==='PM'&&(!r.assignmentDate||!r.executionDeadline));
+    return {build:'20260828-v108-seven-day-assignment',assignmentDateIsToday:true,windowDays:7,manualPlanDateVisible:!!($('pmPlanDate')&&$('pmPlanDate').type!=='hidden'),manualPostponeDateVisible:!!($('pmPostponeDate')&&$('pmPostponeDate').type!=='hidden'),open:open.length,assigned:assigned.length,unassigned:unassigned.length,overdue:overdue.length,partitionOk:open.length===assigned.length+unassigned.length,badAssignedRows:bad.length,ok:open.length===assigned.length+unassigned.length&&bad.length===0};
+  };
+  function boot(){applyUi();try{refreshDashboardKpis();window.renderPlanner?.();window.renderReport?.();window.renderTodayWorkPlan?.();}catch(e){console.warn('V108 boot',e)}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
+
+<style id="fop-v109-due-window-lifecycle-style">
+.pm-v99-kpis{grid-template-columns:repeat(5,minmax(0,1fr))!important}
+.pm-v109-window{display:inline-flex;align-items:center;gap:5px;margin-top:6px;margin-inline-start:6px;padding:4px 8px;border-radius:999px;background:#eef6ff;color:#174d86;font-size:10px;font-weight:900}
+.pm-v109-window.waiting{background:#f2f4f7;color:#475467}.pm-v109-window.overdue{background:#fff0f0;color:#b42318}.pm-v109-window.postponed{background:#fff7e6;color:#8a5900}.pm-v109-window.upcoming{background:#f0f7ff;color:#1769aa}
+.pm-v109-row-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.pm-v109-defer{border:1px solid #e7c979;background:#fff8e8;color:#76530b;border-radius:10px;padding:8px 10px;font-size:10px;font-weight:900;cursor:pointer}
+.pm-plan-row.pm-v109-upcoming{opacity:.78;background:#f8fbff}.pm-plan-row.pm-v109-postponed{background:#fffbf3;border-color:#f0c477}.pm-plan-row.pm-v109-overdue{background:#fff7f8;border-color:#ef9aaa}
+@media(max-width:1000px){.pm-v99-kpis{grid-template-columns:repeat(3,1fr)!important}}@media(max-width:600px){.pm-v99-kpis{grid-template-columns:repeat(2,1fr)!important}}
+</style>
+<script id="fop-v109-due-window-lifecycle">
+/* V109 — Due-driven PM lifecycle.
+   1) pm_tasks.next_due is the OPENING date of the current PM occurrence.
+   2) The occurrence has a fixed 7-calendar-day execution window: due..due+6.
+   3) Assignment is a managerial flag inside that window; it NEVER restarts the clock.
+   4) At due+7 the unresolved occurrence becomes overdue, assigned or not.
+   5) Only one current PM occurrence is operational. The next recurrence is created only by completion/cancellation advancing next_due.
+   6) Postpone shifts the CURRENT occurrence exactly +7 days, requires a reason, and stores the postponed target on the Postponed plan row.
+   7) Completion re-anchors next_due to actual completion date + task frequency (V108 completion contract retained).
+*/
+(function(){
+  const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const iso=v=>String(v||'').slice(0,10);
+  const PLANNED=new Set(['planned','מתוכנן','מתוכננת']);
+  const POSTPONED=new Set(['postponed','deferred','נדחה','נדחתה']);
+  const CLOSED=new Set(['completed','done','cancelled','canceled','בוצע','בוטל']);
+  const tday=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
+  const add=(d,n)=>typeof addDays==='function'?addDays(d,n):(()=>{const p=iso(d).split('-').map(Number),x=new Date(p[0],p[1]-1,p[2]+n,12);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`})();
+  const fd=d=>{try{return typeof fDate==='function'?fDate(d):d}catch(e){return d||''}};
+  const eh=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const who=()=>pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';
+  const taskId=p=>String(p?.taskId??p?.task_id??'');
+  const pStatus=p=>norm(p?.status);
+  const pDate=p=>iso(p?.plannedDate??p?.planned_date);
+  const pDue=p=>iso((typeof wpDueFromNotes==='function'?wpDueFromNotes(p?.notes):'')||p?.dueDate||p?.due_date||'');
+  const rows=()=>Array.isArray(pmWorkPlan)?pmWorkPlan:[];
+  const taskOf=id=>(Array.isArray(tasks)?tasks:[]).find(t=>String(t.id)===String(id));
+  const source=window.pmCanonicalForecast||window.fopUnifiedWorkSource;
+  if(!source||typeof source.getPM!=='function')return;
+  const basePM=source.getPM.bind(source),baseWO=typeof source.getWO==='function'?source.getWO.bind(source):(()=>[]);
+
+  function latestPlan(id,due){return rows().filter(p=>taskId(p)===String(id)&&pDue(p)===iso(due)).sort((a,b)=>String(b.updatedAt??b.updated_at??b.createdAt??b.created_at??'').localeCompare(String(a.updatedAt??a.updated_at??a.createdAt??a.created_at??'')))[0]||null;}
+  function deferralPlan(t,currentDue){return rows().filter(p=>taskId(p)===String(t?.id)&&POSTPONED.has(pStatus(p))&&pDate(p)===iso(currentDue)&&pDue(p)&&pDue(p)<iso(currentDue)).sort((a,b)=>String(b.updatedAt??b.updated_at??b.createdAt??b.created_at??'').localeCompare(String(a.updatedAt??a.updated_at??a.createdAt??a.created_at??'')))[0]||null;}
+  function assignedPlan(p){return !!p&&PLANNED.has(pStatus(p))&&!CLOSED.has(pStatus(p))&&!!pDate(p);}
+  function dueOf(r){return iso(r?.due??r?.item?.due??r?.task?.nextDue??r?.task?.next_due);}
+  function tOf(r){return r?.task||r?.item?.t||taskOf(r?.id);}
+  function deadline(d){return d?add(d,6):'';}
+  function isLate(d,asOf){return !!d&&iso(asOf)>deadline(d);}
+  function currentClass(r,asOf){
+    const t=tOf(r),d=dueOf(r),p=latestPlan(t?.id,d)||r?.plan||null,a=assignedPlan(p),late=isLate(d,asOf);
+    return {...r,task:t,item:r?.item||{t,due:d,plan:p,backlog:d<asOf},due:d,plan:p,state:late?'overdue':a?'planned':'waiting',isAssigned:a,assignmentDate:a?pDate(p):'',executionDeadline:deadline(d),date:a?pDate(p):d,effectiveDate:d,overdueUnassigned:late&&!a};
+  }
+  function broad(opts={}){
+    const asOf=iso(opts.anchor||tday());
+    const raw=basePM({...opts,anchor:asOf,period:'year',status:'open'})||[];
+    const m=new Map();
+    for(const r of raw){const t=tOf(r),d=dueOf(r);if(!t?.id||!d)continue;const k=String(t.id);const old=m.get(k);if(!old||dueOf(old)>d)m.set(k,r);}
+    return [...m.values()];
+  }
+  function activeDeferredRows(opts={}){
+    const asOf=iso(opts.anchor||tday());
+    return broad(opts).map(r=>{const t=tOf(r),d=dueOf(r),dp=deferralPlan(t,d);return {r,t,d,dp};}).filter(x=>x.dp&&x.d>asOf).map(x=>({...x.r,task:x.t,item:x.r?.item||{t:x.t,due:x.d,plan:null,backlog:false},due:x.d,plan:null,deferPlan:x.dp,state:'postponed',isAssigned:false,assignmentDate:'',executionDeadline:'',date:x.d,effectiveDate:x.d}));
+  }
+  function opPM(opts={}){
+    if((opts.workType||'')==='WO')return [];
+    const st=norm(opts.status||'open'),asOf=iso(opts.anchor||tday());
+    if(st==='completed'||st==='cancelled'||st==='canceled')return basePM(opts);
+    const all=broad(opts),current=all.filter(r=>dueOf(r)&&dueOf(r)<=asOf).map(r=>currentClass(r,asOf));
+    if(!st||st==='open')return current;
+    if(st==='waiting'||st==='unassigned')return current.filter(r=>r.state==='waiting');
+    if(st==='planned'||st==='assigned')return current.filter(r=>r.state==='planned');
+    if(st==='overdue')return current.filter(r=>r.state==='overdue');
+    if(st==='postponed'||st==='deferred')return activeDeferredRows(opts);
+    if(st==='near'||st==='upcoming')return all.filter(r=>{const d=dueOf(r);return d>asOf&&d<=add(asOf,7)}).map(r=>{const t=tOf(r),d=dueOf(r),dp=deferralPlan(t,d);return {...r,task:t,item:r?.item||{t,due:d,plan:null,backlog:false},due:d,plan:null,deferPlan:dp||null,state:dp?'postponed':'upcoming',isAssigned:false,assignmentDate:'',executionDeadline:'',date:d,effectiveDate:d};});
+    return current.filter(r=>norm(r.state)===st);
+  }
+  function opWork(opts={}){
+    const wt=opts.workType||'',pm=wt==='WO'?[]:opPM(opts),wo=wt==='PM'?[]:(baseWO(opts)||[]);
+    return [...pm,...wo].sort((a,b)=>String(a.due||a.effectiveDate||a.date||'').localeCompare(String(b.due||b.effectiveDate||b.date||''))||String(a.kind||'').localeCompare(String(b.kind||'')));
+  }
+  window.pmV109Operational={getPM:opPM,getWork:opWork,deadline,deferralPlan};
+
+  function plannerOpts(){return {period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||tday(),department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:$('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||'',workType:$('pmPlannerWorkType')?.value||'',status:$('pmPlannerStatus')?.value||'open'};}
+  function rowItem(r){return r.item||{t:r.task,due:r.due,plan:r.plan,backlog:r.due<tday()};}
+  window.filteredPlanningItems=filteredPlanningItems=function(){if(($('pmPlannerWorkType')?.value||'')==='WO')return [];return opPM(plannerOpts()).map(rowItem);};
+
+  function stateLabel(r){return r.state==='overdue'?'באיחור':r.state==='planned'?'שובצה לביצוע':r.state==='waiting'?'טרם שובצה':r.state==='postponed'?'נדחתה':r.state==='upcoming'?'טרם נפתחה':r.state==='completed'?'בוצעה':r.state==='cancelled'?'בוטלה':r.state;}
+  function badgeClass(r){return r.state==='overdue'?'risk':r.state==='planned'?'planned':r.state==='waiting'?'open':r.state==='postponed'?'postponed':r.state==='upcoming'?'open':r.state==='completed'?'done':'cancelled';}
+  function hms(list){return (list.reduce((a,r)=>a+Number(r.duration||0),0)/60).toFixed(1);}
+  function canSelect(r,asOf){return ['waiting','planned','overdue'].includes(r.state)&&iso(r.due)<=iso(asOf);}
+
+  window.renderPlanner=renderPlanner=function(){
+    const o=plannerOpts(),all=opWork(o),pm=all.filter(r=>r.kind==='PM'),asOf=iso(o.anchor||tday()),detail=$('pmPlannerDetail'),size=(typeof PM_PLAN_PAGE_SIZE!=='undefined'?PM_PLAN_PAGE_SIZE:50),pages=Math.max(1,Math.ceil(pm.length/size));
+    try{pmPlanPage=Math.max(0,Math.min(pages-1,pmPlanPage||0));}catch(e){}
+    const page=(typeof pmPlanPage!=='undefined'?pmPlanPage:0),show=pm.slice(page*size,(page+1)*size);
+    if($('pmPlanPageInfo'))$('pmPlanPageInfo').textContent=`עמוד ${page+1} מתוך ${pages} · ${pm.length} דרישות PM`;
+    if(detail)detail.innerHTML=show.length?show.map(r=>{
+      const selectable=canSelect(r,asOf),key=`${String(r.task?.id||r.id)}@@${r.due}`,dline=deadline(r.due),assigned=r.isAssigned,dp=r.deferPlan;
+      const windowText=r.state==='postponed'?`נדחה עד ${fd(r.due)}${dp?.postponedReason?' · '+dp.postponedReason:''}`:r.state==='upcoming'?`ייפתח ב-${fd(r.due)}`:r.state==='overdue'?`באיחור · החלון הסתיים ב-${fd(dline)} · ${assigned?'שובצה '+fd(r.assignmentDate):'לא שובצה'}`:r.state==='planned'?`שובצה ${fd(r.assignmentDate)} · חלון עד ${fd(dline)}`:`חלון טיפול ${fd(r.due)}–${fd(dline)} · טרם שובצה`;
+      const rowCls=r.state==='overdue'?'pm-v109-overdue':r.state==='postponed'?'pm-v109-postponed':r.state==='upcoming'?'pm-v109-upcoming':r.state==='planned'?'planned':'';
+      return `<div class="pm-plan-row ${rowCls}"><input class="pm-plan-check" type="checkbox" value="${eh(key)}" ${selectable?'':'disabled'} onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${eh(r.machine)} — ${eh(r.description)}</strong><small>${eh(r.department)} · <strong>מקצוע: ${eh(r.trade||'—')}</strong> · תדירות: ${eh(r.frequency||'—')} · ${Number(r.duration||0)} דק׳</small><span class="pm-v109-window ${eh(r.state)}">${eh(windowText)}</span>${r.task&&typeof pmChecklistToggleHtml==='function'?pmChecklistToggleHtml(r.task):''}</div><div class="pm-plan-meta pm-plan-hide-mobile">${eh(r.frequency||'')}</div><div class="pm-plan-meta">${eh(fd(r.due))}</div><div class="pm-v109-row-actions">${selectable&&pmCan('manageExceptions')?`<button type="button" class="pm-v109-defer" onclick="event.preventDefault();event.stopPropagation();return openPostponeModal('${eh(r.task?.id||r.id)}')">דחה שבוע</button>`:''}</div><span class="pm-plan-badge ${badgeClass(r)}">${eh(stateLabel(r))}</span></div>`;
+    }).join(''):'<div class="empty">אין משימות PM ברשימה זו.</div>';
+    const open=opPM({...o,status:'open'}),assignedAny=open.filter(r=>r.isAssigned),unassignedAny=open.filter(r=>!r.isAssigned);
+    if($('pmPlanRequired'))$('pmPlanRequired').textContent=all.length;
+    if($('pmWorkRequiredHours'))$('pmWorkRequiredHours').textContent=hms(all);
+    if($('pmWorkTechnicianHours'))$('pmWorkTechnicianHours').textContent=hms(pm);
+    if($('pmWorkScheduledHours'))$('pmWorkScheduledHours').textContent=hms(assignedAny);
+    if($('pmWorkUnplannedHours'))$('pmWorkUnplannedHours').textContent=hms(unassignedAny);
+    if($('pmPlanScheduled'))$('pmPlanScheduled').textContent=assignedAny.length;
+    if($('pmPlanCoverage'))$('pmPlanCoverage').textContent=(open.length?Math.round(assignedAny.length/open.length*100):100)+'%';
+    if($('pmPlanRangeLabel'))$('pmPlanRangeLabel').textContent=o.status==='near'?'תחזית: 7 ימים קרובים':o.status==='postponed'?'משימות שנדחו וממתינות למועד החדש':`עבודה פתוחה נכון ל-${fd(asOf)}`;
+    try{window.renderUnplannedPlanner?.();}catch(e){}try{updatePlanSelectionInfo?.();}catch(e){}
+    window.pmV109PlannerAudit={filters:o,rows:all.length,pm:pm.length,currentOpen:open.length,assignedAny:assignedAny.length,unassignedAny:unassignedAny.length};
+  };
+
+  function planSnapshot(p){return p?{id:p.id,planned_date:p.plannedDate??p.planned_date??null,assigned_to:p.assignedTo??p.assigned_to??null,priority:p.priority||'בינונית',status:p.status||'Unplanned',completed_date:p.completedDate??p.completed_date??null,postponed_reason:p.postponedReason??p.postponed_reason??null,notes:p.notes||null,created_by:p.createdBy??p.created_by??null}:null;}
+  async function restorePlan(s){if(!s)return;const r=await supabaseClient.from('pm_work_plan').update({planned_date:s.planned_date,assigned_to:s.assigned_to,priority:s.priority,status:s.status,completed_date:s.completed_date,postponed_reason:s.postponed_reason,notes:s.notes,created_by:s.created_by}).eq('id',s.id);if(r.error)console.error('V109 rollback plan',r.error);}
+
+  window.saveSelectedPlanning=saveSelectedPlanning=async function(){
+    if(!pmCan('manageExceptions'))return statusLine('תכנון עבודה זמין למנהל אחזקה או Admin בלבד.','error');
+    const keys=typeof selectedPlanKeys==='function'?selectedPlanKeys():[];if(!keys.length)return statusLine('יש לבחור לפחות משימה אחת.','error');
+    const o=plannerOpts(),lookup=new Map(opPM({...o,status:o.status||'open'}).map(r=>[`${String(r.task?.id||r.id)}@@${r.due}`,r])),priority=$('pmPlanPriority')?.value||'בינונית',assignee=String($('pmPlanAssignee')?.value||'').trim(),changes=[];let changed=0,already=0;
+    try{
+      for(const key of keys){const r=lookup.get(key);if(!r)continue;if(iso(r.due)>tday())throw new Error('אי אפשר לשבץ משימה לפני שמועד הטיפול שלה הגיע.');const existing=latestPlan(r.task.id,r.due);if(existing&&assignedPlan(existing)){already++;continue;}const payload={task_id:r.task.id,planned_date:tday(),assigned_to:assignee||existing?.assignedTo||existing?.assigned_to||r.task.performer||null,priority,status:'Planned',completed_date:null,postponed_reason:null,notes:`PM_DUE:${r.due}\nPM_ASSIGN:${tday()}|WINDOW_END:${deadline(r.due)}`,created_by:who()};if(existing){changes.push({kind:'update',before:planSnapshot(existing)});const q=await supabaseClient.from('pm_work_plan').update(payload).eq('id',existing.id);if(q.error)throw q.error;}else{const q=await supabaseClient.from('pm_work_plan').insert(payload).select('id').single();if(q.error)throw q.error;changes.push({kind:'insert',id:q.data.id});}changed++;}
+      await reloadCloudData();try{window.renderDashboard?.();window.renderPlanner?.();window.renderReport?.();window.renderReports?.();}catch(e){}
+      const extra=already?` · ${already} כבר היו משובצות.`:'';statusLine(`${changed} משימות שובצו. חלון 7 הימים נשאר לפי מועד ה-PM ואינו מתאפס בשיבוץ.${extra}`,'success');try{pmToast?.(`שובצו ${changed} משימות לביצוע`,'success')}catch(e){}
+    }catch(err){for(const c of [...changes].reverse())try{if(c.kind==='insert')await supabaseClient.from('pm_work_plan').delete().eq('id',c.id);else await restorePlan(c.before)}catch(e){}try{await reloadCloudData()}catch(e){}statusLine('השיבוץ נכשל והשינויים הוחזרו: '+(err?.message||'שגיאה'),'error');}
+  };
+
+  const auditSafe=v=>String(v??'').replace(/[|\]\r\n]/g,' ').trim();
+  function postponeTo(oldDue){return add(oldDue,7);}
+  window.openPostponeModal=openPostponeModal=function(id){
+    if(!pmCan('manageExceptions'))return statusLine('דחיית טיפול זמינה למנהל אחזקה או Admin בלבד.','error');const t=taskOf(id);if(!t)return false;const oldDue=iso(t.nextDue??t.next_due);if(!oldDue)return false;if(oldDue>tday()){statusLine('המשימה עדיין לא נפתחה ולכן אין צורך לדחות אותה.','error');return false;}pmPostponeTaskId=t.id;const newDue=postponeTo(oldDue);if($('pmPostponeDate'))$('pmPostponeDate').value=newDue;if($('pmPostponeTaskText'))$('pmPostponeTaskText').textContent=`${t.machine} — ${t.task} · דחייה של שבוע: ${fd(oldDue)} ← ${fd(newDue)}`;if($('pmPostponeReason'))$('pmPostponeReason').value='';if($('pmPostponeStatus')){$('pmPostponeStatus').textContent='';$('pmPostponeStatus').className='pm-modal-status';}$('pmPostponeModal')?.classList.add('open');return false;
+  };
+  async function postponeCurrent(t,reason){
+    const oldDue=iso(t.nextDue??t.next_due),newDue=postponeTo(oldDue),stamp=new Date().toISOString(),actor=who(),current=latestPlan(t.id,oldDue),snap=current?planSnapshot(current):null,created=[],future=rows().filter(p=>taskId(p)===String(t.id)&&pDue(p)>oldDue&&['planned','postponed'].includes(pStatus(p))),futureSnaps=future.map(planSnapshot),oldTask={next_due:t.nextDue??t.next_due??null,notes:t.notes||null};
+    const marker=`[PM_POSTPONE|${auditSafe(oldDue)}|${auditSafe(newDue)}|${auditSafe(reason)}|${auditSafe(actor)}|${stamp}]`;
+    try{
+      const baseNotes=`PM_DUE:${oldDue}\nPM_POSTPONED_TO:${newDue}`;
+      if(current){const priorAssign=pDate(current);const n=[baseNotes,priorAssign&&PLANNED.has(pStatus(current))?`PM_WAS_ASSIGNED:${priorAssign}`:''].filter(Boolean).join('\n');const q=await supabaseClient.from('pm_work_plan').update({status:'Postponed',planned_date:newDue,completed_date:null,postponed_reason:reason,notes:n}).eq('id',current.id);if(q.error)throw q.error;}
+      else{const q=await supabaseClient.from('pm_work_plan').insert({task_id:t.id,planned_date:newDue,assigned_to:null,priority:'בינונית',status:'Postponed',completed_date:null,postponed_reason:reason,notes:baseNotes,created_by:actor}).select('id').single();if(q.error)throw q.error;created.push(q.data.id);}
+      for(const fp of future){const n=[String(fp.notes||'').trim(),`PM_REBASE_SUPERSEDED:${oldDue}->${newDue}|${stamp}`].filter(Boolean).join('\n');const q=await supabaseClient.from('pm_work_plan').update({status:'Unplanned',planned_date:null,completed_date:null,postponed_reason:null,notes:n}).eq('id',fp.id);if(q.error)throw q.error;}
+      const q=await supabaseClient.from('pm_tasks').update({next_due:newDue,notes:[String(t.notes||'').trim(),marker].filter(Boolean).join('\n')}).eq('id',t.id);if(q.error)throw q.error;return {oldDue,newDue};
+    }catch(e){try{await supabaseClient.from('pm_tasks').update(oldTask).eq('id',t.id)}catch(_){}if(snap)try{await restorePlan(snap)}catch(_){}for(const s of futureSnaps)try{await restorePlan(s)}catch(_){}for(const id of created)try{await supabaseClient.from('pm_work_plan').delete().eq('id',id)}catch(_){}throw e;}
+  }
+  window.savePostpone=savePostpone=async function(){
+    if(!pmCan('manageExceptions'))return;const t=taskOf(pmPostponeTaskId);if(!t)return;const reason=String($('pmPostponeReason')?.value||'').trim(),st=$('pmPostponeStatus'),btn=$('pmPostponeSaveButton');if(!reason){if(st){st.textContent='יש להזין סיבה לדחיית הטיפול.';st.className='pm-modal-status error';}return;}if(btn)btn.disabled=true;if(st){st.textContent='דוחה את המופע הנוכחי בשבוע…';st.className='pm-modal-status';}
+    try{const x=await postponeCurrent(t,reason);await reloadCloudData();try{window.renderDashboard?.();window.renderPlanner?.();window.renderReport?.();window.renderReports?.();}catch(e){}const stillOpen=x.newDue<=tday();if(st){st.textContent=stillOpen?`הטיפול נדחה בשבוע ל-${fd(x.newDue)}, אך המועד החדש כבר הגיע ולכן הוא נשאר פתוח.`:`הטיפול נדחה בשבוע ל-${fd(x.newDue)}.`;st.className='pm-modal-status success';}try{pmToast?.(stillOpen?'נדחה שבוע · עדיין פתוח':'הטיפול נדחה בשבוע','success')}catch(e){}setTimeout(()=>{try{closePostponeModal()}catch(e){}},650);}catch(e){if(st){st.textContent='שמירת הדחייה נכשלה: '+(e?.message||e);st.className='pm-modal-status error';}}finally{if(btn)btn.disabled=false;}
+  };
+  window.pmPostponeDialog=async function(currentDate){const reason=String(window.prompt('סיבת הדחייה (המופע הנוכחי יזוז שבוע אחד קדימה):','')||'').trim();if(!reason)return null;return {date:postponeTo(iso(currentDate||tday())),reason,note:'',combined:reason};};
+
+  function dashOpts(status='open'){const g=window.pmV99GlobalState||{};return {period:g.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),anchor:g.anchor||$('pmDashboardAnchor')?.value||tday(),department:g.department??$('pmDashboardDepartment')?.value??'',machine:g.machine??$('pmDashboardMachine')?.value??'',trade:g.trade??$('pmDashboardTrade')?.value??'',workType:'PM',status};}
+  function setText(id,v){const e=$(id);if(e)e.textContent=v;}
+  function refreshDashboard(){
+    const open=opPM(dashOpts('open')),planned=opPM(dashOpts('planned')),waiting=opPM(dashOpts('waiting')),over=opPM(dashOpts('overdue')),post=opPM(dashOpts('postponed')),up=opPM(dashOpts('near'));
+    setText('pmV17Open',open.length);setText('pmV31Planned',planned.length);setText('pmV105Unassigned',waiting.length);setText('pmV17Overdue',over.length);setText('pmV97Postponements',post.length);setText('pmV109Upcoming',up.length);
+    setText('pmV3Waiting',waiting.length);setText('pmV3Planned',planned.length);setText('pmV3Postponed',post.length);setText('pmV3Overdue',over.length);if($('pmV3WaitingDetail'))$('pmV3WaitingDetail').textContent='פתוחות בתוך חלון 7 ימים';if($('pmV97PostponementsDetail'))$('pmV97PostponementsDetail').textContent='נדחו וממתינים למועד החדש';
+    const assignedAny=open.filter(r=>r.isAssigned),coverage=open.length?Math.round(assignedAny.length/open.length*100):100;setText('pmV3Coverage',coverage+'%');if($('pmV3CoverageDetail'))$('pmV3CoverageDetail').textContent=`${assignedAny.length} מתוך ${open.length}`;if($('pmV3CoverageBar'))$('pmV3CoverageBar').style.width=coverage+'%';
+    const trades={};for(const r of open)trades[r.trade||'לא מוגדר']=(trades[r.trade||'לא מוגדר']||0)+Number(r.duration||0)/60;const tb=$('pmV17Trade'),mx=Math.max(1,...Object.values(trades));if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${eh(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${v.toFixed(1)}ש׳</strong></div>`).join('')||'<div class="empty">אין כרגע עומס PM פתוח.</div>';
+    const att=[...over,...waiting,...up].slice(0,12),box=$('pmV17Attention');if(box)box.innerHTML=att.length?att.map(r=>`<div class="pm-v3-mini"><div><strong>${eh(r.machine)} — ${eh(r.description)}</strong><small>${eh(r.trade||'')} · ${r.state==='overdue'?'באיחור':r.state==='waiting'?'טרם שובצה':'ייפתח '+eh(fd(r.due))}</small></div><span class="tag ${r.state==='overdue'?'red':''}">${r.state==='overdue'?'באיחור':r.state==='waiting'?'טרם שובצה':'קרובה'}</span></div>`).join(''):'<div class="empty">אין כרגע משימות שדורשות תשומת לב.</div>';
+    window.pmV109Partition={open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,upcoming:up.length,invariant:open.length===planned.length+waiting.length+over.length};
+  }
+  const prevDash=window.renderDashboard;window.renderDashboard=renderDashboard=function(){const r=typeof prevDash==='function'?prevDash.apply(this,arguments):undefined;try{refreshDashboard()}catch(e){console.warn('V109 dashboard',e)}return r;};
+
+  function copyDashFiltersToPlanner(){if($('pmPlannerStart'))$('pmPlannerStart').value=$('pmDashboardAnchor')?.value||tday();if($('pmPlannerDepartment'))$('pmPlannerDepartment').value=$('pmDashboardDepartment')?.value||'';try{fillPlanningMachines?.()}catch(e){}if($('pmPlannerMachine'))$('pmPlannerMachine').value=$('pmDashboardMachine')?.value||'';if($('pmPlannerTrade'))$('pmPlannerTrade').value=$('pmDashboardTrade')?.value||'';if($('pmPlannerWorkType'))$('pmPlannerWorkType').value='PM';}
+  window.pmV17OpenPlanner=function(kind){copyDashFiltersToPlanner();if($('pmPlannerStatus'))$('pmPlannerStatus').value=kind==='overdue'?'overdue':kind==='planned'?'planned':kind==='postponed'?'postponed':kind==='near'?'near':'open';try{pmPlanPage=0}catch(e){}showTab('planner');renderPlanner();return false;};
+  window.pmV31OpenPlanned=function(){return window.pmV17OpenPlanner('planned');};
+  window.pmV105OpenUnassignedPlanner=function(){copyDashFiltersToPlanner();if($('pmPlannerStatus'))$('pmPlannerStatus').value='waiting';try{pmPlanPage=0}catch(e){}showTab('planner');renderPlanner();return false;};
+  window.pmV109OpenUpcoming=function(){return window.pmV17OpenPlanner('near');};
+  window.pmV109OpenPostponed=function(){return window.pmV17OpenPlanner('postponed');};
+
+  const prevExec=window.pmV98ExecutionRows;window.pmV98ExecutionRows=function(){
+    const x=typeof prevExec==='function'?prevExec():{pm:[],wo:[]},o={anchor:tday(),department:$('pmReportDepartment')?.value||'',machine:$('pmReportMachine')?.value||'',trade:$('pmReportTrade')?.value||'',workType:'PM',status:'open'},active=opPM(o),m=new Map(active.map(r=>[String(r.task?.id||r.id),r]));
+    const pm=[];for(const old of (x.pm||[])){const id=String(old.task?.id||old.id||old.item?.t?.id||'');const r=m.get(id);if(r)pm.push({...old,...r});}
+    for(const r of active){const id=String(r.task?.id||r.id);if(!pm.some(x=>String(x.task?.id||x.id||x.item?.t?.id||'')===id))pm.push(r);}
+    return {...x,pm};
+  };
+
+  function applyUi(){
+    if($('pmPlanDate')){$('pmPlanDate').type='hidden';$('pmPlanDate').value=tday();}
+    const btn=document.querySelector('#pmPlanner .pm-plan-actions button[onclick*="saveSelectedPlanning"]');if(btn)btn.textContent='שבץ לביצוע';
+    const note=$('pmPlanner')?.querySelector('.pm-plan-note');if(note)note.textContent='משימה נפתחת כשהגיע מועד ה-PM. יש 7 ימים לביצוע. שיבוץ מסמן שהמנהל הכניס אותה לעבודה — הוא לא מאריך ולא מאפס את החלון.';
+    if($('pmPostponeDate')){$('pmPostponeDate').type='hidden';}
+    if($('pmPostponeSaveButton'))$('pmPostponeSaveButton').textContent='דחה בשבוע';
+    const pp=$('pmV3Postponed')?.parentElement;if(pp){const s=pp.querySelector('small');if(s)s.textContent='ממתינות למועד החדש';}
+    const oo=$('pmV3Overdue')?.parentElement;if(oo){const s=oo.querySelector('small');if(s)s.textContent='חלון 7 הימים הסתיים';}
+  }
+
+  window.pmV109Audit=function(){
+    const o=dashOpts('open'),open=opPM(o),planned=opPM({...o,status:'planned'}),waiting=opPM({...o,status:'waiting'}),over=opPM({...o,status:'overdue'}),post=opPM({...o,status:'postponed'}),up=opPM({...o,status:'near'}),dup=[...open.reduce((m,r)=>(m.set(String(r.task?.id||r.id),(m.get(String(r.task?.id||r.id))||0)+1),m),new Map())].filter(([,n])=>n>1);
+    return {build:'20260828-v109-due-window-lifecycle',windowDays:7,windowStartsAtNextDue:true,assignmentDoesNotResetClock:true,postponeDays:7,nextRecurrenceFromCompletion:true,open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,upcoming7:up.length,partitionOk:open.length===planned.length+waiting.length+over.length,duplicateCurrentTasks:dup,ok:open.length===planned.length+waiting.length+over.length&&dup.length===0};
+  };
+  function boot(){applyUi();try{refreshDashboard();renderPlanner();window.renderReport?.();}catch(e){console.warn('V109 boot',e)}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
 </body></html>
