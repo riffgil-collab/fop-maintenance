@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v110-planner-ui-clean"/>
+<meta name="fop-build" content="20260828-v112-restore-invalid-postponements"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -9346,7 +9346,7 @@ window.pmHistoryParityAudit=function(){
 @media(max-width:600px){.pm-v99-kpis{grid-template-columns:repeat(2,1fr)!important}#pmPlannerDetail .pm-plan-row{grid-template-columns:30px minmax(0,1fr) 72px;gap:9px}.pm-v110-card-footer{gap:7px;flex-wrap:nowrap}.pm-v110-status{flex:1;min-width:0;padding:7px 8px}.pm-v110-defer{flex:0 0 auto;padding:7px 9px}}
 </style>
 <script id="fop-v109-due-window-lifecycle">
-window.FOP_PLANNER_UI_BUILD="20260828-v110-planner-ui-clean";
+window.FOP_PLANNER_UI_BUILD="20260828-v112-restore-invalid-postponements";
 /* V109 — Due-driven PM lifecycle.
    1) pm_tasks.next_due is the OPENING date of the current PM occurrence.
    2) The occurrence has a fixed 7-calendar-day execution window: due..due+6.
@@ -9381,13 +9381,14 @@ window.FOP_PLANNER_UI_BUILD="20260828-v110-planner-ui-clean";
   function latestPlan(id,due){return rows().filter(p=>taskId(p)===String(id)&&pDue(p)===iso(due)).sort((a,b)=>String(b.updatedAt??b.updated_at??b.createdAt??b.created_at??'').localeCompare(String(a.updatedAt??a.updated_at??a.createdAt??a.created_at??'')))[0]||null;}
   function deferralPlan(t,currentDue){return rows().filter(p=>taskId(p)===String(t?.id)&&POSTPONED.has(pStatus(p))&&pDate(p)===iso(currentDue)&&pDue(p)&&pDue(p)<iso(currentDue)).sort((a,b)=>String(b.updatedAt??b.updated_at??b.createdAt??b.created_at??'').localeCompare(String(a.updatedAt??a.updated_at??a.createdAt??a.created_at??'')))[0]||null;}
   function assignedPlan(p){return !!p&&PLANNED.has(pStatus(p))&&!CLOSED.has(pStatus(p))&&!!pDate(p);}
+  function forceOverduePlan(p){return !!p&&/(?:^|\n)PM_FORCE_OVERDUE:[0-9]{4}-[0-9]{2}-[0-9]{2}(?:\n|$)/.test(String(p?.notes||''));}
   function dueOf(r){return iso(r?.due??r?.item?.due??r?.task?.nextDue??r?.task?.next_due);}
   function tOf(r){return r?.task||r?.item?.t||taskOf(r?.id);}
   function deadline(d){return d?add(d,6):'';}
   function isLate(d,asOf){return !!d&&iso(asOf)>deadline(d);}
   function currentClass(r,asOf){
-    const t=tOf(r),d=dueOf(r),p=latestPlan(t?.id,d)||r?.plan||null,a=assignedPlan(p),late=isLate(d,asOf);
-    return {...r,task:t,item:r?.item||{t,due:d,plan:p,backlog:d<asOf},due:d,plan:p,state:late?'overdue':a?'planned':'waiting',isAssigned:a,assignmentDate:a?pDate(p):'',executionDeadline:deadline(d),date:a?pDate(p):d,effectiveDate:d,overdueUnassigned:late&&!a};
+    const t=tOf(r),d=dueOf(r),p=latestPlan(t?.id,d)||r?.plan||null,a=assignedPlan(p),forced=forceOverduePlan(p),late=forced||isLate(d,asOf);
+    return {...r,task:t,item:r?.item||{t,due:d,plan:p,backlog:d<asOf},due:d,plan:p,state:late?'overdue':a?'planned':'waiting',isAssigned:a,assignmentDate:a?pDate(p):'',executionDeadline:deadline(d),date:a?pDate(p):d,effectiveDate:d,overdueUnassigned:late&&!a,forceOverdue:forced};
   }
   function broad(opts={}){
     const asOf=iso(opts.anchor||tday());
@@ -9397,8 +9398,23 @@ window.FOP_PLANNER_UI_BUILD="20260828-v110-planner-ui-clean";
     return [...m.values()];
   }
   function activeDeferredRows(opts={}){
-    const asOf=iso(opts.anchor||tday());
-    return broad(opts).map(r=>{const t=tOf(r),d=dueOf(r),dp=deferralPlan(t,d);return {r,t,d,dp};}).filter(x=>x.dp&&x.d>asOf).map(x=>({...x.r,task:x.t,item:x.r?.item||{t:x.t,due:x.d,plan:null,backlog:false},due:x.d,plan:null,deferPlan:x.dp,state:'postponed',isAssigned:false,assignmentDate:'',executionDeadline:'',date:x.d,effectiveDate:x.d}));
+    const asOf=iso(opts.anchor||tday()),dep=String(opts.department||''),mach=String(opts.machine||''),trade=String(opts.trade||'');
+    const latest=new Map();
+    for(const p of rows()){
+      if(!POSTPONED.has(pStatus(p)))continue;
+      const d=pDate(p);if(!d||d<=asOf)continue;
+      const t=taskOf(taskId(p));if(!t||t.active===false)continue;
+      if(String(t.performer||'').trim()!=='טכנאי אחזקה'||norm(t.taskType??t.task_type)!=='maintenance')continue;
+      if(iso(t.nextDue??t.next_due)!==d)continue; // only the CURRENT deferred occurrence
+      if(dep&&String(t.department||'')!==dep)continue;
+      if(mach&&String(t.machine||'')!==mach)continue;
+      const tr=String((typeof maintenanceTrade==='function'?maintenanceTrade(t):(t.trade||''))||'');
+      if(trade&&tr!==trade)continue;
+      const prev=latest.get(String(t.id)),stamp=String(p.updatedAt??p.updated_at??p.createdAt??p.created_at??'');
+      const prevStamp=prev?String(prev.p.updatedAt??prev.p.updated_at??prev.p.createdAt??prev.p.created_at??''):'';
+      if(!prev||stamp>prevStamp)latest.set(String(t.id),{t,p,d,tr});
+    }
+    return [...latest.values()].map(({t,p,d,tr})=>({kind:'PM',id:t.id,task:t,item:{t,due:d,plan:null,backlog:false},department:t.department||'',machine:t.machine||'',description:t.task||'',frequency:t.frequency||'',performer:t.performer||'',trade:tr,duration:Number(t.duration||0),due:d,plan:null,deferPlan:p,state:'postponed',isAssigned:false,assignmentDate:'',executionDeadline:'',date:d,effectiveDate:d}));
   }
   function opPM(opts={}){
     if((opts.workType||'')==='WO')return [];
@@ -9435,7 +9451,7 @@ window.FOP_PLANNER_UI_BUILD="20260828-v110-planner-ui-clean";
     if($('pmPlanPageInfo'))$('pmPlanPageInfo').textContent=`עמוד ${page+1} מתוך ${pages} · ${pm.length} דרישות PM`;
     if(detail)detail.innerHTML=show.length?show.map(r=>{
       const selectable=canSelect(r,asOf),key=`${String(r.task?.id||r.id)}@@${r.due}`,dline=deadline(r.due),assigned=r.isAssigned,dp=r.deferPlan;
-      const windowText=r.state==='postponed'?`נדחה עד ${fd(r.due)}${dp?.postponedReason?' · '+dp.postponedReason:''}`:r.state==='upcoming'?`ייפתח ב-${fd(r.due)}`:r.state==='overdue'?`באיחור · החלון הסתיים ב-${fd(dline)} · ${assigned?'שובצה '+fd(r.assignmentDate):'לא שובצה'}`:r.state==='planned'?`שובצה ${fd(r.assignmentDate)} · חלון עד ${fd(dline)}`:`חלון טיפול ${fd(r.due)}–${fd(dline)} · טרם שובצה`;
+      const windowText=r.state==='postponed'?`נדחה עד ${fd(r.due)}${dp?.postponedReason?' · '+dp.postponedReason:''}`:r.state==='upcoming'?`ייפתח ב-${fd(r.due)}`:r.state==='overdue'?(r.forceOverdue?`באיחור · דחייה ישנה בוטלה · מועד מקורי ${fd(r.due)}`:`באיחור · החלון הסתיים ב-${fd(dline)} · ${assigned?'שובצה '+fd(r.assignmentDate):'לא שובצה'}`):r.state==='planned'?`שובצה ${fd(r.assignmentDate)} · חלון עד ${fd(dline)}`:`חלון טיפול ${fd(r.due)}–${fd(dline)} · טרם שובצה`;
       const rowCls=r.state==='overdue'?'pm-v109-overdue':r.state==='postponed'?'pm-v109-postponed':r.state==='upcoming'?'pm-v109-upcoming':r.state==='planned'?'planned':'';
       return `<div class="pm-plan-row ${rowCls}"><input class="pm-plan-check" type="checkbox" value="${eh(key)}" ${selectable?'':'disabled'} onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${eh(r.machine)} — ${eh(r.description)}</strong><small>${eh(r.department)} · <strong>מקצוע: ${eh(r.trade||'—')}</strong> · תדירות: ${eh(r.frequency||'—')} · ${Number(r.duration||0)} דק׳</small><span class="pm-v109-window ${eh(r.state)}">${eh(windowText)}</span>${r.task&&typeof pmChecklistToggleHtml==='function'?pmChecklistToggleHtml(r.task):''}<div class="pm-v110-card-footer"><span class="pm-v110-status ${eh(r.state)}">${eh(stateLabel(r))}</span>${selectable&&pmCan('manageExceptions')?`<button type="button" class="pm-v110-defer" onclick="event.preventDefault();event.stopPropagation();return openPostponeModal('${eh(r.task?.id||r.id)}')">דחה שבוע</button>`:''}</div></div><div class="pm-plan-meta pm-plan-hide-mobile">${eh(r.frequency||'')}</div><div class="pm-plan-meta">${eh(fd(r.due))}</div></div>`;
     }).join(''):'<div class="empty">אין משימות PM ברשימה זו.</div>';
@@ -9527,7 +9543,7 @@ window.FOP_PLANNER_UI_BUILD="20260828-v110-planner-ui-clean";
 
   window.pmV109Audit=function(){
     const o=dashOpts('open'),open=opPM(o),planned=opPM({...o,status:'planned'}),waiting=opPM({...o,status:'waiting'}),over=opPM({...o,status:'overdue'}),post=opPM({...o,status:'postponed'}),up=opPM({...o,status:'near'}),dup=[...open.reduce((m,r)=>(m.set(String(r.task?.id||r.id),(m.get(String(r.task?.id||r.id))||0)+1),m),new Map())].filter(([,n])=>n>1);
-    return {build:'20260828-v109-due-window-lifecycle',windowDays:7,windowStartsAtNextDue:true,assignmentDoesNotResetClock:true,postponeDays:7,nextRecurrenceFromCompletion:true,open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,upcoming7:up.length,partitionOk:open.length===planned.length+waiting.length+over.length,duplicateCurrentTasks:dup,ok:open.length===planned.length+waiting.length+over.length&&dup.length===0};
+    return {build:'20260828-v112-restore-invalid-postponements',windowDays:7,windowStartsAtNextDue:true,assignmentDoesNotResetClock:true,postponeDays:7,nextRecurrenceFromCompletion:true,open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,upcoming7:up.length,partitionOk:open.length===planned.length+waiting.length+over.length,duplicateCurrentTasks:dup,ok:open.length===planned.length+waiting.length+over.length&&dup.length===0};
   };
   function boot(){applyUi();try{refreshDashboard();renderPlanner();window.renderReport?.();}catch(e){console.warn('V109 boot',e)}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
