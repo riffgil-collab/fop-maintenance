@@ -703,13 +703,15 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <section class="pm-panel" id="pmReport">
 <div id="pmTechnicianScopeNote" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#475569">מכונאים וחשמלאים רואים את כלל טיפולי האחזקה ויכולים לדווח ביצוע, הערה ועד שתי תמונות.</div>
 <div class="toolbar">
-<div class="field report-date"><label>תאריך ביצוע</label><input id="pmReportDate" type="date" onchange="renderReport()"/></div>
+<input id="pmReportDate" type="hidden"/>
+<div class="pm-execution-scope"><strong>רשימת עבודה פעילה</strong><small>כל השיבוצים הפתוחים מוצגים ללא צורך בבחירת תאריך. תאריך הביצוע נקבע אוטומטית בעת הדיווח.</small></div>
 <div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();renderReport()"></select></div>
 <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
 <div class="field"><label>סוג עבודה</label><select id="pmReportWorkType" onchange="renderReport()"><option value="">הכול — PM + WO</option><option value="PM">PM — אחזקה מונעת</option><option value="WO">WO — עבודה לא מתוכננת</option></select></div>
 <div class="field"><label>מקצוע</label><select id="pmReportTrade" onchange="renderReport()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
 </div>
 <div id="pmReportFilterIndicator" style="font-size:12px;font-weight:800;color:#475569;margin:4px 0 10px">מציג: כל המקצועות</div>
+<div class="pm-execution-actions" id="pmExecutionActions"><button type="button" class="secondary-btn" onclick="return printMaintenanceExecution()">🖨️ הדפס רשימת ביצוע</button><button type="button" class="export-btn" onclick="return pdfMaintenanceExecution()">📄 PDF רשימת ביצוע</button></div>
 <label class="pm-report-mode" id="pmReportIncludeUnplannedLabel"><input id="pmReportIncludeUnplanned" type="checkbox" onchange="renderReport()"/> הצג גם טיפולי PM פתוחים שלא שובצו לתוכנית העבודה</label>
 <div class="panel-box" id="pmWOReportPanel" style="margin:12px 0"><h3>עבודות WO פתוחות לביצוע</h3><div class="pm-plan-note">WO פתוחות מוצגות כאן גם אם טרם שובצו לתאריך, כדי שניתן יהיה לדווח עליהן ביצוע.</div><div id="pmWOReportList"></div></div>
 <div class="report-summary">
@@ -8048,6 +8050,144 @@ window.pmHistoryParityAudit=function(){
 
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{try{window.renderDashboard()}catch(e){}},0));
   else setTimeout(()=>{try{window.renderDashboard()}catch(e){}},0);
+})();
+</script>
+
+
+<style id="fop-v98-execution-style">
+.pm-execution-scope{min-width:230px;flex:1 1 260px;border:1px solid #dbe5f1;background:#f7faff;border-radius:13px;padding:9px 12px;display:flex;flex-direction:column;justify-content:center;gap:2px}.pm-execution-scope strong{font-size:12px;color:#14345e}.pm-execution-scope small{font-size:9px;color:#66758a;line-height:1.45}.pm-execution-actions{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}.pm-execution-actions button{min-height:42px}.pm-exec-date-badge{display:inline-block;border-radius:999px;padding:4px 8px;background:#eef4fb;color:#173765;font-size:10px;font-weight:900}.pm-exec-plan-note{margin-top:6px;padding:7px 9px;border-radius:9px;background:#f7f9fc;color:#52647c;font-size:10px}.pm-exec-plan-note.overdue{background:#fff0f3;color:#a51432}.pm-exec-plan-note.postponed{background:#fff5df;color:#8a5900}
+#pmExecutionPrintSnapshot{display:none;background:#fff;color:#10284c;font-family:Arial,sans-serif;direction:rtl}.pm-exec-print-sheet{padding:22px}.pm-exec-print-head{display:flex;justify-content:space-between;gap:14px;align-items:flex-start;border-bottom:2px solid #173765;padding-bottom:12px;margin-bottom:12px}.pm-exec-print-head h1{font-size:21px;margin:0 0 5px}.pm-exec-print-head p{font-size:10px;margin:0;color:#667085}.pm-exec-print-summary{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.pm-exec-print-summary span{border:1px solid #d9e2ec;border-radius:999px;padding:5px 9px;font-size:10px;font-weight:700}.pm-exec-print-table{width:100%;border-collapse:collapse;font-size:9px}.pm-exec-print-table th,.pm-exec-print-table td{border:1px solid #d8e0e8;padding:6px 5px;vertical-align:top}.pm-exec-print-table th{background:#eef3f8;font-weight:900}.pm-exec-print-table .late{color:#b60029;font-weight:900}.pm-exec-print-footer{margin-top:10px;font-size:9px;color:#667085;text-align:left;direction:ltr}
+@media(max-width:680px){.pm-execution-actions{display:grid;grid-template-columns:1fr 1fr}.pm-execution-actions button{width:100%}.pm-execution-scope{min-width:100%}}
+@media print{body.pm-execution-print-ready *{visibility:hidden!important}body.pm-execution-print-ready #pmExecutionPrintSnapshot,body.pm-execution-print-ready #pmExecutionPrintSnapshot *{visibility:visible!important}body.pm-execution-print-ready #pmExecutionPrintSnapshot{display:block!important;position:absolute!important;inset:0!important;width:100%!important;background:#fff!important}body.pm-execution-print-ready .pm-exec-print-sheet{padding:0!important}.pm-exec-print-table{font-size:8pt!important}.pm-exec-print-table th,.pm-exec-print-table td{padding:4px!important}}
+</style>
+<script id="fop-v98-execution-queue-dashboard-print">
+/* V98 — Execution screen is an active work queue, not a date lookup.
+   Also reconciles explicit pm_work_plan commitments back into Dashboard and
+   gives every report-capable user (including normalized Operator -> Technician)
+   native Print + real PDF from the execution screen. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const iso10=v=>String(v||'').slice(0,10);
+  const DONE=new Set(['completed','done','בוצע']);
+  const CLOSED=new Set(['completed','done','בוצע','cancelled','canceled','בוטל']);
+  const ACTIVE=new Set(['planned','postponed']);
+  const escH=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fD=v=>typeof fDate==='function'?fDate(v):v;
+  const taskById=id=>(Array.isArray(tasks)?tasks:[]).find(t=>String(t.id)===String(id));
+  const physical=t=>{try{return typeof isMaintenanceTask==='function'?isMaintenanceTask(t):(t&&t.active!==false&&String(t.performer||'').trim()==='טכנאי אחזקה'&&norm(t.taskType??t.task_type)==='maintenance');}catch(e){return false}};
+  const tradeOf=t=>String(t?.trade||((typeof maintenanceTrade==='function')?maintenanceTrade(t):'')||'').trim()||'מכונאי';
+  const dueKey=p=>iso10((typeof wpDueFromNotes==='function'?wpDueFromNotes(p?.notes):'')||p?.dueDate||p?.due_date||'');
+  const plannedDate=p=>iso10(p?.plannedDate??p?.planned_date);
+  const completedDate=p=>iso10(p?.completedDate??p?.completed_date);
+  function latestPlanRows(){
+    const m=new Map();
+    for(const p of (Array.isArray(pmWorkPlan)?pmWorkPlan:[])){
+      const d=dueKey(p); if(!d)continue;
+      const k=String(p.taskId??p.task_id)+'|'+d,old=m.get(k);
+      const stamp=String(p.updatedAt??p.updated_at??p.createdAt??p.created_at??'');
+      const oldStamp=String(old?.updatedAt??old?.updated_at??old?.createdAt??old?.created_at??'');
+      if(!old||stamp>=oldStamp)m.set(k,p);
+    }
+    return [...m.values()];
+  }
+  function taskMatches(t,dep,machine,trade){return physical(t)&&(!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!trade||tradeOf(t)===trade);}
+  function activePlanCommitments(filters={}){
+    const dep=filters.department||'',machine=filters.machine||'',trade=filters.trade||'';
+    return latestPlanRows().map(p=>({p,t:taskById(p.taskId??p.task_id),due:dueKey(p),pd:plannedDate(p),st:norm(p.status)}))
+      .filter(x=>x.t&&x.due&&x.pd&&ACTIVE.has(x.st)&&!completedDate(x.p)&&!String(x.p.notes||'').includes('PM_REBASE_SUPERSEDED:')&&taskMatches(x.t,dep,machine,trade))
+      .map(x=>({kind:'PM',key:`PM:${x.t.id}:${x.due}`,id:x.t.id,task:x.t,item:{t:x.t,due:x.due,plan:x.p,backlog:x.pd<iso10(typeof today==='function'?today():'')},plan:x.p,state:x.pd<iso10(typeof today==='function'?today():'')?'overdue':x.st,due:x.due,date:x.pd,effectiveDate:x.pd,department:x.t.department||'',machine:x.t.machine||'',trade:tradeOf(x.t),description:x.t.task||'',frequency:x.t.frequency||'',duration:Number(x.t.duration||0),assignee:x.p.assignedTo??x.p.assigned_to??x.t.performer??'',priority:x.p.priority||'',note:x.p.postponedReason??x.p.postponed_reason??''}))
+      .sort((a,b)=>a.effectiveDate.localeCompare(b.effectiveDate)||a.department.localeCompare(b.department,'he')||a.machine.localeCompare(b.machine,'he'));
+  }
+  function executionPMRows(){
+    const dep=$('pmReportDepartment')?.value||'',machine=$('pmReportMachine')?.value||'',trade=$('pmReportTrade')?.value||'';
+    const scheduled=activePlanCommitments({department:dep,machine,trade});
+    const scheduledKeys=new Set(scheduled.map(r=>r.key));
+    const scheduledTaskIds=new Set(scheduled.map(r=>String(r.id)));
+    const includeUnplanned=$('pmReportIncludeUnplanned')?.checked===true;
+    const extras=[];
+    if(includeUnplanned){
+      for(const t of (Array.isArray(tasks)?tasks:[])){
+        if(!taskMatches(t,dep,machine,trade)||!iso10(t.nextDue??t.next_due))continue;
+        const due=iso10(t.nextDue??t.next_due),key=`PM:${t.id}:${due}`;
+        if(scheduledKeys.has(key)||scheduledTaskIds.has(String(t.id)))continue;
+        const latest=latestPlanRows().filter(p=>String(p.taskId??p.task_id)===String(t.id)&&dueKey(p)===due).sort((a,b)=>String(b.updatedAt??b.updated_at??b.createdAt??b.created_at??'').localeCompare(String(a.updatedAt??a.updated_at??a.createdAt??a.created_at??'')))[0];
+        if(latest&&CLOSED.has(norm(latest.status)))continue;
+        const state=due<iso10(today())?'overdue':'waiting';
+        extras.push({kind:'PM',key,id:t.id,task:t,item:{t,due,plan:latest||null,backlog:state==='overdue'},plan:latest||null,state,due,date:due,effectiveDate:due,department:t.department||'',machine:t.machine||'',trade:tradeOf(t),description:t.task||'',frequency:t.frequency||'',duration:Number(t.duration||0),assignee:t.performer||'',priority:'',note:''});
+      }
+    }
+    return [...scheduled,...extras].sort((a,b)=>(a.plan?0:1)-(b.plan?0:1)||a.effectiveDate.localeCompare(b.effectiveDate)||a.machine.localeCompare(b.machine,'he'));
+  }
+  function executionWORows(){
+    const dep=$('pmReportDepartment')?.value||'',machine=$('pmReportMachine')?.value||'',trade=$('pmReportTrade')?.value||'';
+    return (Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>!['completed','cancelled'].includes(norm(w.status))).filter(w=>(!dep||w.department===dep)&&(!machine||w.machine===machine)&&(!trade||w.trade===trade)).sort((a,b)=>String(a.plannedDate||a.dueDate||'9999-12-31').localeCompare(String(b.plannedDate||b.dueDate||'9999-12-31')));
+  }
+  window.pmV98ExecutionRows=function(){const wt=$('pmReportWorkType')?.value||'';return {pm:wt==='WO'?[]:executionPMRows(),wo:wt==='PM'?[]:executionWORows()};};
+
+  function pmCard(r){
+    const canManage=typeof pmCan==='function'&&pmCan('manageExceptions'),late=r.state==='overdue',post=r.state==='postponed';
+    const planText=r.plan?`<div class="pm-exec-plan-note ${late?'overdue':post?'postponed':''}">${late?'⚠ באיחור · ':post?'↪ נדחה · ':''}שובץ לביצוע: <strong>${escH(fD(r.effectiveDate))}</strong>${r.assignee?' · '+escH(r.assignee):''}${r.priority?' · עדיפות '+escH(r.priority):''}</div>`:`<div class="pm-exec-plan-note">ממתין לשיבוץ · יעד ${escH(fD(r.due))}</div>`;
+    return `<div class="open-task ${late?'overdue topbar-red':'topbar-orange'}"><div class="open-task-top"><div><h4>${escH(r.machine)}</h4><div class="desc">${escH(r.description)}</div>${planText}<div class="meta">מחלקה: ${escH(r.department)}<br>מקצוע: ${escH(r.trade)}<br>תדירות: ${escH(r.frequency||'—')}<br>מועד PM: ${escH(fD(r.due))}${r.duration?`<br>משך: ${r.duration} דקות`:''}</div></div><div class="pm-task-actions"><button class="complete" onclick="return pmOpenCompletionModal('${escH(String(r.id))}','${escH(String(r.plan?.id||''))}','${escH(r.due)}')">✓ דיווח ביצוע</button>${canManage&&r.plan?`<button class="pm-postpone" onclick="return moveWorkPlan('${escH(String(r.plan.id))}')">📅 דחיית טיפול</button>`:''}</div></div></div>`;
+  }
+  function renderExecutionReport(){
+    // Completion date is always the real reporting day. The user no longer searches by date.
+    if($('pmReportDate'))$('pmReportDate').value=typeof today==='function'?today():iso10(new Date().toISOString());
+    const wt=$('pmReportWorkType')?.value||'',rows=window.pmV98ExecutionRows(),pm=rows.pm,wo=rows.wo;
+    const pmList=$('pmOpenTasks'),pmTitle=$('pmPMReportSectionTitle'),woPanel=$('pmWOReportPanel'),woList=$('pmWOReportList'),extra=$('pmReportIncludeUnplannedLabel');
+    if(pmTitle)pmTitle.style.display=wt==='WO'?'none':'';if(pmList)pmList.style.display=wt==='WO'?'none':'';if(extra)extra.style.display=wt==='WO'?'none':'';if(woPanel)woPanel.style.display=wt==='PM'?'none':'';
+    if(pmList)pmList.innerHTML=pm.length?pm.map(pmCard).join(''):'<div class="empty">אין טיפולי PM משובצים/פתוחים בסינון הנוכחי.</div>';
+    if(woList){if(wt==='PM')woList.innerHTML='';else woList.innerHTML=wo.length?(typeof woCard==='function'?wo.map(w=>woCard(w,'report')).join(''):'<div class="empty">WO פתוחות לביצוע</div>'):'<div class="empty">אין WO פתוחות בסינון.</div>';}
+    const open=pm.length+wo.length,latePM=pm.filter(r=>r.state==='overdue').length,lateWO=wo.filter(w=>iso10(w.plannedDate||w.dueDate)<iso10(today())).length,assigned=pm.filter(r=>!!r.plan).length+wo.filter(w=>!!w.plannedDate).length;
+    if($('repOpen'))$('repOpen').textContent=open+' עבודות פתוחות';if($('repLate'))$('repLate').textContent=(latePM+lateWO)+' באיחור';if($('repToday'))$('repToday').textContent=assigned+' משובצות לביצוע';
+    const doneToday=(Array.isArray(history)?history:[]).filter(h=>iso10(h.date)===iso10(today())).length+(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>norm(w.status)==='completed'&&iso10(w.completedDate??w.completed_date)===iso10(today())).length;
+    const total=open+doneToday;if($('pmProgressFill'))$('pmProgressFill').style.width=(total?doneToday/total*100:0)+'%';if($('pmProgressText'))$('pmProgressText').textContent=`${doneToday} בוצעו היום · ${open} עדיין פתוחות`;
+    const fi=$('pmReportFilterIndicator'),dep=$('pmReportDepartment')?.value||'',machine=$('pmReportMachine')?.value||'',trade=$('pmReportTrade')?.value||'';if(fi)fi.innerHTML=`מציג רשימת ביצוע פעילה · <span class="pm-exec-date-badge">דיווח ביצוע: ${escH(fD(today()))}</span>${dep?' · '+escH(dep):''}${machine?' · '+escH(machine):''}${trade?' · '+escH(trade):''}`;
+    const act=$('pmExecutionActions');if(act)act.style.display=(typeof pmCan==='function'&&pmCan('report'))?'flex':'none';
+    window.pmV98ExecutionAudit={pm:pm.length,wo:wo.length,open,late:latePM+lateWO,assigned,filters:{dep,machine,trade,workType:wt},reportDate:iso10(today())};
+  }
+  window.renderReport=renderExecutionReport;try{renderReport=renderExecutionReport;}catch(e){}
+
+  // Dashboard reconciliation: explicit work-plan commitments are authoritative.
+  const previousDashboard=window.renderDashboard;
+  function mergeRows(base,extra){const m=new Map();for(const r of [...base,...extra])m.set(r.key,r);return [...m.values()];}
+  function dashboardReconcile(){
+    const eng=window.fopUnifiedWorkSource;if(!eng?.getWork)return;
+    const period=(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week',anchor=$('pmDashboardAnchor')?.value||today(),dep=$('pmDashboardDepartment')?.value||'',machine=$('pmDashboardMachine')?.value||'',trade=$('pmDashboardTrade')?.value||'',wt=$('pmDashboardWorkType')?.value||'',b=eng.periodBounds?eng.periodBounds(period,anchor):{start:anchor,end:anchor};
+    const opts={period,anchor,department:dep,machine,trade,workType:wt,status:'open'},baseOpen=eng.getWork(opts),commit=wt==='WO'?[]:activePlanCommitments({department:dep,machine,trade}).filter(r=>r.effectiveDate<=b.end),open=mergeRows(baseOpen,commit);
+    const basePlanned=eng.getWork({...opts,status:'planned'}),directPlanned=commit.filter(r=>norm(r.plan?.status)==='planned'&&r.effectiveDate>=b.start&&r.effectiveDate<=b.end),planned=mergeRows(basePlanned,directPlanned);
+    const basePost=eng.getWork({...opts,status:'postponed'}),directPost=commit.filter(r=>norm(r.plan?.status)==='postponed'&&r.effectiveDate>=b.start&&r.effectiveDate<=b.end),post=mergeRows(basePost,directPost);
+    const baseOver=eng.getWork({...opts,status:'overdue'}),directOver=commit.filter(r=>r.effectiveDate<anchor),over=mergeRows(baseOver,directOver);
+    const weekEnd=typeof addDays==='function'?addDays(anchor,6):b.end,baseNear=eng.getWork({...opts,period:'week',status:'near'}),directNear=commit.filter(r=>r.effectiveDate>=anchor&&r.effectiveDate<=weekEnd),near=mergeRows(baseNear,directNear);
+    const pm=open.filter(r=>r.kind==='PM'),wo=open.filter(r=>r.kind==='WO'),urgent=wo.filter(r=>['דחופה','משביתה'].includes(String(r.priority||'')));
+    const st=(id,v)=>{const e=$(id);if(e)e.textContent=v};st('pmV17Open',open.length);st('pmV31Planned',planned.length);st('pmV17Overdue',over.length);st('pmV17Week',near.length);st('pmV17WO',wo.length);st('pmV17WOUrgent',`מתוכן ${urgent.length} דחופות / משביתות`);st('pmV3Planned',planned.filter(r=>r.kind==='PM').length);st('pmV3Postponed',post.filter(r=>r.kind==='PM').length);st('pmV3Overdue',over.filter(r=>r.kind==='PM').length);st('pmV3Waiting',pm.length);st('pmV3BacklogTotal',pm.length);
+    const mins=pm.reduce((a,r)=>a+Number(r.duration||0),0);st('pmWeekHours',(mins/60).toFixed(1));
+    const trades={'מכונאי':0,'חשמלאי':0};pm.forEach(r=>trades[r.trade==='חשמלאי'?'חשמלאי':'מכונאי']++);const tb=$('pmV17Trade'),mx=Math.max(1,...Object.values(trades));if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${escH(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${v}</strong></div>`).join('');
+    const commitKeys=new Set(commit.map(r=>r.key));const attention=mergeRows(over,near).sort((a,b)=>(commitKeys.has(b.key)?1:0)-(commitKeys.has(a.key)?1:0)||String(a.effectiveDate||a.due).localeCompare(String(b.effectiveDate||b.due))).slice(0,12),at=$('pmV17Attention');if(at)at.innerHTML=attention.length?attention.map(r=>`<div class="pm-v3-mini"><div><strong>${escH(r.machine)} — ${escH(r.description)}</strong><small>${r.kind} · ${escH(r.trade||'')} · ${r.state==='overdue'?'באיחור':'לביצוע'} ${escH(fD(r.effectiveDate||r.due))}</small></div><span class="tag ${r.state==='overdue'?'red':''}">${r.state==='overdue'?'באיחור':r.state==='postponed'?'נדחתה':'מתוכננת'}</span></div>`).join(''):'<div class="empty">אין כרגע פריטים חריגים או דחופים בתקופה שנבחרה.</div>';
+    window.pmV98DashboardAudit={period,anchor,bounds:b,canonicalOpen:baseOpen.length,explicitCommitments:commit.length,mergedOpen:open.length,planned:planned.length,overdue:over.length,next7:near.length};
+  }
+  window.renderDashboard=function(){const r=typeof previousDashboard==='function'?previousDashboard.apply(this,arguments):undefined;try{dashboardReconcile()}catch(e){console.warn('V98 dashboard reconciliation',e)}return r;};try{renderDashboard=window.renderDashboard;}catch(e){}
+
+  function printableRows(){const x=window.pmV98ExecutionRows(),out=[];for(const r of x.pm)out.push({type:'PM',department:r.department,machine:r.machine,task:r.description,trade:r.trade,date:r.effectiveDate,due:r.due,assignee:r.assignee,status:r.state,duration:r.duration});for(const w of x.wo)out.push({type:'WO',department:w.department||'',machine:w.machine||'',task:w.description||'',trade:w.trade||'',date:iso10(w.plannedDate||w.dueDate),due:iso10(w.dueDate),assignee:w.assignee||w.assignedTo||'',status:(iso10(w.plannedDate||w.dueDate)<iso10(today())?'overdue':'planned'),duration:Number(w.duration||0)});return out.sort((a,b)=>String(a.date).localeCompare(String(b.date))||String(a.department).localeCompare(String(b.department),'he'));}
+  function buildPrintSnapshot(){
+    let snap=$('pmExecutionPrintSnapshot');if(!snap){snap=document.createElement('div');snap.id='pmExecutionPrintSnapshot';document.body.appendChild(snap);}const rows=printableRows(),dep=$('pmReportDepartment')?.value||'',machine=$('pmReportMachine')?.value||'',trade=$('pmReportTrade')?.value||'',wt=$('pmReportWorkType')?.value||'';
+    const late=rows.filter(r=>r.status==='overdue').length,mins=rows.reduce((a,r)=>a+Number(r.duration||0),0),meta=[dep&&`מחלקה: ${dep}`,machine&&`מכונה: ${machine}`,trade&&`מקצוע: ${trade}`,wt&&`סוג: ${wt}`].filter(Boolean).join(' · ')||'כל הסינונים';
+    snap.innerHTML=`<div class="pm-exec-print-sheet"><div class="pm-exec-print-head"><div><h1>רשימת ביצוע אחזקה</h1><p>${escH(meta)} · הופק ${escH(fD(today()))}</p></div><div><strong>${rows.length} עבודות</strong><p>${late} באיחור · ${(mins/60).toFixed(1)} שעות</p></div></div><div class="pm-exec-print-summary"><span>סה״כ: ${rows.length}</span><span>באיחור: ${late}</span><span>שעות: ${(mins/60).toFixed(1)}</span></div><table class="pm-exec-print-table"><thead><tr><th>#</th><th>סוג</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>מקצוע</th><th>מועד ביצוע</th><th>יעד PM</th><th>מבצע</th><th>משך</th></tr></thead><tbody>${rows.map((r,i)=>`<tr><td>${i+1}</td><td>${escH(r.type)}</td><td>${escH(r.department)}</td><td>${escH(r.machine)}</td><td>${escH(r.task)}</td><td>${escH(r.trade)}</td><td class="${r.status==='overdue'?'late':''}">${escH(fD(r.date))}</td><td>${escH(fD(r.due))}</td><td>${escH(r.assignee||'')}</td><td>${Number(r.duration||0)} דק׳</td></tr>`).join('')}</tbody></table><div class="pm-exec-print-footer">FOP Maintenance · Active Execution Queue</div></div>`;
+    return {snap,rows};
+  }
+  window.printMaintenanceExecution=function(){if(typeof pmCan==='function'&&!pmCan('report'))return false;const p=buildPrintSnapshot();if(!p.rows.length){if(typeof pmToast==='function')pmToast('אין עבודות להדפסה','error');return false;}document.body.classList.add('pm-execution-print-ready');void document.body.offsetHeight;try{window.print()}catch(e){document.body.classList.remove('pm-execution-print-ready');if(typeof pmToast==='function')pmToast('לא ניתן לפתוח את ממשק ההדפסה','error');}return false;};
+  window.addEventListener('afterprint',()=>document.body.classList.remove('pm-execution-print-ready'));
+  async function waitImages(root){const imgs=[...root.querySelectorAll('img')];await Promise.all(imgs.map(img=>img.complete?Promise.resolve():new Promise(res=>{img.onload=img.onerror=res;setTimeout(res,1200)})));}
+  window.pdfMaintenanceExecution=async function(){
+    if(typeof pmCan==='function'&&!pmCan('report'))return false;const {snap,rows}=buildPrintSnapshot();if(!rows.length){if(typeof pmToast==='function')pmToast('אין עבודות ל-PDF','error');return false;}if(typeof window.html2canvas!=='function'||!window.jspdf?.jsPDF){if(typeof pmToast==='function')pmToast('רכיבי PDF אינם זמינים','error');return false;}
+    const btn=document.querySelector('button[onclick="return pdfMaintenanceExecution()"]'),old=btn?.innerHTML;if(btn){btn.disabled=true;btn.textContent='מכין PDF…';}
+    const stage=document.createElement('div');Object.assign(stage.style,{position:'fixed',left:'-100000px',top:'0',width:'1120px',background:'#fff',zIndex:'-1'});const clone=snap.cloneNode(true);clone.style.display='block';clone.style.width='1120px';stage.appendChild(clone);document.body.appendChild(stage);
+    try{await waitImages(clone);const canvas=await window.html2canvas(clone,{backgroundColor:'#fff',scale:1.45,useCORS:true,logging:false,windowWidth:1120});const {jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true}),pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight(),margin=5,maxW=pw-margin*2,maxH=ph-margin*2,scale=maxW/canvas.width,slicePx=Math.floor(maxH/scale);let y=0,page=0;while(y<canvas.height){if(page++)pdf.addPage('a4','landscape');const h=Math.min(slicePx,canvas.height-y),c=document.createElement('canvas');c.width=canvas.width;c.height=h;c.getContext('2d').drawImage(canvas,0,y,canvas.width,h,0,0,canvas.width,h);const img=c.toDataURL('image/jpeg',0.93),hh=h*scale;pdf.addImage(img,'JPEG',margin,margin,maxW,hh,undefined,'FAST');y+=h;}const blob=pdf.output('blob'),url=URL.createObjectURL(blob);if(btn){btn.disabled=false;btn.innerHTML=old||'📄 PDF רשימת ביצוע';}setTimeout(()=>{try{window.location.assign(url)}catch(e){window.location.href=url}},20);setTimeout(()=>URL.revokeObjectURL(url),10*60*1000);}catch(e){console.error('Execution PDF',e);if(typeof pmToast==='function')pmToast('יצירת PDF נכשלה','error');if(btn){btn.disabled=false;btn.innerHTML=old||'📄 PDF רשימת ביצוע';}}finally{stage.remove();}return false;
+  };
+
+  window.pmV98Audit=function(){const exec=window.pmV98ExecutionRows(),plans=activePlanCommitments({});return {build:'20260827-v98-execution-queue-print',execution:{pm:exec.pm.length,wo:exec.wo.length},activePlanCommitments:plans.length,dashboard:window.pmV98DashboardAudit||null,report:window.pmV98ExecutionAudit||null,operatorPrintAllowed:(typeof normalizePMRole==='function'?normalizePMRole('operator'):'?')==='technician'&&!!(PM_ROLES?.technician?.report)};};
+  const boot=()=>{try{if($('pmReportDate'))$('pmReportDate').value=today();renderExecutionReport();window.renderDashboard?.()}catch(e){console.warn('V98 boot',e)}};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
 })();
 </script>
 
