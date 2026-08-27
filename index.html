@@ -869,7 +869,10 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div class="field"><label>עד תאריך</label><input id="pmHistoryTo" onchange="renderHistory()" type="date"/></div>
 <div class="field"><label>חיפוש</label><input id="pmHistorySearch" oninput="renderHistory()" placeholder="מכונה / טיפול / מבצע" type="text"/></div>
 </div>
-<div style="margin-bottom:12px"><button class="export-btn" onclick="exportHistoryCSV()">ייצוא לאקסל</button></div>
+<div style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap">
+<button class="export-btn" onclick="exportHistoryCSV()">ייצוא לאקסל</button>
+<button class="secondary-btn" type="button" onclick="return pdfHistoryReport(this)">📄 PDF</button>
+</div>
 <div id="pmHistoryList"></div>
 </section>
 <section class="pm-panel" id="pmEditTasks">
@@ -8928,6 +8931,100 @@ window.pmHistoryParityAudit=function(){
     setTimeout(()=>{try{refreshKpi()}catch(e){}},300);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+<script id="fop-v107-history-pdf">
+/* V107 — Execution Log PDF. Read-only; uses the exact same unified, filtered rows as the History UI/Excel export. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fdate=v=>{try{return typeof fDate==='function'?fDate(v):String(v||'');}catch(e){return String(v||'')}};
+  const waitImages=root=>Promise.all([...root.querySelectorAll('img')].map(img=>img.complete?Promise.resolve():new Promise(resolve=>{img.onload=img.onerror=resolve;})));
+  const eventLabel=r=>r?.source==='WO'?'WO בוצע':(r?.eventType==='postponed'?'PM נדחה':'PM בוצע');
+  function historyRows(){
+    if(typeof window.pmHistoryUnifiedRows==='function') return window.pmHistoryUnifiedRows();
+    if(typeof filteredHistory==='function') return filteredHistory();
+    return [];
+  }
+  function filterMeta(){
+    const bits=[];
+    const dep=$('pmHistoryDepartment')?.value||'';
+    const machine=$('pmHistoryMachine')?.value||'';
+    const trade=$('pmHistoryTrade')?.value||'';
+    const from=$('pmHistoryFrom')?.value||'';
+    const to=$('pmHistoryTo')?.value||'';
+    const q=($('pmHistorySearch')?.value||'').trim();
+    if(dep)bits.push('מחלקה: '+dep);
+    if(machine)bits.push('מכונה: '+machine);
+    if(trade)bits.push('מקצוע: '+trade);
+    if(from||to)bits.push('טווח: '+(from?fdate(from):'תחילה')+' – '+(to?fdate(to):'היום'));
+    if(q)bits.push('חיפוש: '+q);
+    return bits.length?bits.join(' · '):'כל הרשומות לפי סינון ברירת המחדל';
+  }
+  function detailsText(r){
+    if(r?.eventType==='postponed'){
+      return `מועד מקורי: ${fdate(r.oldDue)||'—'} | מועד חדש: ${fdate(r.newDue)||'—'} | סיבה: ${r.reason||'—'}`;
+    }
+    return r?.completionNotes||'';
+  }
+  function rowHtml(r,i){
+    const attachments=(r?.photo1Path?1:0)+(r?.photo2Path?1:0);
+    const freq=r?.source==='WO'?`עדיפות: ${r.frequency||'—'}`:`תדירות: ${r.frequency||'—'}`;
+    return `<tr><td>${i+1}</td><td>${esc(fdate(r.date))}</td><td>${esc(eventLabel(r))}</td><td>${esc(r.department||'')}</td><td>${esc(r.machine||'')}</td><td>${esc(r.task||'')}</td><td>${esc(freq)}</td><td>${esc(r.trade||'—')}</td><td>${esc(r.reportedBy||'—')}</td><td>${esc(detailsText(r)||'—')}</td><td>${attachments?attachments+' תמונות':'—'}</td></tr>`;
+  }
+  function pageHtml(rows,start,total,summary,logos){
+    const body=rows.map((r,i)=>rowHtml(r,start+i)).join('');
+    const logoLeft=logos[0]?`<img src="${esc(logos[0])}" alt="Logo">`:'';
+    const logoRight=logos[1]?`<img src="${esc(logos[1])}" alt="Logo">`:'';
+    return `<div class="v107-pdf-page"><div class="v107-head"><div class="v107-logo">${logoLeft}</div><div class="v107-title"><h1>יומן ביצועים — דוח PDF</h1><small>Factory Operations Platform · Maintenance</small></div><div class="v107-logo left">${logoRight}</div></div><div class="v107-meta"><strong>סינון:</strong> ${esc(filterMeta())}<br><strong>הופק:</strong> ${esc(new Date().toLocaleString('he-IL'))}</div><div class="v107-summary"><span>סה״כ: ${total}</span><span>PM בוצעו: ${summary.pmDone}</span><span>WO בוצעו: ${summary.woDone}</span><span>דחיות: ${summary.postponed}</span><span>${summary.tradeText||'ללא פילוח מקצוע'}</span></div><table><thead><tr><th>#</th><th>תאריך</th><th>אירוע</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>תדירות / עדיפות</th><th>מקצוע</th><th>דווח על ידי</th><th>הערות / פרטי דחייה</th><th>קבצים</th></tr></thead><tbody>${body}</tbody></table><div class="v107-foot"><span>רשומות ${start+1}–${start+rows.length} מתוך ${total}</span><span>הדוח משקף את הפילטרים הפעילים ביומן הביצועים בזמן ההפקה.</span></div></div>`;
+  }
+  window.pdfHistoryReport=async function(btn){
+    if(typeof pmCan==='function'&&!pmCan('report'))return false;
+    const rows=historyRows();
+    if(!rows.length){if(typeof pmToast==='function')pmToast('אין דיווחים להפקת PDF לפי הסינון שנבחר.','error');else alert('אין דיווחים להפקת PDF לפי הסינון שנבחר.');return false;}
+    if(typeof window.html2canvas!=='function'||!window.jspdf?.jsPDF){if(typeof pmToast==='function')pmToast('רכיבי PDF אינם זמינים.','error');else alert('רכיבי PDF אינם זמינים.');return false;}
+    const original=btn?.innerHTML||'📄 PDF';if(btn){btn.disabled=true;btn.innerHTML='מפיק PDF…';}
+    const logos=[...document.querySelectorAll('.pm-brand-logo img')].slice(0,2).map(x=>x.src).filter(Boolean);
+    const byTrade=rows.reduce((a,r)=>{const k=String(r.trade||'—');a[k]=(a[k]||0)+1;return a;},{});
+    const summary={
+      pmDone:rows.filter(r=>r.source==='PM'&&r.eventType!=='postponed').length,
+      woDone:rows.filter(r=>r.source==='WO').length,
+      postponed:rows.filter(r=>r.eventType==='postponed').length,
+      tradeText:Object.entries(byTrade).map(([k,v])=>`${k}: ${v}`).join(' · ')
+    };
+    const stage=document.createElement('div');stage.id='pmHistoryPdfStage';stage.setAttribute('aria-hidden','true');stage.style.cssText='position:fixed;left:-14000px;top:0;width:1120px;background:#fff;z-index:-1;';
+    const style=document.createElement('style');style.textContent=`#pmHistoryPdfStage *{box-sizing:border-box}#pmHistoryPdfStage{font-family:Arial,sans-serif;color:#14233a}#pmHistoryPdfStage .v107-pdf-page{width:1120px;background:#fff;padding:26px 30px;direction:rtl}#pmHistoryPdfStage .v107-head{display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;border-bottom:2px solid #123052;padding-bottom:10px;margin-bottom:10px}#pmHistoryPdfStage .v107-logo{display:flex;justify-content:flex-start}#pmHistoryPdfStage .v107-logo.left{justify-content:flex-end}#pmHistoryPdfStage .v107-logo img{max-height:40px;max-width:150px;object-fit:contain}#pmHistoryPdfStage .v107-title{text-align:center}#pmHistoryPdfStage .v107-title h1{margin:0;font-size:24px;color:#0a2c59}#pmHistoryPdfStage .v107-title small{display:block;margin-top:4px;color:#607087;font-size:11px}#pmHistoryPdfStage .v107-meta{font-size:11px;line-height:1.65;margin:8px 0;color:#40516d}#pmHistoryPdfStage .v107-summary{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0 12px}#pmHistoryPdfStage .v107-summary span{border:1px solid #cfd9e6;border-radius:10px;padding:6px 9px;font-size:10px;font-weight:700;background:#f8fafc}#pmHistoryPdfStage table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9px}#pmHistoryPdfStage th{background:#0a2c59;color:#fff;border:1px solid #cfd8e5;padding:6px 4px;text-align:right}#pmHistoryPdfStage td{border:1px solid #d9e1eb;padding:5px 4px;vertical-align:top;line-height:1.35;overflow-wrap:anywhere}#pmHistoryPdfStage tbody tr:nth-child(even){background:#f8fafc}#pmHistoryPdfStage th:nth-child(1){width:3%}#pmHistoryPdfStage th:nth-child(2){width:7%}#pmHistoryPdfStage th:nth-child(3){width:7%}#pmHistoryPdfStage th:nth-child(4){width:8%}#pmHistoryPdfStage th:nth-child(5){width:10%}#pmHistoryPdfStage th:nth-child(6){width:15%}#pmHistoryPdfStage th:nth-child(7){width:8%}#pmHistoryPdfStage th:nth-child(8){width:7%}#pmHistoryPdfStage th:nth-child(9){width:10%}#pmHistoryPdfStage th:nth-child(10){width:19%}#pmHistoryPdfStage th:nth-child(11){width:6%}#pmHistoryPdfStage .v107-foot{display:flex;justify-content:space-between;gap:12px;margin-top:9px;font-size:9px;color:#607087}`;
+    document.head.appendChild(style);document.body.appendChild(stage);
+    const PER_PAGE=14;
+    for(let i=0;i<rows.length;i+=PER_PAGE)stage.insertAdjacentHTML('beforeend',pageHtml(rows.slice(i,i+PER_PAGE),i,rows.length,summary,logos));
+    try{
+      await waitImages(stage);
+      const {jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true});
+      const pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight(),margin=5,maxW=pw-margin*2,maxH=ph-margin*2;
+      const pages=[...stage.querySelectorAll('.v107-pdf-page')];
+      for(let i=0;i<pages.length;i++){
+        if(i)pdf.addPage('a4','landscape');
+        const canvas=await window.html2canvas(pages[i],{backgroundColor:'#fff',scale:1.45,useCORS:true,allowTaint:true,logging:false,windowWidth:1120,scrollX:0,scrollY:0});
+        const ratio=Math.min(maxW/canvas.width,maxH/canvas.height),w=canvas.width*ratio,h=canvas.height*ratio,x=(pw-w)/2,y=margin;
+        pdf.addImage(canvas.toDataURL('image/jpeg',0.93),'JPEG',x,y,w,h,undefined,'FAST');
+      }
+      const blob=pdf.output('blob'),url=URL.createObjectURL(blob);
+      if(btn){btn.disabled=false;btn.innerHTML=original;}
+      setTimeout(()=>{try{window.location.assign(url)}catch(e){window.location.href=url}},20);
+      setTimeout(()=>URL.revokeObjectURL(url),10*60*1000);
+    }catch(err){
+      console.error('History PDF generation failed',err);
+      if(typeof pmToast==='function')pmToast('יצירת PDF מיומן הביצועים נכשלה.','error');else alert('יצירת PDF מיומן הביצועים נכשלה.');
+      if(btn){btn.disabled=false;btn.innerHTML=original;}
+    }finally{stage.remove();style.remove();}
+    return false;
+  };
+  window.pmV107HistoryPdfAudit=function(){
+    const rows=historyRows();
+    const button=!!document.querySelector('#pmHistory button[onclick*="pdfHistoryReport"]');
+    const unified=typeof window.pmHistoryUnifiedRows==='function';
+    return {build:'20260827-v107-history-pdf',button,usesUnifiedHistory:unified,filteredRows:rows.length,readOnly:true,ok:button&&unified};
+  };
 })();
 </script>
 </body></html>
