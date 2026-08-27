@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260827-v95-wo-reporter-parity"/>
+<meta name="fop-build" content="20260827-v96-history-parity"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -4775,7 +4775,7 @@ function renderWOHistory(){
     return true;
   });
   if(!done.length)return;
-  const html=done.map(w=>{const rawReporter=w.completedBy||w.createdBy||'';const reporter=rawReporter?(typeof pmReporterDisplay==='function'?pmReporterDisplay(rawReporter):rawReporter):'';return `<div class="history-row"><div><strong>${esc(fDate(w.completedDate))}</strong><span class="pm-history-event completed">WO בוצע</span></div><div><strong>${esc(w.machine)}</strong><small>${esc(w.description)}</small><small>${esc(w.department)} · ${esc(w.trade)} · ${esc(w.priority)}</small>${w.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${esc(w.completionNotes)}</div>`:''}${(w.photo1Path||w.photo2Path)?`<div class="pm-history-photos">${w.photo1Path?`<button onclick="openMaintenancePhoto('${esc(w.photo1Path)}')">📷 תמונה 1</button>`:''}${w.photo2Path?`<button onclick="openMaintenancePhoto('${esc(w.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:''}</div>${reporter?`<div class="history-user"><small>דווח על ידי</small><strong>${esc(reporter)}</strong></div>`:''}</div>`}).join('');
+  const html=done.map(w=>{const rawReporter=w.completedBy||w.createdBy||'';const reporter=rawReporter?(typeof pmReporterDisplay==='function'?pmReporterDisplay(rawReporter):rawReporter):'';return `<div class="history-row"><div><strong>${esc(fDate(w.completedDate))}</strong><span class="pm-history-event completed">WO בוצע</span></div><div><strong>${esc(w.machine)}</strong><small>${esc(w.description)}</small><small>${esc(w.department)} · ${esc(w.trade)} · ${esc(w.priority)}</small>${w.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${esc(w.completionNotes)}</div>`:''}${(w.photo1Path||w.photo2Path)?`<div class="pm-history-photos">${w.photo1Path?`<button onclick="openMaintenancePhoto('${esc(w.photo1Path)}')">📷 תמונה 1</button>`:''}${w.photo2Path?`<button onclick="openMaintenancePhoto('${esc(w.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:''}</div>${reporter?`<div class="history-user"><small>דווח על ידי</small><strong>${esc(reporter)}</strong></div>`:''}${typeof pmCan==='function'&&pmCan('manageExceptions')?`<div class="pm-history-actions"><button class="secondary-btn" type="button" onclick="openHistoryEdit('WO','${esc(String(w.id||''))}')">✏️ עריכת תיעוד</button></div>`:''}</div>`}).join('');
   // If the base PM history renderer showed its empty state, replace it before appending WO rows.
   if(el.querySelector('.empty'))el.innerHTML='';
   el.insertAdjacentHTML('beforeend',html);
@@ -5945,12 +5945,22 @@ renderPlanner=function(){
 <script id="fop-v36b-history-edit">
 let pmHistoryEditId='';
 
-function openHistoryEdit(id){
+function openHistoryEdit(source,id){
   if(!pmCan('manageExceptions'))return statusLine('עריכת תיעוד היסטורי זמינה למנהל אחזקה או Admin בלבד.','error');
-  const h=history.find(x=>String(x.id??'')===String(id));
+  // Backward compatibility with older one-argument PM calls.
+  if(id===undefined){id=source;source='PM';}
+  source=String(source||'PM').toUpperCase();
+  let h=null;
+  if(source==='WO'){
+    const w=(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).find(x=>String(x.id??'')===String(id));
+    if(w&&String(w.status||'').toLowerCase()==='completed')h={source:'WO',id:w.id,date:w.completedDate||w.completed_date||'',machine:w.machine||'',task:w.description||'',completionNotes:w.completionNotes??w.completion_notes??'',photo1Path:w.photo1Path??w.photo_1_path??'',photo2Path:w.photo2Path??w.photo_2_path??'',raw:w};
+  }else{
+    const p=history.find(x=>String(x.id??'')===String(id));
+    if(p)h={...p,source:'PM'};
+  }
   if(!h)return statusLine('רשומת הטיפול לא נמצאה.','error');
-  pmHistoryEditId=String(id);
-  document.getElementById('pmHistoryEditTaskText').textContent=`${h.machine||''} — ${h.task||''} · ${fDate(h.date)}`;
+  pmHistoryEditId=`${source}|${String(id)}`;
+  document.getElementById('pmHistoryEditTaskText').textContent=`${source} · ${h.machine||''} — ${h.task||''} · ${fDate(h.date)}`;
   document.getElementById('pmHistoryEditNotes').value=h.completionNotes||'';
   [1,2].forEach(n=>{
     const path=n===1?h.photo1Path:h.photo2Path;
@@ -5979,23 +5989,37 @@ function previewHistoryEditPhoto(n){
 
 async function saveHistoryEdit(){
   if(!pmCan('manageExceptions'))return statusLine('עריכת תיעוד היסטורי זמינה למנהל אחזקה או Admin בלבד.','error');
-  const h=history.find(x=>String(x.id??'')===String(pmHistoryEditId));
-  if(!h)return;
+  const [sourceRaw,id]=String(pmHistoryEditId||'').split('|');
+  const source=String(sourceRaw||'PM').toUpperCase();
+  let h=null, uploadTarget=null, date='';
+  if(source==='WO'){
+    const w=(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).find(x=>String(x.id??'')===String(id));
+    if(w&&String(w.status||'').toLowerCase()==='completed'){
+      h={source:'WO',id:w.id,photo1Path:w.photo1Path??w.photo_1_path??'',photo2Path:w.photo2Path??w.photo_2_path??''};
+      uploadTarget={id:'WO_'+w.id};
+      date=w.completedDate||w.completed_date||today();
+    }
+  }else{
+    const p=history.find(x=>String(x.id??'')===String(id));
+    if(p){h=p;uploadTarget=tasks.find(t=>String(t.id)===String(p.taskId))||{id:p.taskId||'history'};date=p.date||today();}
+  }
+  if(!h)return statusLine('רשומת הטיפול לא נמצאה.','error');
+
   const btn=document.getElementById('pmHistoryEditSave'),st=document.getElementById('pmHistoryEditStatus');
   btn.disabled=true;st.textContent='שומר שינויים…';st.className='pm-modal-status';
   let new1='',new2='';
   try{
-    const task=tasks.find(t=>String(t.id)===String(h.taskId))||{id:h.taskId||'history'};
     const f1=document.getElementById('pmHistoryPhoto1').files?.[0];
     const f2=document.getElementById('pmHistoryPhoto2').files?.[0];
-    if(f1)new1=await uploadMaintenancePhoto(f1,task,h.date,1);
-    if(f2)new2=await uploadMaintenancePhoto(f2,task,h.date,2);
+    if(f1)new1=await uploadMaintenancePhoto(f1,uploadTarget,date,1);
+    if(f2)new2=await uploadMaintenancePhoto(f2,uploadTarget,date,2);
 
     const payload={completion_notes:document.getElementById('pmHistoryEditNotes').value.trim()||null};
     if(f1)payload.photo_1_path=new1;
     if(f2)payload.photo_2_path=new2;
 
-    const res=await supabaseClient.from('pm_history').update(payload).eq('id',h.id);
+    const table=source==='WO'?'pm_work_orders':'pm_history';
+    const res=await supabaseClient.from(table).update(payload).eq('id',h.id);
     if(res.error)throw res.error;
 
     // Delete replaced storage objects only after the DB row was updated successfully.
@@ -6010,15 +6034,15 @@ async function saveHistoryEdit(){
     await reloadCloudData();
     renderHistory();
     st.textContent='התיעוד עודכן בהצלחה.';st.className='pm-modal-status success';
-    statusLine('תיעוד הטיפול עודכן.','success');
+    statusLine(`תיעוד ${source} עודכן.`,'success');
     setTimeout(closeHistoryEdit,500);
   }catch(e){
-    // Roll back newly uploaded files if DB update failed.
     const fresh=[new1,new2].filter(Boolean);
     if(fresh.length)try{await supabaseClient.storage.from('maintenance-photos').remove(fresh)}catch(_){}
     st.textContent='שמירת השינויים נכשלה: '+(e?.message||e);st.className='pm-modal-status error';
   }finally{btn.disabled=false}
 }
+
 </script>
 
 <script id="fop-v44-authoritative-mutations">
@@ -7470,13 +7494,16 @@ async function saveHistoryEdit(){
 
   function rowHtml(r){
     const postponed=r.eventType==='postponed';
-    const eventLabel=r.source==='WO'?'WO בוצע':(postponed?'נדחה':'בוצע');
+    const eventLabel=r.source==='WO'?'WO בוצע':(postponed?'נדחה':'PM בוצע');
     const freqLabel=r.source==='WO'?`עדיפות: ${r.frequency||'—'}`:`תדירות: ${r.frequency||'—'}`;
     const reporter=r.reportedBy?`<div class="history-user"><small>דווח על ידי</small><strong>${escH(r.reportedBy)}</strong></div>`:'';
     const details=postponed?`<div class="pm-postpone-detail">מועד מקורי: ${escH(typeof fDate==='function'?fDate(r.oldDue):r.oldDue)} → מועד חדש: ${escH(typeof fDate==='function'?fDate(r.newDue):r.newDue)}<br>סיבה: ${escH(r.reason||'—')}</div>`:'';
     const notes=!postponed&&r.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${escH(r.completionNotes)}</div>`:'';
     const photos=!postponed&&(r.photo1Path||r.photo2Path)?`<div class="pm-history-photos">${r.photo1Path?`<button type="button" onclick="openMaintenancePhoto('${escH(r.photo1Path)}')">📷 תמונה 1</button>`:''}${r.photo2Path?`<button type="button" onclick="openMaintenancePhoto('${escH(r.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:'';
-    const actions=r.source==='PM'&&!postponed?`<div class="pm-history-actions">${typeof pmCan==='function'&&pmCan('manageExceptions')?`<button class="secondary-btn" type="button" onclick="openHistoryEdit('${escH(String(r.id??''))}')">✏️ עריכת תיעוד</button><button class="pm-undo" type="button" onclick="undoCompletion('${escH(String(r.id??''))}','${escH(String(r.taskId??''))}','${escH(String(r.date??''))}')">↩ החזר לתוכנית</button>`:''}</div>`:'';
+    const canEdit=typeof pmCan==='function'&&pmCan('manageExceptions');
+    const editButton=canEdit&&!postponed?`<button class="secondary-btn" type="button" onclick="openHistoryEdit('${escH(r.source)}','${escH(String(r.id??''))}')">✏️ עריכת תיעוד</button>`:'';
+    const undoButton=canEdit&&r.source==='PM'&&!postponed?`<button class="pm-undo" type="button" onclick="undoCompletion('${escH(String(r.id??''))}','${escH(String(r.taskId??''))}','${escH(String(r.date??''))}')">↩ החזר לתוכנית</button>`:'';
+    const actions=(editButton||undoButton)?`<div class="pm-history-actions">${editButton}${undoButton}</div>`:'';
     return `<div class="history-row"><div><strong>${escH(typeof fDate==='function'?fDate(r.date):r.date)}</strong><span class="pm-history-event ${postponed?'postponed':'completed'}">${eventLabel}</span></div><div><strong>${escH(r.machine)}</strong><small>${escH(r.task)}</small><small>${escH(r.department)} · <strong>מקצוע: ${escH(r.trade)}</strong> · ${escH(freqLabel)}</small>${details}${notes}${photos}</div>${reporter}${actions}</div>`;
   }
   function renderHistoryV92(){
@@ -7640,4 +7667,12 @@ async function saveHistoryEdit(){
 /* V95 — Maintenance Execution shows only work that still requires execution. */
 #pmReport .progress-wrap{display:none!important}
 </style>
+
+<script id="fop-v96-history-parity-audit">
+/* V96 — PM/WO execution-log parity: explicit PM/WO completed labels and editable notes/photos for both. */
+window.pmHistoryParityAudit=function(){
+  const wo=(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>String(w.status||'').toLowerCase()==='completed');
+  return {build:'20260827-v96-history-parity',pmEdit:true,woEdit:true,pmLabel:'PM בוצע',woLabel:'WO בוצע',completedWO:wo.length};
+};
+</script>
 </body></html>
