@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260827-v96-history-parity"/>
+<meta name="fop-build" content="20260827-v97-postpone-rebase-kpi"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -576,6 +576,8 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="pm-v17-kpi" onclick="pmV25OpenCancelled()"><strong id="pmV25Cancelled">0</strong><span>בוטלו</span><small>בתקופה שנבחרה · לחיצה לצפייה ושחזור</small></div>
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('week')"><strong id="pmV17Week">0</strong><span>לשבוע הקרוב</span><small>עבודה שדורשת תשומת לב בקרוב</small></div>
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('wo')"><strong id="pmV17WO">0</strong><span>WO פתוחות</span><small id="pmV17WOUrgent">מתוכן 0 דחופות / משביתות</small></div>
+    <div class="pm-v17-kpi pm-v97-postpone-kpi"><strong id="pmV97Postponements">0</strong><span>דחיות PM</span><small id="pmV97PostponementsDetail">אירועי דחייה בתקופת הביצוע</small></div>
+    <div class="pm-v17-kpi pm-v97-compliance-kpi"><strong id="pmV97OriginalCompliance">—</strong><span>עמידה בתוכנית המקורית</span><small id="pmV97OriginalComplianceDetail">נמדד מול מועדי ה-PM המקוריים</small></div>
   </div>
   <div class="pm-v17-split">
     <div class="pm-v17-section"><h3>עומס לפי מקצוע</h3><div id="pmV17Trade" class="pm-v17-bars"></div></div>
@@ -4432,7 +4434,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 <script id="pm-bilingual-i18n">
 (function(){
-const D={"מערכת ניהול אחזקה מונעת":"Preventive Maintenance Management System","השתמש באותו אימייל וסיסמה של FOP.":"Use the same FOP email and password.","סיסמה":"Password","כניסה למערכת":"Sign In","התנתקות":"Logout","אחזקה מונעת":"Preventive Maintenance","תוכנית עבודה":"Work Plan","דשבורד":"Dashboard","תכנון עבודה":"Work Planning","דיווח טיפול":"Maintenance Execution","היסטוריה":"History","דוחות":"Reports","עריכת משימות":"Edit Tasks","הוספת משימה חדשה":"Add New Task","ניהול משתמשים":"User Management","משתמשי אחזקה":"Maintenance Users","תמונת מצב ניהולית":"Management Overview","שליטה בתוכנית האחזקה":"Maintenance Plan Control","הנתונים מתעדכנים לפי התקופה והפילטרים שנבחרו.":"Data is updated according to the selected period and filters.","מצב המחלקה":"Department Status","יום":"Day","שבוע":"Week","חודש":"Month","חצי שנה":"6 Months","שנה":"Year","תאריך עוגן":"Anchor Date","מחלקה":"Department","מכונה":"Machine","מבצע":"Performer","כל המחלקות":"All Departments","כל המכונות":"All Machines","כל המבצעים":"All Performers","מפעיל":"Operator","טכנאי אחזקה":"Maintenance Technician","טכנאי":"Technician","ממתינות לתכנון":"Awaiting Planning","טרם התקבלה החלטת תכנון":"Planning decision pending","מתוכננות":"Planned","נמצאות בתוכנית העבודה":"Included in work plan","בוצעו":"Completed","הושלמו בתקופה":"Completed in period","נדחו":"Postponed","נדחו עם סיבה ותאריך חדש":"Postponed with reason and new date","בוטלו":"Cancelled","ויתור ניהולי מתועד":"Documented management cancellation","באיחור":"Overdue","עבר מועד היעד ועדיין פתוחות":"Past due and still open","כיסוי תוכנית":"Plan Coverage","עמידה בתוכנית":"Plan Execution","שעות מתוכננות":"Planned Hours","לפי משך הטיפולים":"Based on task duration","שעות שבוצעו":"Completed Hours","טיפולים שהושלמו":"Completed maintenance tasks","צבר פתוח עכשיו":"Current Open Backlog","ממתינות לתכנון + באיחור בכל המערכת":"Awaiting planning + overdue across the system","עבודה פתוחה עד סוף התקופה":"Open Work Through Period End","צבר קודם + טיפולים בתקופה":"Previous backlog + tasks in period","צור תוכנית עבודה":"Create Work Plan","תוכנית העבודה להיום":"Today’s Work Plan","צור תוכנית להיום":"Create Today’s Plan","נותרו לביצוע":"Remaining","דורש החלטה ניהולית":"Management Decision Required","תוכנית קרובה":"Upcoming Plan","בחר תקופה, ראה את כל דרישות האחזקה, ושבץ אותן לתאריך ביצוע. תאריך היעד נשאר ללא שינוי; התאריך המתוכנן הוא החלטת מנהל האחזקה.":"Select a period, review all maintenance requirements, and schedule them for execution. The PM due date remains unchanged; the planned date is the maintenance manager’s decision.","סך״כ משימות בתקופה":"Total Tasks in Period","סה״כ משימות בתקופה":"Total Tasks in Period","שובצו לתוכנית":"Scheduled","כיסוי תכנון":"Planning Coverage","שעות ששובצו":"Scheduled Hours","ביצוע מול תוכנית":"Execution vs Plan","עומס עבודה לפי הסינון":"Workload by Current Filter","השעות מחושבות מהמשימות הפתוחות בתקופה ובסינון שנבחר. משימה שבוטלה, הושלמה או הועברה לתקופה אחרת אינה נכללת בעומס הנדרש של התקופה.":"Hours are calculated from open tasks in the selected period and filters. Cancelled, completed, or rescheduled tasks are excluded from the required workload.","שעות עבודה נדרשות":"Required Labor Hours","שעות מפעיל":"Operator Hours","שעות טכנאי אחזקה":"Maintenance Technician Hours","שעות שכבר שובצו":"Already Scheduled Hours","שעות שנותרו לתכנון":"Hours Remaining to Plan","קיבולת צוות":"Team Capacity","מספר עובדים זמינים":"Available Employees","שעות עבודה לעובד ביום":"Work Hours per Employee / Day","תאריך מתוכנן":"Planned Date","עדיפות":"Priority","גבוהה":"High","בינונית":"Medium","נמוכה":"Low","שיבוץ למבצע":"Assign To","בחירה":"Selection","בחר הכל המוצג":"Select All Shown","שבץ לתוכנית":"Add to Plan","החזר לממתינה":"Return to Waiting","לא נבחרו משימות.":"No tasks selected.","הקודם":"Previous","הבא":"Next","תאריך ביצוע":"Execution Date","הצג גם טיפולים פתוחים שלא שובצו לתוכנית העבודה":"Also show open tasks not scheduled in the work plan","טיפולים פתוחים":"Open Maintenance Tasks","לפי המחלקה והמכונה שנבחרו":"Based on selected department and machine","הפק תוכנית עבודה מסוננת לשבוע או לחודש, להדפסה, PDF או Excel.":"Generate a filtered weekly or monthly work plan for print, PDF, or Excel.","משימות בדוח":"Tasks in Report","תקופה":"Period","🖨️ הדפסה":"🖨️ Print","תאריך":"Date","משימה":"Task","משך":"Duration","הערות / חתימה":"Notes / Signature","סה״כ משימות:":"Total Tasks:","סה״כ שעות מתוכננות:":"Total Planned Hours:","מתאריך":"From Date","עד תאריך":"To Date","חיפוש":"Search","ייצוא לאקסל":"Export to Excel","תוכנית אחזקה מונעת":"Preventive Maintenance Plan","☁️ עבודה בענן — Supabase":"☁️ Cloud Operation — Supabase","🔴 סטטוס: לא אותחל":"🔴 Status: Not Initialized","אתחול תוכנית":"Initialize Plan","⬆️ ייבוא תוכנית אחזקה לענן":"⬆️ Import Maintenance Plan to Cloud","הוספת משימת טיפול":"Add Maintenance Task","איתור ועריכת משימה קיימת":"Find and edit an existing task","יצירת משימת אחזקה חדשה":"Create a new maintenance task","כל התדירויות":"All Frequencies","משך טיפול":"Duration","כל משכי הטיפול":"All Durations","דקות":"minutes","מועד טיפול ראשון":"First Maintenance Date","+ הוספת משימה":"+ Add Task","שכפול משימה":"Duplicate Task","הפעלה / ביטול משימה":"Activate / Deactivate Task","טעינה מחדש מהענן":"Reload from Cloud","Admin בלבד":"Admin Only","החשבון נשמר ב-FOP המשותף, אך במסך זה מנוהלת":"The account is stored in the shared FOP, but this screen manages","רק הגישה לאפליקציית האחזקה":"maintenance application access only",". הסרה מאחזקה אינה מוחקת את המשתמש ואינה משפיעה על אפליקציית התפעול.":". Removing maintenance access does not delete the user or affect the Operations application.","↻ רענון הרשימה":"↻ Refresh List","המשתמש יקבל חשבון FOP ויוכל להתחבר עם אותו אימייל וסיסמה לכל המערכת.":"The user will receive an FOP account and can use the same email and password across the system.","שם מלא":"Full Name","אימייל":"Email","סיסמה זמנית":"Temporary Password","תפקיד":"Role","Maintenance Manager — מנהל אחזקה":"Maintenance Manager","Technician — טכנאי אחזקה":"Technician","Viewer — צפייה בלבד":"Viewer — Read Only","Admin — מנהל מערכת":"Admin — System Administrator","יצירת משתמש":"Create User","פעיל באחזקה":"Active in Maintenance","הסרה מאחזקה":"Remove from Maintenance","איפוס סיסמה":"Reset Password","מועד חדש":"New Date","סיבת הדחייה":"Postponement Reason","ביטול":"Cancel","שמירת דחייה":"Save Postponement","אישור":"Confirm","בחר סיבה":"Select Reason","אילוץ ייצור":"Production Constraint","חוסר זמן / עומס":"Insufficient Time / Workload","חוסר חלקים":"Parts Unavailable","המכונה אינה זמינה":"Machine Unavailable","המתנה לספק / שירות":"Waiting for Supplier / Service","אחר":"Other","הערה":"Note","סיבת ביטול":"Cancellation Reason","הטיפול אינו נדרש":"Maintenance No Longer Required","המכונה הושבתה / הוצאה משימוש":"Machine Shut Down / Decommissioned","המשימה הוחלפה בטיפול אחר":"Task Replaced by Another Maintenance Activity","כפילות בתוכנית":"Duplicate in Plan","החלטת מנהל אחזקה":"Maintenance Manager Decision","סטטוס":"Status","כל הסטטוסים":"All Statuses","ממתינה לתכנון":"Awaiting Planning","מתוכננת":"Planned","נדחתה":"Postponed","בוטלה":"Cancelled","בוצעה":"Completed","בטל טיפול":"Cancel Maintenance","משך טיפול (דקות)":"Duration (minutes)","הערות":"Notes","דחיית טיפול":"Postpone Maintenance","תדירות":"Frequency","מבצעים":"Performers","מכונות":"Machines","משימת טיפול":"Maintenance Task","לא פעיל":"Inactive","מבצע טיפול":"Performed By","מועד טיפול הבא":"Next Maintenance Date","משימה פעילה בתוכנית":"Task Active in Plan","שמירת הגדרות המשימה":"Save Task Settings","✓ בוצע":"✓ Completed","📅 דחיית טיפול":"📅 Postpone Maintenance","דחה / שנה תאריך":"Postpone / Change Date","דחה":"Postpone","אין כרגע משתמשים עם הרשאה לאחזקה.":"There are currently no users with Maintenance access.","אין דרישות אחזקה בתקופה ובסינון שנבחרו.":"No maintenance requirements match the selected period and filters.","אין משימות ברשימה זו.":"No tasks in this list.","אין טיפולים פתוחים בבחירה הנוכחית.":"No open maintenance tasks in the current selection.","אין משימות שממתינות להחלטה.":"No tasks awaiting a decision.","אין משימות מתוכננות בטווח שנבחר.":"No planned tasks in the selected range.","אין משימות לביצוע בתאריך ובסינון שנבחרו.":"No tasks to execute for the selected date and filters.","אין משימות בתוכנית העבודה לתאריך ולסינון שנבחרו.":"No work-plan tasks match the selected date and filters.","אין טיפולים מתוכננים ליום זה.":"No maintenance tasks planned for this day.","אין עומס מתוכנן ל־7 ימים.":"No planned workload for the next 7 days.","עדיין לא נבנתה תוכנית עבודה להיום.":"Today’s work plan has not been created yet.","כל המשימות המתוכננות להיום בוצעו.":"All tasks planned for today have been completed.","תוכנית העבודה עדיין נטענת מהענן…":"The work plan is still loading from the cloud…","לא נמצאו דיווחי טיפול.":"No maintenance reports found.","בחר משימת טיפול.":"Select a maintenance task.","ltr":"rtl","en":"he","טעינת הנתונים מהענן נכשלה. נסה לרענן או להתחבר מחדש.":"Loading data from the cloud failed. Refresh or sign in again.","מחלקה חסרה":"Missing department","מכונה חסרה":"Missing machine","תיאור טיפול חסר":"Missing maintenance description","תדירות לא מוכרת":"Unknown frequency","מבצע טיפול לא מוכר":"Unknown performer","משך טיפול לא תקין":"Invalid maintenance duration","הגדרת טיפול לא תקינה:":"Invalid maintenance definition:","משתמש":"User","בוצע":"Completed","נדחה":"Postponed","גימור":"Finishing","ריתוך":"Welding","אוגנים":"Flanges","כללי":"General","עטיפות":"Wrapping","מחלקת עטיפות":"Wrapping Department","כבישה":"Pressing","בונדר":"Bonder","מילוי ויבוש אימייל":"Enamel Filling & Drying","מערכת שרפת אימייל":"Enamel Firing","[לא פעיל]":"[Inactive]","לא נמצא פרופיל משתמש ב-FOP.":"No user profile was found in FOP.","המשתמש אינו פעיל ב-FOP.":"The user is inactive in FOP.","אין למשתמש הרשאה לאפליקציית האחזקה.":"The user does not have access to the Maintenance application.","אין הרשאה לבצע פעולה זו.":"You do not have permission to perform this action.","הכניסה למודול נדחתה:":"Module access denied:","אין הרשאה":"No Permission","מתחבר…":"Signing in…","הכניסה נכשלה:":"Sign-in failed:","שגיאה לא ידועה":"Unknown error","🇮🇱 עברית":"🇮🇱 Hebrew","יומן ביצועים":"Execution Log","בדיקות מפעיל":"Operator Checks","בדיקות אחזקה":"Maintenance Checks","ניהול משימות":"Task Management","אתחול מערכת":"System Initialization","מקצוע":"Trade","כל המקצועות":"All Trades","סוג עבודה":"Work Type","הכול":"All","PM מחזורי":"Recurring PM","לא מתוכנן":"Unplanned","פתוחות":"Open","מכונה / תשתית":"Machine / Infrastructure","פתוחה":"Open","לא תועדה":"Not Documented","לא פעילה":"Inactive","משימות":"Tasks","מכונאי":"Mechanic","חשמלאי":"Electrician","יומי":"Daily","שבועי":"Weekly","דו שבועי":"Biweekly","חודשי":"Monthly","תלת חודשי":"Quarterly","חצי שנתי":"Semiannual","שנתי":"Annual","5 שנתי":"Every 5 Years","רגילה":"Normal","דחופה":"Urgent","משביתה":"Critical / Production Stop","השבוע":"This Week","ראשון":"Sunday","שני":"Monday","שלישי":"Tuesday","רביעי":"Wednesday","חמישי":"Thursday","שישי":"Friday","שבת":"Saturday","· פיגור קודם":"· Previous Backlog","· אחרי היעד":"· Past Due","בתוכנית העבודה":"In Work Plan","לא שובץ":"Not Scheduled","לא שובצה":"Not Scheduled","לביצוע בתוכנית":"Planned for Execution","ימי איחור":"Days Overdue","לביצוע היום":"Due Today","· צבר קודם":"· Previous Backlog","הערה אופציונלית":"Optional Note","PM · נוצר מ-WO":"PM · Created from WO","· נוצר מ-WO":"· Created from WO","PM + WO שעדיין דורשות טיפול":"PM + WO Still Requiring Action","PM + WO ששובצו לתוכנית בתקופה":"PM + WO Scheduled in the Selected Period","עבר מועד היעד":"Past Due","בתקופה שנבחרה · לחיצה לצפייה ושחזור":"In the selected period · click to view and restore","לשבוע הקרוב":"Next 7 Days","עבודה שדורשת תשומת לב בקרוב":"Work Requiring Attention Soon","WO פתוחות":"Open WOs","מתוכן 0 דחופות / משביתות":"0 of them Urgent / Critical","עומס לפי מקצוע":"Workload by Trade","סוג העבודה":"Work Type","דורש תשומת לב":"Requires Attention","0 צבר קודם | 0 בתקופה שנבחרה":"0 Previous Backlog | 0 in Selected Period","WO דחופות / משביתות":"Urgent / Critical WOs","WO מתוכננות":"Planned WOs","WO בוצעו בתקופה":"WOs Completed in Period","0 מתוך 0":"0 of 0","➕ עבודה לא מתוכננת":"➕ Unplanned Work","הסר מהתוכנית":"Remove from Plan","עבודות לא מתוכננות (WO)":"Unplanned Work (WO)","עבודות חד־פעמיות שהתגלו בבדיקה או בתקלה. הן משתלבות בעומס ובתכנון אך אינן יוצרות מחזור עתידי.":"One-time jobs discovered during an inspection or breakdown. They are included in workload and planning but do not create a future recurring cycle.","מכונאים וחשמלאים רואים את כלל טיפולי האחזקה ויכולים לדווח ביצוע, הערה ועד שתי תמונות.":"Mechanics and electricians can view all maintenance work and report completion, notes, and up to two photos.","מציג: כל המקצועות":"Showing: All Trades","עבודות לא מתוכננות לביצוע":"Unplanned Work for Execution","0 משימות פתוחות":"0 Open Tasks","0 באיחור":"0 Overdue","0 להיום":"0 Due Today","0 מתוך 0 בוצעו":"0 of 0 Completed","צ׳ק ליסטים להדפסה — אינם חלק מתכנון האחזקה":"Printable Checklists — Not Part of Maintenance Planning","הדפס Checklist למפעיל":"Print Operator Checklist","צ׳ק ליסטים להדפסה לאנשי האחזקה — אינם חלק מהתכנון, הדשבורד או המעקב המחזורי":"Printable checklists for maintenance personnel — not part of planning, dashboard, or recurring tracking","הדפס Checklist לאחזקה":"Print Maintenance Checklist","Checklist מפעיל":"Operator Checklist","Checklist בדיקות מפעיל":"Operator Checks Checklist","Checklist אחזקה":"Maintenance Checklist","Checklist בדיקות אחזקה":"Maintenance Checks Checklist","אין בדיקות מפעיל לפי הסינון שנבחר.":"No operator checks match the selected filters.","אין בדיקות אחזקה לפי הסינון שנבחר.":"No maintenance checks match the selected filters.","להדפסה: פתח את תפריט הדפדפן / שיתוף ובחר הדפסה.":"To print: open the browser / Share menu and choose Print.","שם מפעיל: __________________":"Operator Name: __________________","חתימה: __________________":"Signature: __________________","בדיקה":"Check","שם איש אחזקה: __________________":"Maintenance Technician: __________________","אישור מנהל: __________________":"Manager Approval: __________________","דוחות אחזקה":"Maintenance Reports","הפק דוחות לעבודות האחזקה הפיזיות. בדיקות אחזקה ובדיקות מפעיל מופקות כצ׳ק ליסטים בכרטיסיות הייעודיות ואינן חלק מהתכנון המחזורי.":"Generate reports for physical maintenance work. Maintenance checks and operator checks are produced as checklists in their dedicated tabs and are not part of recurring planning.","0 שעות":"0 Hours","פתוחות — כמו בדשבורד":"Open — Same as Dashboard","הדפס פירוט פעולות בטיפול מרוכז":"Print Detailed Actions for Grouped Maintenance","בחירת טיפולים להדפסה":"Select Maintenance Items to Print","סמן הכל":"Select All","בטל הכל":"Clear All","תוכנית עבודה — PM + WO":"Work Plan — PM + WO","בחר":"Select","סוג / תדירות":"Type / Frequency","הערות:":"Notes:","טיפולים שבוצעו — הערות, תמונות ושחזור לתוכנית":"Completed Maintenance — Notes, Photos, and Restore to Plan","לא נבחרו טיפולים להדפסה":"No maintenance items selected for printing","לא נבחרו טיפולים להדפסה.":"No maintenance items selected for printing.","לא ניתן להכין את הדוח להדפסה":"Unable to prepare the report for printing","לא ניתן לפתוח את ממשק ההדפסה במכשיר זה":"Unable to open the print interface on this device","מכין PDF…":"Preparing PDF…","יצירת ה‑PDF נכשלה. נסה שוב.":"PDF generation failed. Please try again.","הדוח מוכן להדפסה":"Report Ready to Print","סגור":"Close","תוכנית אחזקה":"Maintenance Plan","נא להמתין, הקובץ ייפתח אוטומטית":"Please wait, the file will open automatically","מאגר מרכזי אחד — חיפוש, עריכה והוספת משימות":"One Central Master Database — Search, Edit, and Add Tasks","סוג משימה":"Task Type","כל הסוגים":"All Types","בדיקת אחזקה":"Maintenance Check","בדיקת מפעיל":"Operator Check","מקצוע מבצע":"Execution Trade","פעילות":"Active","לא פעילות":"Inactive","מקור המשימה":"Task Source","נוצר מ-WO":"Created from WO","PM מקורי":"Original PM","מדיניות מאגר: משימות אינן נמחקות. משימה שאינה דרושה מסומנת כ״לא פעילה״ ויוצאת מהתכנון המחזורי; ניתן להפעילה מחדש.":"Database policy: tasks are never deleted. A task that is no longer required is marked Inactive and removed from recurring planning; it can be reactivated later.","מציג את כל המאגר":"Showing the Full Database","ללא סינון פעיל":"No Active Filters","מוצגות לפי הסינון":"Shown According to Filters","+ הוספת משימה חדשה":"+ Add New Task","ניקוי סינון":"Clear Filters","↻ טעינה מחדש מהענן":"↻ Reload from Cloud","בחר משימה לעריכה":"Select a Task to Edit","או לחץ על “הוספת משימה חדשה”.":"Or click “Add New Task”.","איך להוסיף?":"How to Add?","מתוך מאגר ברירת המחדל":"From the Default Master Database","משימה חדשה שאינה במאגר":"New Task Not in the Database","מחלקה במאגר":"Database Department","מכונה במאגר":"Database Machine","משימה במאגר":"Database Task","תיאור המשימה":"Task Description","משך (דקות)":"Duration (minutes)","מועד הבא":"Next Due Date","טיפול אחרון":"Last Maintenance","חלקים נדרשים":"Required Parts","משימה פעילה":"Active Task","שמירה":"Save","שכפול":"Duplicate","אתחול חל רק על טיפולי PM פיזיים: הוא בונה מחדש את מועדי ה‑PM ומנקה את תוכנית העבודה הפעילה. בדיקות מפעיל, בדיקות אחזקה והיסטוריית ביצוע אינן משתנות.":"Initialization applies only to physical PM tasks: it rebuilds PM due dates and clears the active work plan. Operator checks, maintenance checks, and execution history remain unchanged.","האתחול יוצר נקודת התחלה חדשה לתוכנית האחזקה. תוכנית העבודה והיסטוריית התוכנית הקודמת יאופסו, אך מאגר המכונות ומשימות הטיפול יישמר.":"Initialization creates a new starting point for the maintenance plan. The work plan and previous plan history will be reset, while the machine and maintenance-task master data will be preserved.","דיווח ביצוע טיפול":"Maintenance Completion Report","הערות על הטיפול (לא חובה)":"Maintenance Notes (optional)","תמונה 1":"Photo 1","תמונה 2":"Photo 2","עד שתי תמונות. האפליקציה מקטינה ודוחסת אותן לפני ההעלאה.":"Up to two photos. The app resizes and compresses them before upload.","✓ שמור טיפול":"✓ Save Maintenance Report","פתיחת עבודה לא מתוכננת (WO)":"Create Unplanned Work Order (WO)","מקור מכונה / תשתית":"Machine / Infrastructure Source","בחירה מהמאגר":"Select from Database","מכונה / תשתית אחרת":"Other Machine / Infrastructure","מכונה / תשתית חדשה":"New Machine / Infrastructure","עבודה נדרשת":"Required Work","תאריך יעד":"Due Date","משך משוער (דקות)":"Estimated Duration (minutes)","שיבוץ לעובד":"Assign to Employee","הערה / מה התגלה בבדיקה":"Note / What Was Found During Inspection","הוסף גם לתוכנית האחזקה המחזורית":"Also Add to Recurring Maintenance Plan","הגדרת PM מחזורי חדש":"Define New Recurring PM","ה-WO יישאר אירוע נפרד. הנתונים הבאים ייצרו משימת PM חדשה ומקושרת ל-WO.":"The WO will remain a separate event. The following data will create a new PM task linked to the WO.","תיאור משימת PM":"PM Task Description","מקצוע PM":"PM Trade","מועד PM ראשון":"First PM Date","משך PM משוער (דקות)":"Estimated PM Duration (minutes)","הערות PM":"PM Notes","לאחר היצירה ניתן לערוך, להשבית ולהפעיל מחדש את ה-PM דרך ניהול משימות. משימות אינן נמחקות מהמאגר.":"After creation, the PM can be edited, deactivated, and reactivated through Task Management. Tasks are never deleted from the database.","פתח משימה":"Create Work Order","חלקים:":"Parts:","📷 תמונה 1":"📷 Photo 1","📷 תמונה 2":"📷 Photo 2","✏️ עריכת תיעוד":"✏️ Edit Record","↩ החזר לתוכנית":"↩ Restore to Plan","לא נמצאו משימות לפי הסינון":"No tasks found for the selected filters","↩ הסר מהתוכנית":"↩ Remove from Plan","תאריך חדש לביצוע":"New Execution Date","סיבת דחייה":"Postponement Reason","אין משימות המתאימות לפילטרים שנבחרו.":"No tasks match the selected filters.","בחר מחלקה":"Select Department","בחר מכונה":"Select Machine","הערה:":"Note:","📅 תכנן / שנה תאריך":"📅 Plan / Change Date","מסונן ל-PM מחזורי.":"Filtered to Recurring PM.","מסונן ל‑PM.":"Filtered to PM.","אין עבודות לא מתוכננות פתוחות בסינון הנוכחי.":"No open unplanned work matches the current filters.","אין WO פתוחות בסינון.":"No open WOs match the filters.","WO בוצע":"WO Completed","אין כרגע פריטים חריגים או דחופים בתקופה שנבחרה.":"There are currently no exceptional or urgent items in the selected period.","סיבת ביטול:":"Cancellation Reason:","↩ החזר לרשימה":"↩ Restore to List","אין טיפולים שבוטלו בתקופה שנבחרה.":"No cancelled maintenance items in the selected period.","אין WO המתאימות לתקופה ולפילטרים שנבחרו.":"No WOs match the selected period and filters.","אין משימות המתאימות לתקופה ולפילטרים שנבחרו.":"No tasks match the selected period and filters.","אין משימות לפי הסינון שנבחר.":"No tasks match the selected filters.","בחר משימה":"Select Task","עריכת תיעוד טיפול":"Edit Maintenance Record","הערות על הטיפול":"Maintenance Notes","בחירת תמונה חדשה מחליפה את התמונה הקיימת באותו מקום. אם אין תמונה — היא תתווסף.":"Selecting a new photo replaces the existing photo in the same slot. If no photo exists, it will be added.","שמור שינויים":"Save Changes","📷 הצג תמונה קיימת":"📷 View Existing Photo","אין תמונה קיימת":"No Existing Photo","אישור פעולה":"Confirm Action","הודעה":"Message","סגירה":"Close","יש לבחור תאריך חדש.":"Please select a new date.","יש לבחור סיבת דחייה.":"Please select a postponement reason.","יש לבחור סיבת ביטול.":"Please select a cancellation reason.","יש להזין סיבה לדחיית הטיפול":"Please enter a reason for postponing the maintenance.","מה בוצע, ממצאים, המלצה להמשך...":"Work performed, findings, recommendation for follow-up...","הקלד שם מכונה או תשתית":"Enter a machine or infrastructure name","תיאור העבודה":"Work Description","למשל: טכנאי אחזקה":"For example: Maintenance Technician","מכונה / טיפול / מבצע":"Machine / Maintenance / Performer","מכונה / משימה / הערה":"Machine / Task / Note"};
+const D={"מערכת ניהול אחזקה מונעת":"Preventive Maintenance Management System","השתמש באותו אימייל וסיסמה של FOP.":"Use the same FOP email and password.","סיסמה":"Password","כניסה למערכת":"Sign In","התנתקות":"Logout","אחזקה מונעת":"Preventive Maintenance","תוכנית עבודה":"Work Plan","דשבורד":"Dashboard","תכנון עבודה":"Work Planning","דיווח טיפול":"Maintenance Execution","היסטוריה":"History","דוחות":"Reports","עריכת משימות":"Edit Tasks","הוספת משימה חדשה":"Add New Task","ניהול משתמשים":"User Management","משתמשי אחזקה":"Maintenance Users","תמונת מצב ניהולית":"Management Overview","שליטה בתוכנית האחזקה":"Maintenance Plan Control","הנתונים מתעדכנים לפי התקופה והפילטרים שנבחרו.":"Data is updated according to the selected period and filters.","מצב המחלקה":"Department Status","יום":"Day","שבוע":"Week","חודש":"Month","חצי שנה":"6 Months","שנה":"Year","תאריך עוגן":"Anchor Date","מחלקה":"Department","מכונה":"Machine","מבצע":"Performer","כל המחלקות":"All Departments","כל המכונות":"All Machines","כל המבצעים":"All Performers","מפעיל":"Operator","טכנאי אחזקה":"Maintenance Technician","טכנאי":"Technician","ממתינות לתכנון":"Awaiting Planning","טרם התקבלה החלטת תכנון":"Planning decision pending","מתוכננות":"Planned","נמצאות בתוכנית העבודה":"Included in work plan","בוצעו":"Completed","הושלמו בתקופה":"Completed in period","נדחו":"Postponed","נדחו עם סיבה ותאריך חדש":"Postponed with reason and new date","בוטלו":"Cancelled","ויתור ניהולי מתועד":"Documented management cancellation","באיחור":"Overdue","עבר מועד היעד ועדיין פתוחות":"Past due and still open","כיסוי תוכנית":"Plan Coverage","עמידה בתוכנית":"Plan Execution","דחיות PM":"PM Postponements","עמידה בתוכנית המקורית":"Original Plan Adherence","אירועי דחייה בתקופת הביצוע":"Postponement events in performance period","נמדד מול מועדי ה-PM המקוריים":"Measured against original PM due dates","שעות מתוכננות":"Planned Hours","לפי משך הטיפולים":"Based on task duration","שעות שבוצעו":"Completed Hours","טיפולים שהושלמו":"Completed maintenance tasks","צבר פתוח עכשיו":"Current Open Backlog","ממתינות לתכנון + באיחור בכל המערכת":"Awaiting planning + overdue across the system","עבודה פתוחה עד סוף התקופה":"Open Work Through Period End","צבר קודם + טיפולים בתקופה":"Previous backlog + tasks in period","צור תוכנית עבודה":"Create Work Plan","תוכנית העבודה להיום":"Today’s Work Plan","צור תוכנית להיום":"Create Today’s Plan","נותרו לביצוע":"Remaining","דורש החלטה ניהולית":"Management Decision Required","תוכנית קרובה":"Upcoming Plan","בחר תקופה, ראה את כל דרישות האחזקה, ושבץ אותן לתאריך ביצוע. תאריך היעד נשאר ללא שינוי; התאריך המתוכנן הוא החלטת מנהל האחזקה.":"Select a period, review all maintenance requirements, and schedule them for execution. The PM due date remains unchanged; the planned date is the maintenance manager’s decision.","סך״כ משימות בתקופה":"Total Tasks in Period","סה״כ משימות בתקופה":"Total Tasks in Period","שובצו לתוכנית":"Scheduled","כיסוי תכנון":"Planning Coverage","שעות ששובצו":"Scheduled Hours","ביצוע מול תוכנית":"Execution vs Plan","עומס עבודה לפי הסינון":"Workload by Current Filter","השעות מחושבות מהמשימות הפתוחות בתקופה ובסינון שנבחר. משימה שבוטלה, הושלמה או הועברה לתקופה אחרת אינה נכללת בעומס הנדרש של התקופה.":"Hours are calculated from open tasks in the selected period and filters. Cancelled, completed, or rescheduled tasks are excluded from the required workload.","שעות עבודה נדרשות":"Required Labor Hours","שעות מפעיל":"Operator Hours","שעות טכנאי אחזקה":"Maintenance Technician Hours","שעות שכבר שובצו":"Already Scheduled Hours","שעות שנותרו לתכנון":"Hours Remaining to Plan","קיבולת צוות":"Team Capacity","מספר עובדים זמינים":"Available Employees","שעות עבודה לעובד ביום":"Work Hours per Employee / Day","תאריך מתוכנן":"Planned Date","עדיפות":"Priority","גבוהה":"High","בינונית":"Medium","נמוכה":"Low","שיבוץ למבצע":"Assign To","בחירה":"Selection","בחר הכל המוצג":"Select All Shown","שבץ לתוכנית":"Add to Plan","החזר לממתינה":"Return to Waiting","לא נבחרו משימות.":"No tasks selected.","הקודם":"Previous","הבא":"Next","תאריך ביצוע":"Execution Date","הצג גם טיפולים פתוחים שלא שובצו לתוכנית העבודה":"Also show open tasks not scheduled in the work plan","טיפולים פתוחים":"Open Maintenance Tasks","לפי המחלקה והמכונה שנבחרו":"Based on selected department and machine","הפק תוכנית עבודה מסוננת לשבוע או לחודש, להדפסה, PDF או Excel.":"Generate a filtered weekly or monthly work plan for print, PDF, or Excel.","משימות בדוח":"Tasks in Report","תקופה":"Period","🖨️ הדפסה":"🖨️ Print","תאריך":"Date","משימה":"Task","משך":"Duration","הערות / חתימה":"Notes / Signature","סה״כ משימות:":"Total Tasks:","סה״כ שעות מתוכננות:":"Total Planned Hours:","מתאריך":"From Date","עד תאריך":"To Date","חיפוש":"Search","ייצוא לאקסל":"Export to Excel","תוכנית אחזקה מונעת":"Preventive Maintenance Plan","☁️ עבודה בענן — Supabase":"☁️ Cloud Operation — Supabase","🔴 סטטוס: לא אותחל":"🔴 Status: Not Initialized","אתחול תוכנית":"Initialize Plan","⬆️ ייבוא תוכנית אחזקה לענן":"⬆️ Import Maintenance Plan to Cloud","הוספת משימת טיפול":"Add Maintenance Task","איתור ועריכת משימה קיימת":"Find and edit an existing task","יצירת משימת אחזקה חדשה":"Create a new maintenance task","כל התדירויות":"All Frequencies","משך טיפול":"Duration","כל משכי הטיפול":"All Durations","דקות":"minutes","מועד טיפול ראשון":"First Maintenance Date","+ הוספת משימה":"+ Add Task","שכפול משימה":"Duplicate Task","הפעלה / ביטול משימה":"Activate / Deactivate Task","טעינה מחדש מהענן":"Reload from Cloud","Admin בלבד":"Admin Only","החשבון נשמר ב-FOP המשותף, אך במסך זה מנוהלת":"The account is stored in the shared FOP, but this screen manages","רק הגישה לאפליקציית האחזקה":"maintenance application access only",". הסרה מאחזקה אינה מוחקת את המשתמש ואינה משפיעה על אפליקציית התפעול.":". Removing maintenance access does not delete the user or affect the Operations application.","↻ רענון הרשימה":"↻ Refresh List","המשתמש יקבל חשבון FOP ויוכל להתחבר עם אותו אימייל וסיסמה לכל המערכת.":"The user will receive an FOP account and can use the same email and password across the system.","שם מלא":"Full Name","אימייל":"Email","סיסמה זמנית":"Temporary Password","תפקיד":"Role","Maintenance Manager — מנהל אחזקה":"Maintenance Manager","Technician — טכנאי אחזקה":"Technician","Viewer — צפייה בלבד":"Viewer — Read Only","Admin — מנהל מערכת":"Admin — System Administrator","יצירת משתמש":"Create User","פעיל באחזקה":"Active in Maintenance","הסרה מאחזקה":"Remove from Maintenance","איפוס סיסמה":"Reset Password","מועד חדש":"New Date","סיבת הדחייה":"Postponement Reason","ביטול":"Cancel","שמירת דחייה":"Save Postponement","אישור":"Confirm","בחר סיבה":"Select Reason","אילוץ ייצור":"Production Constraint","חוסר זמן / עומס":"Insufficient Time / Workload","חוסר חלקים":"Parts Unavailable","המכונה אינה זמינה":"Machine Unavailable","המתנה לספק / שירות":"Waiting for Supplier / Service","אחר":"Other","הערה":"Note","סיבת ביטול":"Cancellation Reason","הטיפול אינו נדרש":"Maintenance No Longer Required","המכונה הושבתה / הוצאה משימוש":"Machine Shut Down / Decommissioned","המשימה הוחלפה בטיפול אחר":"Task Replaced by Another Maintenance Activity","כפילות בתוכנית":"Duplicate in Plan","החלטת מנהל אחזקה":"Maintenance Manager Decision","סטטוס":"Status","כל הסטטוסים":"All Statuses","ממתינה לתכנון":"Awaiting Planning","מתוכננת":"Planned","נדחתה":"Postponed","בוטלה":"Cancelled","בוצעה":"Completed","בטל טיפול":"Cancel Maintenance","משך טיפול (דקות)":"Duration (minutes)","הערות":"Notes","דחיית טיפול":"Postpone Maintenance","תדירות":"Frequency","מבצעים":"Performers","מכונות":"Machines","משימת טיפול":"Maintenance Task","לא פעיל":"Inactive","מבצע טיפול":"Performed By","מועד טיפול הבא":"Next Maintenance Date","משימה פעילה בתוכנית":"Task Active in Plan","שמירת הגדרות המשימה":"Save Task Settings","✓ בוצע":"✓ Completed","📅 דחיית טיפול":"📅 Postpone Maintenance","דחה / שנה תאריך":"Postpone / Change Date","דחה":"Postpone","אין כרגע משתמשים עם הרשאה לאחזקה.":"There are currently no users with Maintenance access.","אין דרישות אחזקה בתקופה ובסינון שנבחרו.":"No maintenance requirements match the selected period and filters.","אין משימות ברשימה זו.":"No tasks in this list.","אין טיפולים פתוחים בבחירה הנוכחית.":"No open maintenance tasks in the current selection.","אין משימות שממתינות להחלטה.":"No tasks awaiting a decision.","אין משימות מתוכננות בטווח שנבחר.":"No planned tasks in the selected range.","אין משימות לביצוע בתאריך ובסינון שנבחרו.":"No tasks to execute for the selected date and filters.","אין משימות בתוכנית העבודה לתאריך ולסינון שנבחרו.":"No work-plan tasks match the selected date and filters.","אין טיפולים מתוכננים ליום זה.":"No maintenance tasks planned for this day.","אין עומס מתוכנן ל־7 ימים.":"No planned workload for the next 7 days.","עדיין לא נבנתה תוכנית עבודה להיום.":"Today’s work plan has not been created yet.","כל המשימות המתוכננות להיום בוצעו.":"All tasks planned for today have been completed.","תוכנית העבודה עדיין נטענת מהענן…":"The work plan is still loading from the cloud…","לא נמצאו דיווחי טיפול.":"No maintenance reports found.","בחר משימת טיפול.":"Select a maintenance task.","ltr":"rtl","en":"he","טעינת הנתונים מהענן נכשלה. נסה לרענן או להתחבר מחדש.":"Loading data from the cloud failed. Refresh or sign in again.","מחלקה חסרה":"Missing department","מכונה חסרה":"Missing machine","תיאור טיפול חסר":"Missing maintenance description","תדירות לא מוכרת":"Unknown frequency","מבצע טיפול לא מוכר":"Unknown performer","משך טיפול לא תקין":"Invalid maintenance duration","הגדרת טיפול לא תקינה:":"Invalid maintenance definition:","משתמש":"User","בוצע":"Completed","נדחה":"Postponed","גימור":"Finishing","ריתוך":"Welding","אוגנים":"Flanges","כללי":"General","עטיפות":"Wrapping","מחלקת עטיפות":"Wrapping Department","כבישה":"Pressing","בונדר":"Bonder","מילוי ויבוש אימייל":"Enamel Filling & Drying","מערכת שרפת אימייל":"Enamel Firing","[לא פעיל]":"[Inactive]","לא נמצא פרופיל משתמש ב-FOP.":"No user profile was found in FOP.","המשתמש אינו פעיל ב-FOP.":"The user is inactive in FOP.","אין למשתמש הרשאה לאפליקציית האחזקה.":"The user does not have access to the Maintenance application.","אין הרשאה לבצע פעולה זו.":"You do not have permission to perform this action.","הכניסה למודול נדחתה:":"Module access denied:","אין הרשאה":"No Permission","מתחבר…":"Signing in…","הכניסה נכשלה:":"Sign-in failed:","שגיאה לא ידועה":"Unknown error","🇮🇱 עברית":"🇮🇱 Hebrew","יומן ביצועים":"Execution Log","בדיקות מפעיל":"Operator Checks","בדיקות אחזקה":"Maintenance Checks","ניהול משימות":"Task Management","אתחול מערכת":"System Initialization","מקצוע":"Trade","כל המקצועות":"All Trades","סוג עבודה":"Work Type","הכול":"All","PM מחזורי":"Recurring PM","לא מתוכנן":"Unplanned","פתוחות":"Open","מכונה / תשתית":"Machine / Infrastructure","פתוחה":"Open","לא תועדה":"Not Documented","לא פעילה":"Inactive","משימות":"Tasks","מכונאי":"Mechanic","חשמלאי":"Electrician","יומי":"Daily","שבועי":"Weekly","דו שבועי":"Biweekly","חודשי":"Monthly","תלת חודשי":"Quarterly","חצי שנתי":"Semiannual","שנתי":"Annual","5 שנתי":"Every 5 Years","רגילה":"Normal","דחופה":"Urgent","משביתה":"Critical / Production Stop","השבוע":"This Week","ראשון":"Sunday","שני":"Monday","שלישי":"Tuesday","רביעי":"Wednesday","חמישי":"Thursday","שישי":"Friday","שבת":"Saturday","· פיגור קודם":"· Previous Backlog","· אחרי היעד":"· Past Due","בתוכנית העבודה":"In Work Plan","לא שובץ":"Not Scheduled","לא שובצה":"Not Scheduled","לביצוע בתוכנית":"Planned for Execution","ימי איחור":"Days Overdue","לביצוע היום":"Due Today","· צבר קודם":"· Previous Backlog","הערה אופציונלית":"Optional Note","PM · נוצר מ-WO":"PM · Created from WO","· נוצר מ-WO":"· Created from WO","PM + WO שעדיין דורשות טיפול":"PM + WO Still Requiring Action","PM + WO ששובצו לתוכנית בתקופה":"PM + WO Scheduled in the Selected Period","עבר מועד היעד":"Past Due","בתקופה שנבחרה · לחיצה לצפייה ושחזור":"In the selected period · click to view and restore","לשבוע הקרוב":"Next 7 Days","עבודה שדורשת תשומת לב בקרוב":"Work Requiring Attention Soon","WO פתוחות":"Open WOs","מתוכן 0 דחופות / משביתות":"0 of them Urgent / Critical","עומס לפי מקצוע":"Workload by Trade","סוג העבודה":"Work Type","דורש תשומת לב":"Requires Attention","0 צבר קודם | 0 בתקופה שנבחרה":"0 Previous Backlog | 0 in Selected Period","WO דחופות / משביתות":"Urgent / Critical WOs","WO מתוכננות":"Planned WOs","WO בוצעו בתקופה":"WOs Completed in Period","0 מתוך 0":"0 of 0","➕ עבודה לא מתוכננת":"➕ Unplanned Work","הסר מהתוכנית":"Remove from Plan","עבודות לא מתוכננות (WO)":"Unplanned Work (WO)","עבודות חד־פעמיות שהתגלו בבדיקה או בתקלה. הן משתלבות בעומס ובתכנון אך אינן יוצרות מחזור עתידי.":"One-time jobs discovered during an inspection or breakdown. They are included in workload and planning but do not create a future recurring cycle.","מכונאים וחשמלאים רואים את כלל טיפולי האחזקה ויכולים לדווח ביצוע, הערה ועד שתי תמונות.":"Mechanics and electricians can view all maintenance work and report completion, notes, and up to two photos.","מציג: כל המקצועות":"Showing: All Trades","עבודות לא מתוכננות לביצוע":"Unplanned Work for Execution","0 משימות פתוחות":"0 Open Tasks","0 באיחור":"0 Overdue","0 להיום":"0 Due Today","0 מתוך 0 בוצעו":"0 of 0 Completed","צ׳ק ליסטים להדפסה — אינם חלק מתכנון האחזקה":"Printable Checklists — Not Part of Maintenance Planning","הדפס Checklist למפעיל":"Print Operator Checklist","צ׳ק ליסטים להדפסה לאנשי האחזקה — אינם חלק מהתכנון, הדשבורד או המעקב המחזורי":"Printable checklists for maintenance personnel — not part of planning, dashboard, or recurring tracking","הדפס Checklist לאחזקה":"Print Maintenance Checklist","Checklist מפעיל":"Operator Checklist","Checklist בדיקות מפעיל":"Operator Checks Checklist","Checklist אחזקה":"Maintenance Checklist","Checklist בדיקות אחזקה":"Maintenance Checks Checklist","אין בדיקות מפעיל לפי הסינון שנבחר.":"No operator checks match the selected filters.","אין בדיקות אחזקה לפי הסינון שנבחר.":"No maintenance checks match the selected filters.","להדפסה: פתח את תפריט הדפדפן / שיתוף ובחר הדפסה.":"To print: open the browser / Share menu and choose Print.","שם מפעיל: __________________":"Operator Name: __________________","חתימה: __________________":"Signature: __________________","בדיקה":"Check","שם איש אחזקה: __________________":"Maintenance Technician: __________________","אישור מנהל: __________________":"Manager Approval: __________________","דוחות אחזקה":"Maintenance Reports","הפק דוחות לעבודות האחזקה הפיזיות. בדיקות אחזקה ובדיקות מפעיל מופקות כצ׳ק ליסטים בכרטיסיות הייעודיות ואינן חלק מהתכנון המחזורי.":"Generate reports for physical maintenance work. Maintenance checks and operator checks are produced as checklists in their dedicated tabs and are not part of recurring planning.","0 שעות":"0 Hours","פתוחות — כמו בדשבורד":"Open — Same as Dashboard","הדפס פירוט פעולות בטיפול מרוכז":"Print Detailed Actions for Grouped Maintenance","בחירת טיפולים להדפסה":"Select Maintenance Items to Print","סמן הכל":"Select All","בטל הכל":"Clear All","תוכנית עבודה — PM + WO":"Work Plan — PM + WO","בחר":"Select","סוג / תדירות":"Type / Frequency","הערות:":"Notes:","טיפולים שבוצעו — הערות, תמונות ושחזור לתוכנית":"Completed Maintenance — Notes, Photos, and Restore to Plan","לא נבחרו טיפולים להדפסה":"No maintenance items selected for printing","לא נבחרו טיפולים להדפסה.":"No maintenance items selected for printing.","לא ניתן להכין את הדוח להדפסה":"Unable to prepare the report for printing","לא ניתן לפתוח את ממשק ההדפסה במכשיר זה":"Unable to open the print interface on this device","מכין PDF…":"Preparing PDF…","יצירת ה‑PDF נכשלה. נסה שוב.":"PDF generation failed. Please try again.","הדוח מוכן להדפסה":"Report Ready to Print","סגור":"Close","תוכנית אחזקה":"Maintenance Plan","נא להמתין, הקובץ ייפתח אוטומטית":"Please wait, the file will open automatically","מאגר מרכזי אחד — חיפוש, עריכה והוספת משימות":"One Central Master Database — Search, Edit, and Add Tasks","סוג משימה":"Task Type","כל הסוגים":"All Types","בדיקת אחזקה":"Maintenance Check","בדיקת מפעיל":"Operator Check","מקצוע מבצע":"Execution Trade","פעילות":"Active","לא פעילות":"Inactive","מקור המשימה":"Task Source","נוצר מ-WO":"Created from WO","PM מקורי":"Original PM","מדיניות מאגר: משימות אינן נמחקות. משימה שאינה דרושה מסומנת כ״לא פעילה״ ויוצאת מהתכנון המחזורי; ניתן להפעילה מחדש.":"Database policy: tasks are never deleted. A task that is no longer required is marked Inactive and removed from recurring planning; it can be reactivated later.","מציג את כל המאגר":"Showing the Full Database","ללא סינון פעיל":"No Active Filters","מוצגות לפי הסינון":"Shown According to Filters","+ הוספת משימה חדשה":"+ Add New Task","ניקוי סינון":"Clear Filters","↻ טעינה מחדש מהענן":"↻ Reload from Cloud","בחר משימה לעריכה":"Select a Task to Edit","או לחץ על “הוספת משימה חדשה”.":"Or click “Add New Task”.","איך להוסיף?":"How to Add?","מתוך מאגר ברירת המחדל":"From the Default Master Database","משימה חדשה שאינה במאגר":"New Task Not in the Database","מחלקה במאגר":"Database Department","מכונה במאגר":"Database Machine","משימה במאגר":"Database Task","תיאור המשימה":"Task Description","משך (דקות)":"Duration (minutes)","מועד הבא":"Next Due Date","טיפול אחרון":"Last Maintenance","חלקים נדרשים":"Required Parts","משימה פעילה":"Active Task","שמירה":"Save","שכפול":"Duplicate","אתחול חל רק על טיפולי PM פיזיים: הוא בונה מחדש את מועדי ה‑PM ומנקה את תוכנית העבודה הפעילה. בדיקות מפעיל, בדיקות אחזקה והיסטוריית ביצוע אינן משתנות.":"Initialization applies only to physical PM tasks: it rebuilds PM due dates and clears the active work plan. Operator checks, maintenance checks, and execution history remain unchanged.","האתחול יוצר נקודת התחלה חדשה לתוכנית האחזקה. תוכנית העבודה והיסטוריית התוכנית הקודמת יאופסו, אך מאגר המכונות ומשימות הטיפול יישמר.":"Initialization creates a new starting point for the maintenance plan. The work plan and previous plan history will be reset, while the machine and maintenance-task master data will be preserved.","דיווח ביצוע טיפול":"Maintenance Completion Report","הערות על הטיפול (לא חובה)":"Maintenance Notes (optional)","תמונה 1":"Photo 1","תמונה 2":"Photo 2","עד שתי תמונות. האפליקציה מקטינה ודוחסת אותן לפני ההעלאה.":"Up to two photos. The app resizes and compresses them before upload.","✓ שמור טיפול":"✓ Save Maintenance Report","פתיחת עבודה לא מתוכננת (WO)":"Create Unplanned Work Order (WO)","מקור מכונה / תשתית":"Machine / Infrastructure Source","בחירה מהמאגר":"Select from Database","מכונה / תשתית אחרת":"Other Machine / Infrastructure","מכונה / תשתית חדשה":"New Machine / Infrastructure","עבודה נדרשת":"Required Work","תאריך יעד":"Due Date","משך משוער (דקות)":"Estimated Duration (minutes)","שיבוץ לעובד":"Assign to Employee","הערה / מה התגלה בבדיקה":"Note / What Was Found During Inspection","הוסף גם לתוכנית האחזקה המחזורית":"Also Add to Recurring Maintenance Plan","הגדרת PM מחזורי חדש":"Define New Recurring PM","ה-WO יישאר אירוע נפרד. הנתונים הבאים ייצרו משימת PM חדשה ומקושרת ל-WO.":"The WO will remain a separate event. The following data will create a new PM task linked to the WO.","תיאור משימת PM":"PM Task Description","מקצוע PM":"PM Trade","מועד PM ראשון":"First PM Date","משך PM משוער (דקות)":"Estimated PM Duration (minutes)","הערות PM":"PM Notes","לאחר היצירה ניתן לערוך, להשבית ולהפעיל מחדש את ה-PM דרך ניהול משימות. משימות אינן נמחקות מהמאגר.":"After creation, the PM can be edited, deactivated, and reactivated through Task Management. Tasks are never deleted from the database.","פתח משימה":"Create Work Order","חלקים:":"Parts:","📷 תמונה 1":"📷 Photo 1","📷 תמונה 2":"📷 Photo 2","✏️ עריכת תיעוד":"✏️ Edit Record","↩ החזר לתוכנית":"↩ Restore to Plan","לא נמצאו משימות לפי הסינון":"No tasks found for the selected filters","↩ הסר מהתוכנית":"↩ Remove from Plan","תאריך חדש לביצוע":"New Execution Date","סיבת דחייה":"Postponement Reason","אין משימות המתאימות לפילטרים שנבחרו.":"No tasks match the selected filters.","בחר מחלקה":"Select Department","בחר מכונה":"Select Machine","הערה:":"Note:","📅 תכנן / שנה תאריך":"📅 Plan / Change Date","מסונן ל-PM מחזורי.":"Filtered to Recurring PM.","מסונן ל‑PM.":"Filtered to PM.","אין עבודות לא מתוכננות פתוחות בסינון הנוכחי.":"No open unplanned work matches the current filters.","אין WO פתוחות בסינון.":"No open WOs match the filters.","WO בוצע":"WO Completed","אין כרגע פריטים חריגים או דחופים בתקופה שנבחרה.":"There are currently no exceptional or urgent items in the selected period.","סיבת ביטול:":"Cancellation Reason:","↩ החזר לרשימה":"↩ Restore to List","אין טיפולים שבוטלו בתקופה שנבחרה.":"No cancelled maintenance items in the selected period.","אין WO המתאימות לתקופה ולפילטרים שנבחרו.":"No WOs match the selected period and filters.","אין משימות המתאימות לתקופה ולפילטרים שנבחרו.":"No tasks match the selected period and filters.","אין משימות לפי הסינון שנבחר.":"No tasks match the selected filters.","בחר משימה":"Select Task","עריכת תיעוד טיפול":"Edit Maintenance Record","הערות על הטיפול":"Maintenance Notes","בחירת תמונה חדשה מחליפה את התמונה הקיימת באותו מקום. אם אין תמונה — היא תתווסף.":"Selecting a new photo replaces the existing photo in the same slot. If no photo exists, it will be added.","שמור שינויים":"Save Changes","📷 הצג תמונה קיימת":"📷 View Existing Photo","אין תמונה קיימת":"No Existing Photo","אישור פעולה":"Confirm Action","הודעה":"Message","סגירה":"Close","יש לבחור תאריך חדש.":"Please select a new date.","יש לבחור סיבת דחייה.":"Please select a postponement reason.","יש לבחור סיבת ביטול.":"Please select a cancellation reason.","יש להזין סיבה לדחיית הטיפול":"Please enter a reason for postponing the maintenance.","מה בוצע, ממצאים, המלצה להמשך...":"Work performed, findings, recommendation for follow-up...","הקלד שם מכונה או תשתית":"Enter a machine or infrastructure name","תיאור העבודה":"Work Description","למשל: טכנאי אחזקה":"For example: Maintenance Technician","מכונה / טיפול / מבצע":"Machine / Maintenance / Performer","מכונה / משימה / הערה":"Machine / Task / Note"};
 const subs=[[" משימות"," tasks"],[" שעות"," hours"],[" דקות"," minutes"],[" דק׳"," min"],[" ש׳"," h"],[" מתוך "," of "],[" בוצע"," completed"],["לא תוכנן","Not Planned"],["מתוכנן","Planned"],["פיגור קודם","Previous Backlog"],["צבר קודם","Previous Backlog"],["אחרי היעד","Past Due"],["שובץ:","Scheduled:"],["שובץ ל־","Scheduled for "],["יעד PM:","PM Due:"],["יעד:","Due:"],["תאריך מתוכנן:","Planned Date:"],["עדיפות:","Priority:"],["עדיפות ","Priority "],["מבצע:","Performer:"],["מחלקה:","Department:"],["מקצוע:","Trade:"],["תדירות:","Frequency:"],["משך:","Duration:"],["טיפול אחרון:","Last Maintenance:"],["סיבה:","Reason:"],["סיבת דחייה:","Postponement Reason:"],["מועד מקורי:","Original Date:"],["מועד חדש:","New Date:"],["בתוכנית העבודה","In Work Plan"],["לא שובץ","Not Scheduled"],["לא שובצה","Not Scheduled"],["לביצוע בתוכנית","Planned for Execution"],["לביצוע היום","Due Today"],["ממתינה לתכנון","Awaiting Planning"],["ימי איחור","days overdue"],["בשליטה","Under Control"],[" · אחרי היעד"," · Past Due"],[" · צבר קודם"," · Previous Backlog"],[" · פיגור קודם"," · Previous Backlog"],[" עבודות"," work items"],["הופק:","Generated:"],["נבחרו ","Selected "],["אושרו","Confirmed"],["מקור אחיד עם הדשבורד","Unified source with Dashboard"],["מקור קנוני יחיד","Single canonical source"],["פעולות לביצוע (","Actions to Perform ("],["פעולות הטיפול (","Maintenance Actions ("],["תאריך:","Date:"],["תאריך ","Date "],["מכונה:","Machine:"],["יעד ","Due "],["מתוכנן:","Planned:"],["מתוכנן ","Planned "],["הערה:","Note:"],["טכנאי אחזקה","Maintenance Technician"],["דו שבועי","Biweekly"],["תלת חודשי","Quarterly"],["חצי שנתי","Semiannual"],["5 שנתי","Every 5 Years"],["מכונאי","Mechanic"],["חשמלאי","Electrician"],["מפעיל","Operator"],["יומי","Daily"],["שבועי","Weekly"],["חודשי","Monthly"],["שנתי","Annual"],["גבוהה","High"],["בינונית","Medium"],["נמוכה","Low"],["רגילה","Normal"],["דחופה","Urgent"],["משביתה","Critical / Production Stop"]];
 
 const UI={"תכנון עבודה זמין למנהל אחזקה בלבד.":"Work planning is available to the Maintenance Manager only.","יש לבחור לפחות משימה אחת.":"Select at least one task.","יש לבחור תאריך מתוכנן.":"Select a planned date.","שינוי תוכנית זמין למנהל אחזקה בלבד.":"Work plan changes are available to the Maintenance Manager only.","משולב":"Combined","אין משימות להדפסה לפי הסינון שנבחר.":"No tasks are available to print with the selected filters.","אין בדיקות להדפסה לפי הסינון שנבחר.":"No checks are available to print with the selected filters.","ללא מועד":"No Due Date","נדרש היום":"Due Today","אין הרשאה לכרטיסייה זו.":"You do not have access to this tab.","אין הרשאה לניהול משימות.":"You do not have permission to manage tasks.","ניהול משתמשים זמין ל-Admin בלבד.":"User Management is available to Admin only.","אתחול מערכת זמין ל-Admin בלבד.":"System initialization is available to Admin only.","דיווח טיפול אינו זמין בהרשאה שלך.":"Maintenance Execution is not available with your current permissions.","לא מוגדר":"Not Defined","דחיית טיפול זמינה למנהל אחזקה בלבד.":"Maintenance postponement is available to the Maintenance Manager only.","יש לבחור מועד עתידי.":"Select a future date.","יש להזין סיבה לדחיית הטיפול.":"Enter a reason for postponing the maintenance.","שומר דחייה בענן…":"Saving postponement to the cloud…","הטיפול נדחה. הדחייה תישאר חריגה במדד העמידה בתוכנית.":"The maintenance was postponed. The postponement will remain an exception in the plan-execution KPI.","אין הרשאה לדווח טיפול.":"You do not have permission to report maintenance execution.","כבר קיים דיווח למשימה זו בתאריך שנבחר.":"A maintenance report already exists for this task on the selected date.","שגיאה: חלון דיווח הטיפול לא נמצא.":"Error: the maintenance reporting dialog was not found.","לא ניתן לעבד את התמונה.":"The image could not be processed.","התמונה גדולה מדי גם לאחר דחיסה.":"The image is too large even after compression.","אין הרשאה לדווח ביצוע טיפול.":"You do not have permission to report maintenance completion.","יש לאשר את כל פעולות הטיפול לפני שמירה.":"Confirm all maintenance actions before saving.","מעבד ושומר את הדיווח…":"Processing and saving the report…","הטיפול נשמר.":"Maintenance saved.","הטיפול, ההערות והתמונות נשמרו בענן.":"The maintenance record, notes, and photos were saved to the cloud.","לא ניתן לפתוח את התמונה.":"The image could not be opened.","רשומת הביצוע נשארה בענן לאחר DELETE (כנראה מדיניות RLS).":"The completion record remained in the cloud after DELETE (likely due to RLS policy).","רשומת הביצוע נשארה בענן לאחר DELETE.":"The completion record remained in the cloud after DELETE.","לא ניתן למחוק את דיווח ההיסטוריה":"The history report could not be deleted","Undo זמין למנהל אחזקה בלבד.":"Undo is available to the Maintenance Manager only.","דיווח הטיפול לא נמצא.":"The maintenance report was not found.","משימת הטיפול לא נמצאה.":"The maintenance task was not found.","לא ניתן לבצע Undo לדיווח מתוכנית קודמת. היסטוריה ישנה נשארת ארכיון בלבד.":"A report from a previous plan cannot be undone. Older history remains archive-only.","מבטל את דיווח הביצוע…":"Undoing the completion report…","הביטול נשמר אך הדיווח עדיין מופיע לאחר טעינה מחדש.":"The undo was saved, but the report still appears after reloading.","דיווח הביצוע בוטל, נמחק מההיסטוריה והטיפול הוחזר לרשימת הטיפולים הפתוחים.":"The completion report was undone, removed from history, and the maintenance was returned to the open-maintenance list.","דיווח הביצוע בוטל והטיפול הוחזר לרשימת הטיפולים הפתוחים.":"The completion report was undone and the maintenance was returned to the open-maintenance list.","סוג":"Type","דווח על ידי":"Reported By","מועד מקורי":"Original Date","סיבה":"Reason","אין הרשאה לערוך משימות.":"You do not have permission to edit tasks.","שומר הגדרות בענן…":"Saving settings to the cloud…","הגדרות המשימה נשמרו בענן.":"Task settings were saved to the cloud.","אין הרשאה להוסיף משימות.":"You do not have permission to add tasks.","יש למלא מחלקה, מכונה ומשימת טיפול.":"Enter a department, machine, and maintenance task.","מוסיף משימה לענן…":"Adding task to the cloud…","משימת הטיפול נוספה לענן.":"The maintenance task was added to the cloud.","אין הרשאה לשכפל משימות.":"You do not have permission to duplicate tasks.","- עותק":"- Copy","משכפל משימה בענן…":"Duplicating task in the cloud…","המשימה שוכפלה בענן.":"The task was duplicated in the cloud.","אין הרשאה להפעיל או לבטל משימות.":"You do not have permission to activate or deactivate tasks.","המשימה הופעלה בענן.":"The task was activated in the cloud.","המשימה בוטלה מהתוכנית בענן.":"The task was deactivated from the cloud plan.","לטעון מחדש את הנתונים המעודכנים מהענן?":"Reload the latest data from the cloud?","הנתונים נטענו מחדש מ-Supabase.":"Data reloaded from Supabase.","טוען משתמשי אחזקה…":"Loading Maintenance users…","שומר תפקיד באחזקה…":"Saving Maintenance role…","תפקיד האחזקה נשמר.":"Maintenance role saved.","לא ניתן לבטל לעצמך גישה לאחזקה מתוך המודול.":"You cannot disable your own Maintenance access from this module.","שומר הרשאת אחזקה…":"Saving Maintenance access…","הגישה לאחזקה הופעלה.":"Maintenance access enabled.","הגישה לאחזקה הושבתה.":"Maintenance access disabled.","לא ניתן להסיר את המשתמש המחובר מאחזקה.":"The signed-in user cannot be removed from Maintenance.","מסיר הרשאת אחזקה…":"Removing Maintenance access…","המשתמש הוסר מאפליקציית האחזקה בלבד.":"The user was removed from the Maintenance application only.","שולח קישור לאיפוס סיסמה…":"Sending password-reset link…","אתחול מחדש":"Reinitialize","אתחול תוכנית זמין ל-Admin בלבד.":"Plan initialization is available to Admin only.","יש להתחבר למערכת.":"Sign in to the system.","אין טיפולי אחזקה פעילים לאתחול.":"There are no active maintenance tasks to initialize.","לאתחל את תוכנית האחזקה?\\n\\nהפעולה תיצור נקודת התחלה חדשה: תוכנית העבודה הפעילה תאופס ומועדי הטיפול הבאים יחושבו מחדש. היסטוריית הביצועים נשמרת כ-Audit Trail, ומאגר המכונות והטיפולים נשמר.":"Initialize the maintenance plan?\\n\\nThis creates a new starting point: the active work plan will be reset and next maintenance dates will be recalculated. Completion history remains as an Audit Trail, and the machine/task master data is preserved.","מאתחל את תוכנית האחזקה…":"Initializing the maintenance plan…","בדיקת אתחול נכשלה: לא כל המשימות הפעילות קיבלו מועד יחיד.":"Initialization validation failed: not all active tasks received exactly one due date.","הטעינה מחדש מהענן נכשלה":"Reloading from the cloud failed","לא נטענו טיפולי אחזקה פעילים מהענן":"No active maintenance tasks were loaded from the cloud","תוכנית העבודה לא נטענה מהענן":"The work plan was not loaded from the cloud","מספר משימות המפעיל השתנה במהלך האתחול":"The number of Operator Checks changed during initialization","מספר בדיקות האחזקה השתנה במהלך האתחול":"The number of Maintenance Checks changed during initialization","הנתונים נטענו מהענן. עוברים לבניית תוכנית עבודה חדשה.":"Data loaded from the cloud. Proceeding to build a new work plan.","ייבוא תוכנית זמין ל-Admin בלבד.":"Plan import is available to Admin only.","החיבור פג. יש להתחבר מחדש.":"Your session expired. Sign in again.","בוטל":"Cancelled","שגיאה":"Error","השיבוץ לא נמצא.":"The work-plan assignment was not found.","לא ניתן להסיר שיבוץ שכבר בוצע או בוטל.":"An assignment that is already completed or cancelled cannot be removed.","הטיפול הוסר מתוכנית העבודה וחזר למצב פתוח לתכנון. המחזוריות לא השתנתה.":"The maintenance was removed from the work plan and returned to open planning. Recurrence was not changed.","הוסר מהתוכנית":"Removed from Work Plan","שומר טיפול בענן…":"Saving maintenance to the cloud…","הטיפול בוצע ונרשם מול תוכנית העבודה.":"The maintenance was completed and recorded against the work plan.","הטיפול נדחה עם סיבה ותאריך חדש.":"The maintenance was postponed with a reason and a new date.","הדחייה נשמרה":"Postponement Saved","ממתינה":"Waiting","ממתין":"Waiting","עדכן תוכנית עבודה":"Update Work Plan","עדכן תוכנית להיום":"Update Today’s Plan","טוען את תוכנית העבודה מהענן…":"Loading the work plan from the cloud…","ממתין לתכנון":"Awaiting Planning","אין דרישות בטווח":"No Requirements in Range","נדרשת התערבות":"Intervention Required","ביטול טיפול זמין למנהל אחזקה בלבד.":"Maintenance cancellation is available to the Maintenance Manager only.","הביטול נשמר":"Cancellation Saved","הטיפול בוטל ונשמר עם סיבה.":"The maintenance was cancelled and the reason was recorded.","הטיפול בוטל":"Maintenance Cancelled","שמור טיפול":"Save Maintenance","בחר תאריך חדש וסיבת דחייה.":"Select a new date and a postponement reason.","שמור דחייה":"Save Postponement","ביטול טיפול":"Cancel Maintenance","סיבת הביטול תישמר בתוכנית העבודה.":"The cancellation reason will be saved in the work plan.","חזרה":"Back","אין משימות לייצוא":"No tasks to export","משימות להצגה":"Tasks Shown","פעולה זו תפתח WO ובמקביל תיצור משימת PM מחזורית חדשה במאגר.":"This action will open a WO and also create a new recurring PM task in the master data.","⚠️ קיימת כבר משימת PM פעילה עם אותו תיאור לאותה מכונה.":"⚠️ An active PM task with the same description already exists for this machine.","קובץ Excel הופק":"Excel file generated","פתיחת עבודה לא מתוכננת זמינה למנהל אחזקה בלבד.":"Opening unplanned work is available to the Maintenance Manager only.","פתיחת WO זמינה למנהל אחזקה או Admin בלבד.":"Opening a WO is available to the Maintenance Manager or Admin only.","יש לבחור מחלקה ומכונה / תשתית ולמלא תיאור ותאריך יעד.":"Select a department and machine / infrastructure, and enter a description and due date.","כדי ליצור PM יש להשלים תיאור, מקצוע, תדירות ומועד PM ראשון.":"To create a PM task, complete the description, trade, frequency, and first PM date.","שומר…":"Saving…","ה-WO נפתחה ונוצר PM מחזורי מקושר. ניתן לשלוט בו בניהול משימות.":"The WO was opened and a linked recurring PM task was created. It can be managed in Task Management.","העבודה הלא מתוכננת נפתחה ונכנסה לניהול.":"The unplanned work was opened and added to management.","שיבוץ לעובד:":"Assigned To:","ה-WO שובצה לתוכנית.":"The WO was added to the work plan.","מעבד ושומר WO…":"Processing and saving WO…","ה-WO הושלמה ונשמרה בהיסטוריה.":"The WO was completed and saved to history.","שחזור ביטול זמין למנהל אחזקה בלבד.":"Restoring a cancelled maintenance item is available to the Maintenance Manager only.","לא נמצאה רשומת הביטול.":"The cancellation record was not found.","להחזיר את הטיפול לרשימת העבודה הפתוחה? סיבת הביטול תישאר מתועדת ברשומה.":"Return the maintenance item to the open-work list? The cancellation reason will remain documented in the record.","ביטול ביטול טיפול":"Undo Maintenance Cancellation","הביטול בוטל והטיפול הוחזר לרשימת העבודה.":"The cancellation was undone and the maintenance was returned to the work list.","הטיפול הוחזר":"Maintenance Restored","הדפדפן חסם את פתיחת תצוגת ההדפסה. אפשר חלונות קופצים ונסה שוב.":"The browser blocked the print preview. Allow pop-ups and try again.","לשמירה כ‑PDF: פתח את תפריט הדפדפן / שיתוף ובחר הדפסה או שמירה כ‑PDF.":"To save as PDF: open the browser / Share menu and choose Print or Save as PDF.","מקור":"Source","עריכת משימה":"Edit Task","משימה חדשה":"New Task","ניתן לבחור מהמאגר הקיים או להזין פריט חדש":"You can select an existing master-data item or enter a new one","PM: טיפול אחזקה מתוכנן/מחזורי שנכנס לתכנון, לדשבורד ולדוחות.":"PM: a scheduled/recurring maintenance task included in Work Planning, Dashboard, and Reports.","בדיקת אחזקה: מופיעה בכרטיסיית בדיקות אחזקה ואינה נכנסת לתכנון ה-PM המחזורי.":"Maintenance Check: appears under Maintenance Checks and is not included in recurring PM planning.","בדיקת מפעיל: מופיעה בכרטיסיית בדיקות מפעיל ואינה נכנסת לתכנון האחזקה.":"Operator Check: appears under Operator Checks and is not included in maintenance planning.","ניהול משימות זמין ל-Admin בלבד.":"Task Management is available to Admin only.","אין הרשאה לשמור משימות.":"You do not have permission to save tasks.","יש למלא מחלקה, מכונה / תשתית ותיאור משימה.":"Enter a department, machine / infrastructure, and task description.","שומר משימה בענן…":"Saving task to the cloud…","המשימה נוספה למאגר בהצלחה.":"The task was added to the master data successfully.","המשימה עודכנה בהצלחה.":"The task was updated successfully.","עריכת תיעוד היסטורי זמינה למנהל אחזקה או Admin בלבד.":"Editing historical records is available to the Maintenance Manager or Admin only.","רשומת הטיפול לא נמצאה.":"The maintenance record was not found.","שומר שינויים…":"Saving changes…","התיעוד עודכן בהצלחה.":"The record was updated successfully.","תיעוד הטיפול עודכן.":"The maintenance record was updated.","תכנון עבודה זמין למנהל אחזקה או Admin בלבד.":"Work planning is available to the Maintenance Manager or Admin only.","שינוי תוכנית זמין למנהל אחזקה או Admin בלבד.":"Work plan changes are available to the Maintenance Manager or Admin only.","עד 7 ימים / סוף התקופה":"Up to 7 Days / Period End","כלל מערכת: האתחול חל רק על PM פיזיים של טכנאי אחזקה. בדיקות מפעיל ובדיקות אחזקה אינן חלק מה-PM ואינן משתנות.":"System rule: initialization applies only to physical PM tasks for Maintenance Technicians. Operator Checks and Maintenance Checks are not part of PM and are not changed.","מסנן מקצוע: כל המקצועות":"Trade Filter: All Trades","ממתינה לתכנון — מתוך הפתוחות":"Awaiting Planning — from Open Tasks","✓ התאמה מלאה לדשבורד":"✓ Fully Aligned with Dashboard","⚠ אי־התאמה פנימית":"⚠ Internal Mismatch"};
@@ -7194,6 +7196,31 @@ async function saveHistoryEdit(){
     if(f==='5 שנתי')return madd(d,60);
     return null;
   }
+  function postponeRebaseMap(t){
+    const m=new Map();
+    try{
+      const audits=(typeof parsePostponeAudits==='function'?parsePostponeAudits(t):[]);
+      for(const e of audits){
+        const oldDue=iso10(e.oldDue),newDue=iso10(e.newDue);
+        if(oldDue&&newDue&&newDue!==oldDue)m.set(oldDue,newDue);
+      }
+    }catch(e){}
+    return m;
+  }
+  function rebaseDue(t,due){
+    let cur=iso10(due),guard=0;
+    const m=postponeRebaseMap(t);
+    while(cur&&m.has(cur)&&guard++<100){
+      const next=iso10(m.get(cur));
+      if(!next||next===cur)break;
+      cur=next;
+    }
+    return cur;
+  }
+  function advanceTaskDue(t,d){
+    const n=advance(d,t.frequency);
+    return n?parse(rebaseDue(t,iso(n))):null;
+  }
   function bounds(period='week',anchor){
     const a=parse(anchor||((typeof today==='function')?today():''));
     if(isNaN(a))return {start:iso10(anchor),end:iso10(anchor),period:period||'week'};
@@ -7266,15 +7293,18 @@ async function saveHistoryEdit(){
     const add=(t,due,backlog=false)=>{due=iso10(due);if(!due)return;const k=String(t.id)+'|'+due;if(seen.has(k))return;seen.add(k);rows.push(pmRow(t,due,o,map,backlog));};
     for(const t of physicalPMTasks()){
       if(!baseMatch(t,o))continue;
-      const original=iso10(t.nextDue??t.next_due);let d=parse(original),guard=0;
+      const original=iso10(t.nextDue??t.next_due),rebasedOriginal=rebaseDue(t,original);let d=parse(rebasedOriginal),guard=0;
       if(isNaN(d))continue;
       if(d<start){
-        add(t,original,true);
-        let nd=advance(d,t.frequency);
-        while(nd&&nd<start&&guard++<5000)nd=advance(nd,t.frequency);
+        add(t,rebasedOriginal,true);
+        let nd=advanceTaskDue(t,d);
+        while(nd&&nd<start&&guard++<5000)nd=advanceTaskDue(t,nd);
         d=nd;
       }
-      while(d&&d<=end&&guard++<5000){add(t,iso(d),false);d=advance(d,t.frequency);}
+      while(d&&d<=end&&guard++<5000){
+        add(t,iso(d),false);
+        d=advanceTaskDue(t,d);
+      }
 
       // Explicit active commitments belong to the horizon by their execution date,
       // even when the PM due date itself lies after the selected horizon.
@@ -7675,4 +7705,350 @@ window.pmHistoryParityAudit=function(){
   return {build:'20260827-v96-history-parity',pmEdit:true,woEdit:true,pmLabel:'PM בוצע',woLabel:'WO בוצע',completedWO:wo.length};
 };
 </script>
+
+<style id="fop-v97-postpone-kpi-style">
+.pm-v97-postpone-kpi strong{color:#9a5a00}
+.pm-v97-compliance-kpi strong{color:#12733b}
+.pm-v97-compliance-kpi.bad strong{color:#b60029}
+.pm-v97-compliance-kpi.warn strong{color:#9a5a00}
+</style>
+
+<script id="fop-v97-postpone-rebase-kpi">
+/* V97 — Authoritative postponement semantics + original-plan KPI.
+   Business rules:
+   1) Postponement REBASES the recurring PM stream from the new execution date.
+   2) The current occurrence is re-keyed to the new due date to prevent duplicate rows.
+   3) PM_ORIGINAL_DUE preserves the immutable original occurrence date for audit/KPI.
+   4) Future recurrence projections honor PM_POSTPONE audit chains.
+   5) Original-plan adherence = matured original PM occurrences completed on/before
+      their original due date / all matured original PM occurrences in the lookback window.
+*/
+(function(){
+  const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const iso10=v=>String(v||'').slice(0,10);
+  const DONE=new Set(['completed','done','בוצע']);
+  const CANCELLED=new Set(['cancelled','canceled','בוטל']);
+
+  function taskById(id){return (Array.isArray(tasks)?tasks:[]).find(t=>String(t.id)===String(id))||null;}
+  function dueKey(p){return iso10((typeof wpDueFromNotes==='function'?wpDueFromNotes(p?.notes):'')||p?.dueDate||p?.due_date||'');}
+  function originalDueFromNotes(notes){
+    const m=String(notes||'').match(/(?:^|\n)PM_ORIGINAL_DUE:([0-9]{4}-[0-9]{2}-[0-9]{2})(?=\s|\||$)/);
+    return m?m[1]:'';
+  }
+  function rekeyPlanNotes(notes,newDue,originalDue){
+    const keep=String(notes||'').split(/\r?\n/).filter(line=>line&&!/^PM_DUE:\d{4}-\d{2}-\d{2}(?:\s|\||$)/.test(line)&&!/^PM_ORIGINAL_DUE:\d{4}-\d{2}-\d{2}(?:\s|\||$)/.test(line));
+    return [`PM_DUE:${newDue}`,`PM_ORIGINAL_DUE:${originalDue}`,...keep].filter(Boolean).join('\n');
+  }
+  function actor(){return pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש';}
+  function auditMarker(oldDue,newDue,reason){
+    return `[PM_POSTPONE|${cleanAuditValue(oldDue)}|${cleanAuditValue(newDue)}|${cleanAuditValue(reason)}|${cleanAuditValue(actor())}|${new Date().toISOString()}]`;
+  }
+  function appendAudit(notes,marker){return [String(notes||'').trim(),marker].filter(Boolean).join('\n');}
+  function planSnapshot(p){
+    return {id:p.id,planned_date:p.plannedDate||null,assigned_to:p.assignedTo||null,priority:p.priority||'בינונית',status:p.status||'Planned',completed_date:p.completedDate||null,postponed_reason:p.postponedReason||null,notes:p.notes||null,created_by:p.createdBy||null};
+  }
+  async function restorePlanSnapshots(rows){
+    for(const s of [...rows].reverse()){
+      try{
+        const r=await supabaseClient.from('pm_work_plan').update({
+          planned_date:s.planned_date,assigned_to:s.assigned_to,priority:s.priority,status:s.status,
+          completed_date:s.completed_date,postponed_reason:s.postponed_reason,notes:s.notes,created_by:s.created_by
+        }).eq('id',s.id);
+        if(r.error)console.error('V97 future-plan rollback',r.error);
+      }catch(e){console.error('V97 future-plan rollback',e);}
+    }
+  }
+  async function supersedeFutureActivePlans(taskId,oldDue,newDue,excludeId=''){
+    const changed=[];
+    for(const fp of (Array.isArray(pmWorkPlan)?pmWorkPlan:[])){
+      if(String(fp.taskId)!==String(taskId)||String(fp.id)===String(excludeId))continue;
+      const st=norm(fp.status),fd=dueKey(fp);
+      if(!['planned','postponed'].includes(st)||!fd||fd<=oldDue)continue;
+      const snap=planSnapshot(fp),mark=`PM_REBASE_SUPERSEDED:${oldDue}->${newDue}|${new Date().toISOString()}`;
+      const notes=[String(fp.notes||'').trim(),mark].filter(Boolean).join('\n');
+      const r=await supabaseClient.from('pm_work_plan').update({
+        status:'Unplanned',planned_date:null,completed_date:null,postponed_reason:null,notes
+      }).eq('id',fp.id);
+      if(r.error){
+        await restorePlanSnapshots(changed);
+        throw r.error;
+      }
+      changed.push(snap);
+    }
+    return changed;
+  }
+
+  function postponeMap(t){
+    const m=new Map();
+    try{
+      for(const e of (typeof parsePostponeAudits==='function'?parsePostponeAudits(t):[])){
+        const a=iso10(e.oldDue),b=iso10(e.newDue);
+        if(a&&b&&a!==b)m.set(a,b);
+      }
+    }catch(e){}
+    return m;
+  }
+  function normalizeDue(t,due){
+    let cur=iso10(due),guard=0;const m=postponeMap(t);
+    while(cur&&m.has(cur)&&guard++<100){
+      const n=iso10(m.get(cur));if(!n||n===cur)break;cur=n;
+    }
+    return cur;
+  }
+  function originalRoot(t,due){
+    let cur=iso10(due),guard=0;
+    const rev=new Map();
+    try{
+      for(const e of (typeof parsePostponeAudits==='function'?parsePostponeAudits(t):[])){
+        const a=iso10(e.oldDue),b=iso10(e.newDue);
+        if(a&&b&&!rev.has(b))rev.set(b,a);
+      }
+    }catch(e){}
+    while(cur&&rev.has(cur)&&guard++<100){
+      const p=iso10(rev.get(cur));if(!p||p===cur)break;cur=p;
+    }
+    return cur;
+  }
+
+  // All recurrence advancement paths must honor an already-recorded future rebase.
+  window.pmNextOpenDueAfter=function(t,due){
+    let next=(typeof nextDueFrom==='function'?nextDueFrom(due,t.frequency):'');
+    next=normalizeDue(t,next);
+    let guard=0;
+    while(next&&typeof wpOccurrenceClosed==='function'&&wpOccurrenceClosed(t.id,next)&&guard++<5000){
+      next=(typeof nextDueFrom==='function'?nextDueFrom(next,t.frequency):'');
+      next=normalizeDue(t,next);
+    }
+    return next;
+  };
+  try{pmNextOpenDueAfter=window.pmNextOpenDueAfter;}catch(e){}
+
+  // Unplanned/current PM postponement: directly rebase the master pointer.
+  window.savePostpone=async function(){
+    if(!pmCan('manageExceptions'))return statusLine('דחיית טיפול זמינה למנהל אחזקה או Admin בלבד.','error');
+    const t=taskById(pmPostponeTaskId);if(!t)return;
+    const newDue=iso10($('pmPostponeDate')?.value),reason=String($('pmPostponeReason')?.value||'').trim();
+    const st=$('pmPostponeStatus'),btn=$('pmPostponeSaveButton'),oldDue=iso10(t.nextDue);
+    if(!newDue){if(st){st.textContent='יש לבחור מועד חדש.';st.className='pm-modal-status error';}return}
+    if(!reason){if(st){st.textContent='יש להזין סיבה לדחיית הטיפול.';st.className='pm-modal-status error';}return}
+    if(oldDue&&newDue<=oldDue){if(st){st.textContent='בדחיית טיפול המועד החדש חייב להיות מאוחר מהמועד הנוכחי.';st.className='pm-modal-status error';}return}
+    const marker=auditMarker(oldDue,newDue,reason),newNotes=appendAudit(t.notes,marker);
+    if(st){st.textContent='שומר דחייה ומעדכן את המחזוריות…';st.className='pm-modal-status';}
+    if(btn)btn.disabled=true;
+    let futureSnapshots=[],taskChanged=false;
+    try{
+      const r=await supabaseClient.from('pm_tasks').update({next_due:newDue,notes:newNotes}).eq('id',t.id);
+      if(r.error)throw r.error;
+      taskChanged=true;
+      futureSnapshots=await supersedeFutureActivePlans(t.id,oldDue,newDue,'');
+      await reloadCloudData();
+      try{renderDashboard()}catch(_){}
+      try{renderPlanner()}catch(_){}
+      try{renderReports()}catch(_){}
+      if(st){st.textContent='הטיפול נדחה, המחזוריות הוזזה ותכנונים עתידיים ישנים הוחזרו לתכנון מחדש.';st.className='pm-modal-status success';}
+      pmToast('הדחייה והמחזוריות עודכנו','success');
+      setTimeout(()=>{try{closePostponeModal()}catch(_){}},650);
+    }catch(e){
+      if(futureSnapshots.length)await restorePlanSnapshots(futureSnapshots);
+      if(taskChanged)try{await supabaseClient.from('pm_tasks').update({next_due:oldDue||null,notes:t.notes||null}).eq('id',t.id);}catch(_){}
+      try{await reloadCloudData()}catch(_){}
+      if(st){st.textContent='שמירת הדחייה נכשלה והשינויים הוחזרו: '+(e?.message||e);st.className='pm-modal-status error';}
+    }finally{if(btn)btn.disabled=false;}
+  };
+  try{savePostpone=window.savePostpone;}catch(e){}
+
+  // Planned PM postponement: re-key the occurrence AND rebase recurrence.
+  window.moveWorkPlan=async function(planId){
+    if(!pmCan('manageExceptions'))return statusLine('דחיית טיפול זמינה למנהל אחזקה או Admin בלבד.','error');
+    const p=(Array.isArray(pmWorkPlan)?pmWorkPlan:[]).find(x=>String(x.id)===String(planId));if(!p)return;
+    const t=taskById(p.taskId);if(!t)return statusLine('משימת ה-PM המקושרת לא נמצאה.','error');
+    const oldDue=dueKey(p)||iso10(t.nextDue)||iso10(p.plannedDate);
+    const choice=await pmPostponeDialog(p.plannedDate||oldDue||today());if(!choice)return;
+    const newDue=iso10(choice.date);
+    if(!newDue||!oldDue)return statusLine('לא ניתן לקבוע את מועד הדחייה.','error');
+    if(newDue<=oldDue)return statusLine('בדחיית טיפול המועד החדש חייב להיות מאוחר מהמועד המקורי/הנוכחי.','error');
+
+    const immutableOriginal=originalDueFromNotes(p.notes)||originalRoot(t,oldDue)||oldDue;
+    const oldPlan={
+      planned_date:p.plannedDate||null,status:p.status||'Planned',completed_date:p.completedDate||null,
+      postponed_reason:p.postponedReason||null,notes:p.notes||null
+    };
+    const oldTaskNotes=t.notes||null,oldTaskNext=iso10(t.nextDue);
+    const marker=auditMarker(oldDue,newDue,choice.combined);
+    const newTaskNotes=appendAudit(t.notes,marker);
+    const newPlanNotes=rekeyPlanNotes(p.notes,newDue,immutableOriginal);
+    const shiftMaster=oldTaskNext===oldDue;
+
+    statusLine('שומר דחייה ומעדכן את כל מחזורי ה-PM…');
+    let planChanged=false,futureSnapshots=[];
+    try{
+      const pr=await supabaseClient.from('pm_work_plan').update({
+        planned_date:newDue,status:'Postponed',completed_date:null,postponed_reason:choice.combined,notes:newPlanNotes
+      }).eq('id',p.id);
+      if(pr.error)throw pr.error;
+      planChanged=true;
+
+      const taskPayload={notes:newTaskNotes};
+      if(shiftMaster)taskPayload.next_due=newDue;
+      const tr=await supabaseClient.from('pm_tasks').update(taskPayload).eq('id',t.id);
+      if(tr.error)throw tr.error;
+
+      futureSnapshots=await supersedeFutureActivePlans(t.id,oldDue,newDue,p.id);
+      await reloadCloudData();
+      try{renderDashboard()}catch(_){}
+      try{renderPlanner()}catch(_){}
+      try{renderReports()}catch(_){}
+      try{renderReport()}catch(_){}
+      statusLine('הטיפול נדחה; המופע הועבר למועד החדש והמחזוריות העתידית הוזזה בהתאם.','success');
+      pmToast('הדחייה והמחזוריות עודכנו','success');
+    }catch(e){
+      if(futureSnapshots.length)await restorePlanSnapshots(futureSnapshots);
+      if(planChanged){
+        try{
+          await supabaseClient.from('pm_work_plan').update(oldPlan).eq('id',p.id);
+        }catch(_){}
+      }
+      // If task write succeeded but a later step failed, restore task state as well.
+      try{
+        await supabaseClient.from('pm_tasks').update({next_due:oldTaskNext||null,notes:oldTaskNotes}).eq('id',t.id);
+      }catch(_){}
+      try{await reloadCloudData()}catch(_){}
+      statusLine('דחיית הטיפול נכשלה והשינויים הוחזרו: '+(e?.message||'שגיאה'),'error');
+    }
+  };
+  try{moveWorkPlan=window.moveWorkPlan;}catch(e){}
+
+  // Quick completion must also honor any future rebase already recorded.
+  if(typeof completeTask==='function'){
+    window.completeTask=completeTask=async function(id,workPlanId=''){
+      if(!requirePM('report','אין הרשאה לדווח טיפול.'))return;
+      const t=taskById(id),date=pmReportDate.value||today();if(!t)return;
+      const p=workPlanId?(Array.isArray(pmWorkPlan)?pmWorkPlan:[]).find(x=>String(x.id)===String(workPlanId)):plannedItemsForDate(date).find(x=>String(x.t.id)===String(id))?.plan;
+      const due=dueKey(p)||iso10(t.nextDue)||date;
+      if(history.some(h=>String(h.taskId)===String(id)&&h.date===date)){statusLine('כבר קיים דיווח למשימה זו בתאריך שנבחר.','error');return;}
+      const oldLast=t.lastDone||null,oldNext=t.nextDue||null;
+      const nextDue=(iso10(oldNext)===due)?window.pmNextOpenDueAfter(t,due):oldNext;
+      statusLine('שומר טיפול בענן…');
+      const ur=await supabaseClient.from('pm_tasks').update({last_done:date,next_due:nextDue}).eq('id',t.id);
+      if(ur.error){statusLine('שמירת הטיפול נכשלה: '+ur.error.message,'error');return}
+      try{
+        await insertHistoryAdaptive(t,date);
+        if(p){
+          const wr=await supabaseClient.from('pm_work_plan').update({status:'Completed',completed_date:date}).eq('id',p.id);
+          if(wr.error)throw wr.error;
+        }
+      }catch(e){
+        await supabaseClient.from('pm_tasks').update({last_done:oldLast,next_due:oldNext}).eq('id',t.id);
+        if(p)await supabaseClient.from('pm_work_plan').update({status:p.status||'Planned',completed_date:null}).eq('id',p.id);
+        statusLine('הטיפול לא נשמר באופן מלא: '+(e?.message||'שגיאה'),'error');return;
+      }
+      await reloadCloudData();statusLine('הטיפול בוצע ונרשם מול תוכנית העבודה.','success');
+    };
+  }
+
+  function tradeOf(t){return String(t?.trade||((typeof maintenanceTrade==='function')?maintenanceTrade(t):'')||'').trim()||'מכונאי';}
+  function physicalPM(t){return t&&t.active!==false&&String(t.performer||'').trim()==='טכנאי אחזקה'&&norm(t.taskType??t.task_type)==='maintenance';}
+  function performanceWindow(period,anchor){
+    const end=dObj(anchor||today())||new Date(),p=period||'week';let start;
+    if(p==='month')start=dObj(addMonthsClamped(iso10(anchor||today()),-1));
+    else if(p==='half')start=dObj(addMonthsClamped(iso10(anchor||today()),-6));
+    else if(p==='year')start=dObj(addMonthsClamped(iso10(anchor||today()),-12));
+    else start=new Date(end.getFullYear(),end.getMonth(),end.getDate()-6,12);
+    return {start:dateStr(start),end:dateStr(end),label:p==='month'?'חודש':p==='half'?'חצי שנה':p==='year'?'שנה':'7 ימים'};
+  }
+  function selectedTasks(){
+    const dep=$('pmDashboardDepartment')?.value||'',machine=$('pmDashboardMachine')?.value||'',trade=$('pmDashboardTrade')?.value||'';
+    return (Array.isArray(tasks)?tasks:[]).filter(t=>physicalPM(t)&&(!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!trade||tradeOf(t)===trade));
+  }
+  function latestPlanRows(){
+    const m=new Map();
+    for(const p of (Array.isArray(pmWorkPlan)?pmWorkPlan:[])){
+      const d=dueKey(p);if(!d)continue;
+      const k=String(p.taskId)+'|'+d,old=m.get(k);
+      const s=String(p.updatedAt||p.createdAt||''),os=String(old?.updatedAt||old?.createdAt||'');
+      if(!old||s>=os)m.set(k,p);
+    }
+    return [...m.values()];
+  }
+  function renderPerformanceKpis(){
+    const card=$('pmV97OriginalCompliance')?.closest('.pm-v17-kpi');
+    const wt=$('pmDashboardWorkType')?.value||'',en=document.documentElement.lang==='en';
+    if(wt==='WO'){
+      if($('pmV97Postponements'))$('pmV97Postponements').textContent='—';
+      if($('pmV97OriginalCompliance'))$('pmV97OriginalCompliance').textContent='—';
+      if($('pmV97PostponementsDetail'))$('pmV97PostponementsDetail').textContent=en?'PM KPI — switch work type to PM or All':'KPI של PM — בחר PM או הכול';
+      if($('pmV97OriginalComplianceDetail'))$('pmV97OriginalComplianceDetail').textContent=en?'PM KPI — not calculated for WO only':'KPI של PM — לא מחושב בסינון WO בלבד';
+      if(card)card.classList.remove('bad','warn');
+      return;
+    }
+
+    const period=(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week';
+    const anchor=$('pmDashboardAnchor')?.value||today(),w=performanceWindow(period,anchor),list=selectedTasks(),ids=new Set(list.map(t=>String(t.id)));
+    const events=list.flatMap(t=>(typeof parsePostponeAudits==='function'?parsePostponeAudits(t):[]).map(e=>({...e,t})))
+      .filter(e=>{const d=iso10(e.date||e.reportedAt);return d&&d>=w.start&&d<=w.end;});
+
+    if($('pmV97Postponements'))$('pmV97Postponements').textContent=String(events.length);
+    if($('pmV97PostponementsDetail'))$('pmV97PostponementsDetail').textContent=en?`${w.label} ending ${anchor} · PM only`:`${w.label} אחורה עד ${typeof fDate==='function'?fDate(anchor):anchor} · PM בלבד`;
+
+    const occ=new Map();
+    for(const p of latestPlanRows()){
+      if(!ids.has(String(p.taskId))||String(p.notes||'').includes('PM_REBASE_SUPERSEDED:'))continue;
+      const t=taskById(p.taskId);if(!t)continue;
+      const d=dueKey(p),orig=originalDueFromNotes(p.notes)||originalRoot(t,d)||d;
+      if(!orig||orig<w.start||orig>w.end||orig>anchor)continue;
+      const key=String(t.id)+'|'+orig,st=norm(p.status),doneDate=iso10(p.completedDate||p.completed_date);
+      const success=DONE.has(st)&&doneDate&&doneDate<=orig;
+      occ.set(key,{success,state:st,originalDue:orig,doneDate});
+    }
+    for(const t of list){
+      const current=iso10(t.nextDue),orig=originalRoot(t,current)||current;
+      if(!orig||orig<w.start||orig>w.end||orig>anchor)continue;
+      const key=String(t.id)+'|'+orig;
+      if(!occ.has(key))occ.set(key,{success:false,state:'open',originalDue:orig,doneDate:''});
+    }
+
+    const matured=[...occ.values()],ok=matured.filter(x=>x.success).length,score=matured.length?Math.round(ok/matured.length*100):null;
+    if($('pmV97OriginalCompliance'))$('pmV97OriginalCompliance').textContent=score===null?'—':score+'%';
+    if($('pmV97OriginalComplianceDetail'))$('pmV97OriginalComplianceDetail').textContent=score===null
+      ? (en?'No original PM due dates matured in this window':'אין מועדי PM מקוריים שהבשילו בתקופה')
+      : (en?`${ok} of ${matured.length} matured original due dates met on time`:`${ok} מתוך ${matured.length} מועדים מקוריים בוצעו בזמן`);
+
+    if(card){
+      card.classList.toggle('bad',score!==null&&score<70);
+      card.classList.toggle('warn',score!==null&&score>=70&&score<90);
+    }
+
+    // Keep the lower legacy execution tile consistent with the new original-plan score.
+    if($('pmV3Execution'))$('pmV3Execution').textContent=score===null?'—':score+'%';
+    if($('pmV3ExecutionDetail'))$('pmV3ExecutionDetail').textContent=score===null?'אין מועדים שהבשילו':`${ok} מתוך ${matured.length}`;
+    if($('pmV3ExecutionBar'))$('pmV3ExecutionBar').style.width=(score===null?0:score)+'%';
+
+    window.pmV97PerformanceAudit={window:w,postponements:events.length,matured:matured.length,onTimeOriginal:ok,score,filters:{department:$('pmDashboardDepartment')?.value||'',machine:$('pmDashboardMachine')?.value||'',trade:$('pmDashboardTrade')?.value||''}};
+  }
+
+  const previousDashboard=window.renderDashboard;
+  window.renderDashboard=function(){
+    const r=typeof previousDashboard==='function'?previousDashboard.apply(this,arguments):undefined;
+    try{renderPerformanceKpis()}catch(e){console.warn('V97 KPI render',e);}
+    return r;
+  };
+  try{renderDashboard=window.renderDashboard;}catch(e){}
+
+  window.pmV97Audit=function(){
+    const t=selectedTasks(),bad=[];
+    for(const x of t){
+      const m=postponeMap(x);
+      for(const [oldDue,newDue] of m){
+        if(newDue<=oldDue)bad.push({taskId:x.id,machine:x.machine,oldDue,newDue});
+      }
+    }
+    return {build:'20260827-v97-postpone-rebase-kpi',tasks:t.length,invalidPostponements:bad,performance:window.pmV97PerformanceAudit||null};
+  };
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{try{window.renderDashboard()}catch(e){}},0));
+  else setTimeout(()=>{try{window.renderDashboard()}catch(e){}},0);
+})();
+</script>
+
 </body></html>
