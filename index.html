@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v109-due-window-lifecycle"/>
+<meta name="fop-build" content="20260828-v110-planner-ui-clean"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -574,7 +574,6 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="pm-v17-kpi" onclick="pmV31OpenPlanned()"><strong id="pmV31Planned">0</strong><span>שובצו לביצוע</span><small>פתוחות ששובצו ועדיין בתוך חלון הטיפול</small></div>
     <div class="pm-v17-kpi pm-v105-unassigned-kpi" onclick="return pmV105OpenUnassignedPlanner()"><strong id="pmV105Unassigned">0</strong><span>טרם שובצו לביצוע</span><small>פתוחות בתוך חלון 7 הימים שטרם שובצו</small></div>
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('overdue')"><strong id="pmV17Overdue">0</strong><span>באיחור</span><small>עברו 7 ימים ממועד פתיחת הטיפול והוא לא בוצע</small></div>
-    <div class="pm-v17-kpi pm-v109-upcoming-kpi" onclick="return pmV109OpenUpcoming()"><strong id="pmV109Upcoming">0</strong><span>7 ימים קרובים</span><small>PM שעדיין לא פתוחות וייפתחו בשבעת הימים הקרובים</small></div>
     <div class="pm-v17-kpi" onclick="pmV99OpenCompletedReport()"><strong id="pmV99Completed">0</strong><span>בוצעו</span><small id="pmV99CompletedDetail">הושלמו בתקופת הביצוע</small></div>
     <div class="pm-v17-kpi pm-v97-postpone-kpi" onclick="return pmV109OpenPostponed()"><strong id="pmV97Postponements">0</strong><span>נדחו</span><small id="pmV97PostponementsDetail">נדחו וממתינים למועד החדש</small></div>
     <div class="pm-v17-kpi pm-v104-cancelled-kpi" onclick="return pmV104OpenCancelledReport()"><strong id="pmV104Cancelled">0</strong><span>ביטולים</span><small id="pmV104CancelledDetail">ביטולים בתקופת הביצוע</small></div>
@@ -9331,15 +9330,23 @@ window.pmHistoryParityAudit=function(){
 </script>
 
 
-<style id="fop-v109-due-window-lifecycle-style">
-.pm-v99-kpis{grid-template-columns:repeat(5,minmax(0,1fr))!important}
-.pm-v109-window{display:inline-flex;align-items:center;gap:5px;margin-top:6px;margin-inline-start:6px;padding:4px 8px;border-radius:999px;background:#eef6ff;color:#174d86;font-size:10px;font-weight:900}
+<style id="fop-v110-planner-ui-clean-style">
+.pm-v99-kpis{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.pm-v109-window{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:4px 9px;border-radius:999px;background:#eef6ff;color:#174d86;font-size:10px;font-weight:900}
 .pm-v109-window.waiting{background:#f2f4f7;color:#475467}.pm-v109-window.overdue{background:#fff0f0;color:#b42318}.pm-v109-window.postponed{background:#fff7e6;color:#8a5900}.pm-v109-window.upcoming{background:#f0f7ff;color:#1769aa}
-.pm-v109-row-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}.pm-v109-defer{border:1px solid #e7c979;background:#fff8e8;color:#76530b;border-radius:10px;padding:8px 10px;font-size:10px;font-weight:900;cursor:pointer}
 .pm-plan-row.pm-v109-upcoming{opacity:.78;background:#f8fbff}.pm-plan-row.pm-v109-postponed{background:#fffbf3;border-color:#f0c477}.pm-plan-row.pm-v109-overdue{background:#fff7f8;border-color:#ef9aaa}
-@media(max-width:1000px){.pm-v99-kpis{grid-template-columns:repeat(3,1fr)!important}}@media(max-width:600px){.pm-v99-kpis{grid-template-columns:repeat(2,1fr)!important}}
+#pmPlannerDetail .pm-plan-row{grid-template-columns:34px minmax(0,1fr) 90px 86px}
+.pm-v110-card-footer{display:flex;align-items:center;gap:8px;margin-top:10px;max-width:100%}
+.pm-v110-status{display:inline-flex;align-items:center;justify-content:center;min-height:34px;padding:7px 12px;border-radius:11px;font-size:10px;font-weight:900;line-height:1.1;white-space:nowrap;background:#edf2f8;color:#52657e}
+.pm-v110-status.planned{background:#eaf3ff;color:#0967e5}.pm-v110-status.overdue{background:#fff0f0;color:#b42318}.pm-v110-status.postponed{background:#fff4df;color:#805600}.pm-v110-status.waiting{background:#f1f4f8;color:#52657e}
+.pm-v110-status::before{content:'•';font-size:15px;line-height:0;margin-inline-end:6px}.pm-v110-status.planned::before{content:'✓';font-size:11px}.pm-v110-status.overdue::before{content:'!';font-size:11px}
+.pm-v110-defer{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:34px;border:1px solid #cfdbea;background:#fff;color:#334e72;border-radius:11px;padding:7px 11px;font-size:10px;font-weight:900;cursor:pointer;white-space:nowrap;box-shadow:0 1px 2px rgba(20,45,80,.04)}
+.pm-v110-defer::before{content:'↻';font-size:13px;font-weight:700}.pm-v110-defer:hover{background:#f6f9fd;border-color:#afc4dd}.pm-v110-defer:active{transform:translateY(1px)}
+@media(max-width:1000px){.pm-v99-kpis{grid-template-columns:repeat(2,1fr)!important}}
+@media(max-width:600px){.pm-v99-kpis{grid-template-columns:repeat(2,1fr)!important}#pmPlannerDetail .pm-plan-row{grid-template-columns:30px minmax(0,1fr) 72px;gap:9px}.pm-v110-card-footer{gap:7px;flex-wrap:nowrap}.pm-v110-status{flex:1;min-width:0;padding:7px 8px}.pm-v110-defer{flex:0 0 auto;padding:7px 9px}}
 </style>
 <script id="fop-v109-due-window-lifecycle">
+window.FOP_PLANNER_UI_BUILD="20260828-v110-planner-ui-clean";
 /* V109 — Due-driven PM lifecycle.
    1) pm_tasks.next_due is the OPENING date of the current PM occurrence.
    2) The occurrence has a fixed 7-calendar-day execution window: due..due+6.
@@ -9430,7 +9437,7 @@ window.pmHistoryParityAudit=function(){
       const selectable=canSelect(r,asOf),key=`${String(r.task?.id||r.id)}@@${r.due}`,dline=deadline(r.due),assigned=r.isAssigned,dp=r.deferPlan;
       const windowText=r.state==='postponed'?`נדחה עד ${fd(r.due)}${dp?.postponedReason?' · '+dp.postponedReason:''}`:r.state==='upcoming'?`ייפתח ב-${fd(r.due)}`:r.state==='overdue'?`באיחור · החלון הסתיים ב-${fd(dline)} · ${assigned?'שובצה '+fd(r.assignmentDate):'לא שובצה'}`:r.state==='planned'?`שובצה ${fd(r.assignmentDate)} · חלון עד ${fd(dline)}`:`חלון טיפול ${fd(r.due)}–${fd(dline)} · טרם שובצה`;
       const rowCls=r.state==='overdue'?'pm-v109-overdue':r.state==='postponed'?'pm-v109-postponed':r.state==='upcoming'?'pm-v109-upcoming':r.state==='planned'?'planned':'';
-      return `<div class="pm-plan-row ${rowCls}"><input class="pm-plan-check" type="checkbox" value="${eh(key)}" ${selectable?'':'disabled'} onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${eh(r.machine)} — ${eh(r.description)}</strong><small>${eh(r.department)} · <strong>מקצוע: ${eh(r.trade||'—')}</strong> · תדירות: ${eh(r.frequency||'—')} · ${Number(r.duration||0)} דק׳</small><span class="pm-v109-window ${eh(r.state)}">${eh(windowText)}</span>${r.task&&typeof pmChecklistToggleHtml==='function'?pmChecklistToggleHtml(r.task):''}</div><div class="pm-plan-meta pm-plan-hide-mobile">${eh(r.frequency||'')}</div><div class="pm-plan-meta">${eh(fd(r.due))}</div><div class="pm-v109-row-actions">${selectable&&pmCan('manageExceptions')?`<button type="button" class="pm-v109-defer" onclick="event.preventDefault();event.stopPropagation();return openPostponeModal('${eh(r.task?.id||r.id)}')">דחה שבוע</button>`:''}</div><span class="pm-plan-badge ${badgeClass(r)}">${eh(stateLabel(r))}</span></div>`;
+      return `<div class="pm-plan-row ${rowCls}"><input class="pm-plan-check" type="checkbox" value="${eh(key)}" ${selectable?'':'disabled'} onchange="updatePlanSelectionInfo()"/><div class="pm-plan-main"><strong>${eh(r.machine)} — ${eh(r.description)}</strong><small>${eh(r.department)} · <strong>מקצוע: ${eh(r.trade||'—')}</strong> · תדירות: ${eh(r.frequency||'—')} · ${Number(r.duration||0)} דק׳</small><span class="pm-v109-window ${eh(r.state)}">${eh(windowText)}</span>${r.task&&typeof pmChecklistToggleHtml==='function'?pmChecklistToggleHtml(r.task):''}<div class="pm-v110-card-footer"><span class="pm-v110-status ${eh(r.state)}">${eh(stateLabel(r))}</span>${selectable&&pmCan('manageExceptions')?`<button type="button" class="pm-v110-defer" onclick="event.preventDefault();event.stopPropagation();return openPostponeModal('${eh(r.task?.id||r.id)}')">דחה שבוע</button>`:''}</div></div><div class="pm-plan-meta pm-plan-hide-mobile">${eh(r.frequency||'')}</div><div class="pm-plan-meta">${eh(fd(r.due))}</div></div>`;
     }).join(''):'<div class="empty">אין משימות PM ברשימה זו.</div>';
     const open=opPM({...o,status:'open'}),assignedAny=open.filter(r=>r.isAssigned),unassignedAny=open.filter(r=>!r.isAssigned);
     if($('pmPlanRequired'))$('pmPlanRequired').textContent=all.length;
@@ -9484,13 +9491,13 @@ window.pmHistoryParityAudit=function(){
   function dashOpts(status='open'){const g=window.pmV99GlobalState||{};return {period:g.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),anchor:g.anchor||$('pmDashboardAnchor')?.value||tday(),department:g.department??$('pmDashboardDepartment')?.value??'',machine:g.machine??$('pmDashboardMachine')?.value??'',trade:g.trade??$('pmDashboardTrade')?.value??'',workType:'PM',status};}
   function setText(id,v){const e=$(id);if(e)e.textContent=v;}
   function refreshDashboard(){
-    const open=opPM(dashOpts('open')),planned=opPM(dashOpts('planned')),waiting=opPM(dashOpts('waiting')),over=opPM(dashOpts('overdue')),post=opPM(dashOpts('postponed')),up=opPM(dashOpts('near'));
-    setText('pmV17Open',open.length);setText('pmV31Planned',planned.length);setText('pmV105Unassigned',waiting.length);setText('pmV17Overdue',over.length);setText('pmV97Postponements',post.length);setText('pmV109Upcoming',up.length);
+    const open=opPM(dashOpts('open')),planned=opPM(dashOpts('planned')),waiting=opPM(dashOpts('waiting')),over=opPM(dashOpts('overdue')),post=opPM(dashOpts('postponed'));
+    setText('pmV17Open',open.length);setText('pmV31Planned',planned.length);setText('pmV105Unassigned',waiting.length);setText('pmV17Overdue',over.length);setText('pmV97Postponements',post.length);
     setText('pmV3Waiting',waiting.length);setText('pmV3Planned',planned.length);setText('pmV3Postponed',post.length);setText('pmV3Overdue',over.length);if($('pmV3WaitingDetail'))$('pmV3WaitingDetail').textContent='פתוחות בתוך חלון 7 ימים';if($('pmV97PostponementsDetail'))$('pmV97PostponementsDetail').textContent='נדחו וממתינים למועד החדש';
     const assignedAny=open.filter(r=>r.isAssigned),coverage=open.length?Math.round(assignedAny.length/open.length*100):100;setText('pmV3Coverage',coverage+'%');if($('pmV3CoverageDetail'))$('pmV3CoverageDetail').textContent=`${assignedAny.length} מתוך ${open.length}`;if($('pmV3CoverageBar'))$('pmV3CoverageBar').style.width=coverage+'%';
     const trades={};for(const r of open)trades[r.trade||'לא מוגדר']=(trades[r.trade||'לא מוגדר']||0)+Number(r.duration||0)/60;const tb=$('pmV17Trade'),mx=Math.max(1,...Object.values(trades));if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${eh(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${v.toFixed(1)}ש׳</strong></div>`).join('')||'<div class="empty">אין כרגע עומס PM פתוח.</div>';
-    const att=[...over,...waiting,...up].slice(0,12),box=$('pmV17Attention');if(box)box.innerHTML=att.length?att.map(r=>`<div class="pm-v3-mini"><div><strong>${eh(r.machine)} — ${eh(r.description)}</strong><small>${eh(r.trade||'')} · ${r.state==='overdue'?'באיחור':r.state==='waiting'?'טרם שובצה':'ייפתח '+eh(fd(r.due))}</small></div><span class="tag ${r.state==='overdue'?'red':''}">${r.state==='overdue'?'באיחור':r.state==='waiting'?'טרם שובצה':'קרובה'}</span></div>`).join(''):'<div class="empty">אין כרגע משימות שדורשות תשומת לב.</div>';
-    window.pmV109Partition={open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,upcoming:up.length,invariant:open.length===planned.length+waiting.length+over.length};
+    const att=[...over,...waiting].slice(0,12),box=$('pmV17Attention');if(box)box.innerHTML=att.length?att.map(r=>`<div class="pm-v3-mini"><div><strong>${eh(r.machine)} — ${eh(r.description)}</strong><small>${eh(r.trade||'')} · ${r.state==='overdue'?'באיחור':'טרם שובצה'}</small></div><span class="tag ${r.state==='overdue'?'red':''}">${r.state==='overdue'?'באיחור':'טרם שובצה'}</span></div>`).join(''):'<div class="empty">אין כרגע משימות שדורשות תשומת לב.</div>';
+    window.pmV109Partition={open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,invariant:open.length===planned.length+waiting.length+over.length};
   }
   const prevDash=window.renderDashboard;window.renderDashboard=renderDashboard=function(){const r=typeof prevDash==='function'?prevDash.apply(this,arguments):undefined;try{refreshDashboard()}catch(e){console.warn('V109 dashboard',e)}return r;};
 
