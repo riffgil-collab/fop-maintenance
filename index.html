@@ -7702,7 +7702,7 @@ async function saveHistoryEdit(){
 /* V96 — PM/WO execution-log parity: explicit PM/WO completed labels and editable notes/photos for both. */
 window.pmHistoryParityAudit=function(){
   const wo=(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>String(w.status||'').toLowerCase()==='completed');
-  return {build:'20260827-v101-planner-assigned-parity',pmEdit:true,woEdit:true,pmLabel:'PM בוצע',woLabel:'WO בוצע',completedWO:wo.length};
+  return {build:'20260827-v102-single-active-occurrence',pmEdit:true,woEdit:true,pmLabel:'PM בוצע',woLabel:'WO בוצע',completedWO:wo.length};
 };
 </script>
 
@@ -8452,7 +8452,7 @@ window.pmHistoryParityAudit=function(){
     const open=getWork({...base,status:'open'}),assigned=getWork({...base,status:'planned'}),overdue=getWork({...base,status:'overdue'});
     const openKeys=new Set(open.map(r=>r.key));
     const bad=assigned.filter(r=>!openKeys.has(r.key));
-    return {build:'20260827-v101-planner-assigned-parity',filters:base,open:open.length,assigned:assigned.length,overdue:overdue.length,assignedAlsoOverdue:assigned.filter(r=>r.state==='overdue').length,assignedOutsideOpen:bad.length,ok:bad.length===0};
+    return {build:'20260827-v102-single-active-occurrence',filters:base,open:open.length,assigned:assigned.length,overdue:overdue.length,assignedAlsoOverdue:assigned.filter(r=>r.state==='overdue').length,assignedOutsideOpen:bad.length,ok:bad.length===0};
   };
   relabel();
   setTimeout(()=>{relabel();try{window.renderDashboard?.();window.renderPlanner?.();window.renderReports?.()}catch(e){}},0);
@@ -8531,7 +8531,7 @@ window.pmHistoryParityAudit=function(){
     if(range){const e=engine();const b=e?.periodBounds?.(opts().period,opts().anchor);range.textContent=b?`${fmtDate(b.start)}–${fmtDate(b.end)}`:'';}
     try{window.renderUnplannedPlanner?.();}catch(e){}
     try{updatePlanSelectionInfo?.();}catch(e){}
-    window.pmV101PlannerAudit={build:'20260827-v101-planner-assigned-parity',filters:opts(),rows:all.length,pm:pm.length,assigned:assigned.length,assignedOverdue:assigned.filter(r=>r.state==='overdue').length,keys:assigned.map(r=>r.key)};
+    window.pmV101PlannerAudit={build:'20260827-v102-single-active-occurrence',filters:opts(),rows:all.length,pm:pm.length,assigned:assigned.length,assignedOverdue:assigned.filter(r=>r.state==='overdue').length,keys:assigned.map(r=>r.key)};
   };
   try{renderPlanner=window.renderPlanner;}catch(e){}
 
@@ -8544,6 +8544,108 @@ window.pmHistoryParityAudit=function(){
   };
 
   setTimeout(()=>{try{window.renderPlanner()}catch(e){console.error('V101 planner init',e)}},0);
+})();
+</script>
+
+
+<script id="fop-v102-single-active-occurrence">
+/* V102 — Single Active Occurrence contract.
+   Operational views (Dashboard / Planning / Treatment Reporting / Reports)
+   may show only ONE unresolved occurrence per PM master task. A later recurrence
+   must not become actionable until the current pm_tasks.next_due occurrence is
+   completed, cancelled, or otherwise advances the master pointer. Long-range
+   recurrence projection remains an internal forecast concern, not an extra
+   open work card. */
+(function(){
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const CLOSED=new Set(['completed','done','cancelled','canceled','בוצע','בוטל']);
+  function engine(){return window.pmCanonicalForecast||window.fopUnifiedWorkSource||null;}
+  const eng=engine();
+  if(!eng||typeof eng.getPM!=='function') return;
+
+  const expandedGetPM=eng.getPM.bind(eng);
+  const expandedGetWO=typeof eng.getWO==='function'?eng.getWO.bind(eng):(()=>[]);
+
+  function taskIdOf(r){return String(r?.id??r?.task?.id??r?.item?.t?.id??'');}
+  function dueOf(r){return String(r?.due??r?.item?.due??'').slice(0,10);}
+  function isOpenRow(r){return !CLOSED.has(norm(r?.state)) && !CLOSED.has(norm(r?.plan?.status));}
+  function keyOf(r){return String(r?.key||`PM:${taskIdOf(r)}:${dueOf(r)}`);}
+
+  function currentKeys(opts={}){
+    // Ask the pre-V102 engine for the full operational open population in the
+    // same horizon. Canonical engine always carries one backlog occurrence when
+    // next_due is before the horizon, so the unresolved current occurrence can
+    // block projected future recurrences.
+    const open=expandedGetPM({...opts,status:'open'}).filter(isOpenRow);
+    const first=new Map();
+    for(const r of open){
+      const id=taskIdOf(r), due=dueOf(r); if(!id||!due) continue;
+      const old=first.get(id);
+      if(!old || dueOf(old)>due) first.set(id,r);
+    }
+    return new Set([...first.values()].map(keyOf));
+  }
+
+  function getPM(opts={}){
+    const status=opts.status||'open';
+    // Historical closed populations are event records, not active occurrences.
+    if(status==='completed'||status==='cancelled') return expandedGetPM(opts);
+    const keep=currentKeys(opts);
+    return expandedGetPM(opts).filter(r=>keep.has(keyOf(r)));
+  }
+
+  function getWO(opts={}){return expandedGetWO(opts);}
+  function getWork(opts={}){
+    const wt=opts.workType||'';
+    return [
+      ...(wt==='WO'?[]:getPM(opts)),
+      ...(wt==='PM'?[]:getWO(opts))
+    ].sort((a,b)=>String(a.effectiveDate||a.date||a.due||'').localeCompare(String(b.effectiveDate||b.date||b.due||''))||String(a.kind||'').localeCompare(String(b.kind||'')));
+  }
+
+  eng.getPM=getPM;
+  eng.getWO=getWO;
+  eng.getWork=getWork;
+  window.pmCanonicalForecast=eng;
+  window.fopUnifiedWorkSource=eng;
+
+  // Execution queue must obey the same one-current-occurrence contract.
+  const oldExec=window.pmV98ExecutionRows;
+  if(typeof oldExec==='function'){
+    window.pmV98ExecutionRows=function(){
+      const x=oldExec();
+      const active=getPM({
+        period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',
+        anchor:document.getElementById('pmPlannerStart')?.value||document.getElementById('pmDashboardAnchor')?.value||((typeof today==='function')?today():''),
+        department:document.getElementById('pmPlannerDepartment')?.value||'',
+        machine:document.getElementById('pmPlannerMachine')?.value||'',
+        trade:document.getElementById('pmPlannerProfession')?.value||document.getElementById('pmPlannerTrade')?.value||'',
+        status:'open'
+      });
+      const allowed=new Set(active.map(keyOf));
+      return {...x,pm:(x.pm||[]).filter(r=>allowed.has(keyOf(r)))};
+    };
+  }
+
+  window.pmV102Audit=function(opts={}){
+    const base={
+      period:opts.period||((typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week'),
+      anchor:opts.anchor||document.getElementById('pmPlannerStart')?.value||document.getElementById('pmDashboardAnchor')?.value||((typeof today==='function')?today():''),
+      department:opts.department||'',machine:opts.machine||'',trade:opts.trade||'',workType:opts.workType||''
+    };
+    const rows=getPM({...base,status:'open'}), by=new Map();
+    for(const r of rows){const id=taskIdOf(r);by.set(id,(by.get(id)||0)+1);}
+    const duplicates=[...by.entries()].filter(([,n])=>n>1);
+    return {build:'20260827-v102-single-active-occurrence',filters:base,openPM:rows.length,duplicateTaskIds:duplicates,ok:duplicates.length===0};
+  };
+
+  // Force all operational tabs to redraw from the patched shared source.
+  setTimeout(()=>{
+    try{window.renderDashboard?.();}catch(e){console.error('V102 dashboard redraw',e)}
+    try{window.renderPlanner?.();}catch(e){console.error('V102 planner redraw',e)}
+    try{window.renderReports?.();}catch(e){console.error('V102 reports redraw',e)}
+    try{window.renderReportCompletion?.();}catch(e){}
+  },0);
 })();
 </script>
 </body></html>
