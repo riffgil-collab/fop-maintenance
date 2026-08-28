@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v128-reports-period-fixed"/>
+<meta name="fop-build" content="20260828-v129-reports-unified-filter-block"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10507,6 +10507,93 @@ body.pm-v124-history-active #pmV99GlobalFilter{display:none!important}
   window.pmV128Audit=function(){
     const bar=$('pmV99GlobalFilter'),st=status();
     return {build:'20260828-v128-reports-period-fixed',status:st,historical:HISTORICAL.has(st),hiddenForLiveReports:!!bar?.classList.contains('pm-v128-reports-live')};
+  };
+})();
+</script>
+
+
+<style id="fop-v129-reports-unified-filter-style">
+/* V129 — Reports uses one unified filter block; Status is moved into the top filter bar. */
+body.pm-v129-reports-active #pmReports .pm-report-filter-grid{display:none!important}
+#pmV99GlobalFilter .pm-v129-status-field{min-width:150px;flex:1 1 150px}
+#pmV99GlobalFilter.pm-v129-reports-unified{align-items:end}
+@media(max-width:600px){#pmV99GlobalFilter .pm-v129-status-field{min-width:100%;flex-basis:100%}}
+</style>
+<script id="fop-v129-reports-unified-filter-script">
+(function(){
+  const $=id=>document.getElementById(id);
+  let placeholder=null,statusField=null,originalTitle='',originalSub='';
+  function ensure(){
+    const st=$('pmReportsStatus');
+    if(!st)return false;
+    statusField=st.closest('.field');
+    if(!statusField)return false;
+    if(!placeholder){
+      placeholder=document.createElement('span');
+      placeholder.id='pmV129StatusPlaceholder';
+      placeholder.style.display='none';
+      statusField.parentNode?.insertBefore(placeholder,statusField);
+    }
+    statusField.classList.add('pm-v129-status-field');
+    return true;
+  }
+  function moveIntoBar(){
+    if(!ensure())return;
+    const bar=$('pmV99GlobalFilter');if(!bar)return;
+    const title=bar.querySelector('.pm-v99-title strong'),sub=bar.querySelector('.pm-v99-title small');
+    if(title&&!originalTitle)originalTitle=title.textContent||'';
+    if(sub&&!originalSub)originalSub=sub.textContent||'';
+    const sync=bar.querySelector('.pm-v99-sync-note');
+    if(statusField.parentNode!==bar){
+      if(sync)bar.insertBefore(statusField,sync); else bar.appendChild(statusField);
+    }
+    if(title)title.textContent='סינון דוחות';
+    if(sub)sub.textContent='פירוט והדפסה לפי אותם חתכים וסטטוסים של הדשבורד';
+    bar.classList.add('pm-v129-reports-unified');
+    document.body.classList.add('pm-v129-reports-active');
+  }
+  function restore(){
+    if(statusField&&placeholder?.parentNode&&statusField.parentNode!==placeholder.parentNode){
+      placeholder.parentNode.insertBefore(statusField,placeholder.nextSibling);
+    }
+    const bar=$('pmV99GlobalFilter');
+    if(bar){
+      bar.classList.remove('pm-v129-reports-unified');
+      const title=bar.querySelector('.pm-v99-title strong'),sub=bar.querySelector('.pm-v99-title small');
+      if(title&&originalTitle)title.textContent=originalTitle;
+      if(sub&&originalSub)sub.textContent=originalSub;
+    }
+    document.body.classList.remove('pm-v129-reports-active');
+  }
+  function apply(name){
+    const key=String(name||'').toLowerCase();
+    const active=key==='reports'||!!$('pmReports')?.classList.contains('active');
+    if(active)moveIntoBar(); else restore();
+  }
+  const prevShow=window.showTab;
+  window.showTab=function(name){
+    const r=typeof prevShow==='function'?prevShow.apply(this,arguments):undefined;
+    setTimeout(()=>apply(name),0);
+    return r;
+  };
+  const prevRender=window.renderReports;
+  if(typeof prevRender==='function'){
+    window.renderReports=function(){
+      const r=prevRender.apply(this,arguments);
+      setTimeout(()=>moveIntoBar(),0);
+      return r;
+    };
+    try{renderReports=window.renderReports}catch(e){}
+  }
+  function boot(){
+    ensure();
+    const id=document.querySelector('.pm-panel.active')?.id||'';
+    apply(id==='pmReports'?'reports':'');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+  window.pmV129Audit=function(){
+    const bar=$('pmV99GlobalFilter');
+    return {build:'20260828-v129-reports-unified-filter-block',reportsActive:document.body.classList.contains('pm-v129-reports-active'),statusInsideBar:!!statusField&&statusField.parentNode===bar,periodVisible:!!$('pmV99Period')?.closest('.field')&&!getComputedStyle($('pmV99Period').closest('.field')).display.includes('none')};
   };
 })();
 </script>
