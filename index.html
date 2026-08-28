@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v124-history-local-filters-fixed"/>
+<meta name="fop-build" content="20260828-v125-history-hide-inactive-tasks"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10313,8 +10313,8 @@ body.pm-v124-history-active #pmV99GlobalFilter{display:none!important}
 #pmHistory .history-filters .field:has(#pmHistoryWorkType){display:block!important}
 @media(max-width:620px){#pmHistory .history-filters{grid-template-columns:1fr 1fr!important}}
 </style>
-<script id="fop-v124-history-local-filters-fixed">
-/* V124 — Remove the global operational filter from Execution History.
+<script id="fop-v125-history-local-filters-fixed">
+/* V125 — Remove the global operational filter from Execution History and hide inactive PM history.
    Under the history KPIs keep exactly four local filters:
    Department / Machine / Trade / Work Type. */
 (function(){
@@ -10349,7 +10349,11 @@ body.pm-v124-history-active #pmV99GlobalFilter{display:none!important}
   }
   function filteredRows(){
     ensureWorkType();
-    const keep=fieldValues(),rows=periodRows();populate(rows,keep);const f=fieldValues();
+    const keep=fieldValues(),activeIds=new Set((Array.isArray(tasks)?tasks:[]).filter(t=>t&&t.active!==false).map(t=>String(t.id)));
+    // V125: PM executions whose master task is currently inactive are intentionally hidden
+    // from Execution History. WO history is unaffected. No database history is deleted.
+    const rows=periodRows().filter(r=>r?.source!=='PM'||!r?.taskId||activeIds.has(String(r.taskId)));
+    populate(rows,keep);const f=fieldValues();
     return rows.filter(r=>(!f.department||r.department===f.department)&&(!f.machine||r.machine===f.machine)&&(!f.trade||r.trade===f.trade)&&(!f.workType||r.source===f.workType));
   }
   function rowHtml(r){
@@ -10372,7 +10376,7 @@ body.pm-v124-history-active #pmV99GlobalFilter{display:none!important}
     if($('pmHistoryV122Mech'))$('pmHistoryV122Mech').textContent=fmtHours(mech);
     if($('pmHistoryV122Elec'))$('pmHistoryV122Elec').textContent=fmtHours(elec);
     const el=$('pmHistoryList');if(el)el.innerHTML=rows.length?rows.slice(0,500).map(rowHtml).join(''):'<div class="empty">לא נמצאו ביצועים בתקופה ובסינון שנבחרו.</div>';
-    window.pmV124HistoryAudit={count:rows.length,pm,wo,mechanicHours:fmtHours(mech),electricianHours:fmtHours(elec),filters:fieldValues()};
+    window.pmV125HistoryAudit={count:rows.length,pm,wo,mechanicHours:fmtHours(mech),electricianHours:fmtHours(elec),filters:fieldValues(),inactivePMExcluded:true};
   }
   window.pmHistoryUnifiedRows=filteredRows;window.pmExecutionHistoryRows=filteredRows;window.renderHistory=renderV124;try{renderHistory=renderV124}catch(e){}
   window.exportHistoryCSV=function(){
