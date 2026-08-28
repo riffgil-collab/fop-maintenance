@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v122-reports-history-separated"/>
+<meta name="fop-build" content="20260828-v123-history-simple-period-only"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10035,9 +10035,7 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
 
 <style id="fop-v122-reports-history-style">
 /* V122 — Reports = dashboard detail; History = independent retrospective analytics. */
-#pmHistory .pm-v114-common-hidden{display:block!important}
-#pmHistory .history-filters .field:has(#pmHistoryFrom),
-#pmHistory .history-filters .field:has(#pmHistoryTo){display:none!important}
+#pmHistory .history-filters{display:none!important}
 .pm-v122-history-periods{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
 .pm-v122-history-periods button{border:1px solid #d7e0eb;background:#fff;color:#40516d;border-radius:11px;padding:9px 13px;font-weight:900;cursor:pointer}
 .pm-v122-history-periods button.active{background:var(--navy2);border-color:var(--navy2);color:#fff}
@@ -10050,7 +10048,7 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
 @media(max-width:620px){.pm-v122-history-summary{grid-template-columns:1fr}.pm-v122-history-periods button{flex:1 1 45%}}
 </style>
 <script id="fop-v122-reports-history-separated">
-/* V122 contract
+/* V123 contract
    A) Reports is the printable/detail twin of Dashboard.
       Current statuses use the exact V120 operational resolver.
       Completed/Cancelled are retrospective event populations and never disappear because a master task is inactive today.
@@ -10252,9 +10250,14 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
     if(trade&&!trade.options.length)trade.innerHTML='<option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option>';
   }
   function filteredHistoryV122(){
-    ensureHistoryUI();const raw=rawExecutionRows();populateHistoryFilters(raw);const b=historyBounds(),dep=$('pmHistoryDepartment')?.value||'',machine=$('pmHistoryMachine')?.value||'',trade=$('pmHistoryTrade')?.value||'',wt=$('pmHistoryWorkType')?.value||'',q=($('pmHistorySearch')?.value||'').trim().toLowerCase();
+    ensureHistoryUI();
+    const raw=rawExecutionRows(),b=historyBounds();
+    // V123: Execution History is intentionally simple. Only the local period buttons
+    // filter the history; legacy department/machine/trade/work-type/date/search fields
+    // are ignored so hidden stale values can never change the statistics.
+    ['pmHistoryDepartment','pmHistoryMachine','pmHistoryTrade','pmHistoryWorkType','pmHistorySearch'].forEach(id=>{const e=$(id);if(e)e.value='';});
     if($('pmHistoryFrom'))$('pmHistoryFrom').value=b.start;if($('pmHistoryTo'))$('pmHistoryTo').value=b.end;
-    return raw.filter(r=>r.date>=b.start&&r.date<=b.end&&(!dep||r.department===dep)&&(!machine||r.machine===machine)&&(!trade||r.trade===trade)&&(!wt||r.source===wt)&&(!q||`${r.machine} ${r.task} ${r.department} ${r.trade} ${r.reportedBy} ${r.completionNotes} ${r.source}`.toLowerCase().includes(q)));
+    return raw.filter(r=>r.date>=b.start&&r.date<=b.end);
   }
   function historyRowHtml(r){
     const eventLabel=r.source==='WO'?'WO בוצע':'PM בוצע',freqLabel=r.source==='WO'?`עדיפות: ${r.frequency||'—'}`:`תדירות: ${r.frequency||'—'}`;
