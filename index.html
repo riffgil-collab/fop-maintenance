@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v125-history-hide-inactive-tasks"/>
+<meta name="fop-build" content="20260828-v126-hide-period-planning-execution"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10398,6 +10398,53 @@ body.pm-v124-history-active #pmV99GlobalFilter{display:none!important}
 
   const boot=()=>{ensureWorkType();setHistoryMode(!!$('pmHistory')?.classList.contains('active'));renderV124();};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
+
+<style id="fop-v126-contextual-period-visibility">
+/* V126 — Period is meaningful only in Dashboard and Reports.
+   Planning and Execution operate on the current actionable occurrence/queue. */
+#pmV99GlobalFilter.pm-v126-no-period .pm-v126-period-field{display:none!important}
+#pmPlanner .pm-plan-periods{display:none!important}
+</style>
+<script id="fop-v126-contextual-period-visibility-script">
+(function(){
+  const $=id=>document.getElementById(id);
+  function tagPeriodField(){
+    const f=$('pmV99Period')?.closest('.field');
+    if(f)f.classList.add('pm-v126-period-field');
+  }
+  function apply(tab){
+    tagPeriodField();
+    const bar=$('pmV99GlobalFilter');if(!bar)return;
+    const key=String(tab||'').toLowerCase();
+    const noPeriod=key==='planner'||key==='report';
+    bar.classList.toggle('pm-v126-no-period',noPeriod);
+    const sub=bar.querySelector('.pm-v99-title small');
+    if(sub){
+      sub.textContent=noPeriod
+        ? 'סינון עבודה פעילה לפי מחלקה, מכונה, מקצוע וסוג עבודה'
+        : 'אותו חתך בדשבורד ובדוחות';
+    }
+  }
+  const prev=window.showTab;
+  window.showTab=function(name){
+    const r=typeof prev==='function'?prev.apply(this,arguments):undefined;
+    setTimeout(()=>apply(name),0);
+    return r;
+  };
+  function boot(){
+    tagPeriodField();
+    const active=document.querySelector('.pm-panel.active')?.id||'';
+    const map={pmPlanner:'planner',pmReport:'report',pmDashboard:'dashboard',pmReports:'reports'};
+    apply(map[active]||'');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+  window.pmV126Audit=function(){
+    const bar=$('pmV99GlobalFilter');
+    return {build:'20260828-v126-hide-period-planning-execution',periodHidden:!!bar?.classList.contains('pm-v126-no-period'),plannerPeriodButtonsHidden:true};
+  };
 })();
 </script>
 
