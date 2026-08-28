@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v126-hide-period-planning-execution"/>
+<meta name="fop-build" content="20260828-v128-reports-period-fixed"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10448,4 +10448,66 @@ body.pm-v124-history-active #pmV99GlobalFilter{display:none!important}
 })();
 </script>
 
+
+
+<style id="fop-v128-reports-period-visibility">
+/* V128 — In Reports, period is shown only for historical closed statuses. */
+#pmV99GlobalFilter.pm-v128-reports-live .pm-v126-period-field{display:none!important}
+</style>
+<script id="fop-v128-reports-period-visibility-script">
+(function(){
+  const $=id=>document.getElementById(id);
+  const HISTORICAL=new Set(['completed','cancelled']);
+  function status(){return String($('pmReportsStatus')?.value||'open').trim().toLowerCase();}
+  function isReportsActive(tab){
+    const key=String(tab||'').toLowerCase();
+    return key==='reports'||!!$('pmReports')?.classList.contains('active');
+  }
+  function apply(tab){
+    const bar=$('pmV99GlobalFilter');if(!bar)return;
+    const reports=isReportsActive(tab),historical=reports&&HISTORICAL.has(status());
+    const field=$('pmV99Period')?.closest('.field');
+    if(field){
+      field.classList.add('pm-v126-period-field');
+      const label=field.querySelector('label');
+      if(label)label.textContent=historical?'תקופת היסטוריה':'תקופה';
+    }
+    bar.classList.toggle('pm-v128-reports-live',reports&&!historical);
+    const sub=bar.querySelector('.pm-v99-title small');
+    if(reports){
+      sub.textContent=historical
+        ? 'דוח היסטורי לפי תקופה, מחלקה, מכונה, מקצוע וסוג עבודה'
+        : 'פירוט מצב העבודה הנוכחי לפי מחלקה, מכונה, מקצוע וסוג עבודה';
+    }
+  }
+  const previousShow=window.showTab;
+  window.showTab=function(name){
+    const result=typeof previousShow==='function'?previousShow.apply(this,arguments):undefined;
+    setTimeout(()=>apply(name),0);
+    return result;
+  };
+  document.addEventListener('change',function(ev){
+    if(ev?.target?.id==='pmReportsStatus')setTimeout(()=>apply('reports'),0);
+  });
+  const previousRender=window.renderReports;
+  if(typeof previousRender==='function'){
+    window.renderReports=function(){
+      const result=previousRender.apply(this,arguments);
+      setTimeout(()=>apply('reports'),0);
+      return result;
+    };
+    try{renderReports=window.renderReports}catch(e){}
+  }
+  function boot(){
+    const active=document.querySelector('.pm-panel.active')?.id||'';
+    const map={pmDashboard:'dashboard',pmPlanner:'planner',pmReport:'report',pmReports:'reports',pmHistory:'history'};
+    apply(map[active]||'');
+  }
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+  window.pmV128Audit=function(){
+    const bar=$('pmV99GlobalFilter'),st=status();
+    return {build:'20260828-v128-reports-period-fixed',status:st,historical:HISTORICAL.has(st),hiddenForLiveReports:!!bar?.classList.contains('pm-v128-reports-live')};
+  };
+})();
+</script>
 </body></html>
