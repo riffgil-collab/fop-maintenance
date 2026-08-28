@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v135-cancellation-ui-removed"/>
+<meta name="fop-build" content="20260828-v136-cosmetic-mobile-polish"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10907,4 +10907,70 @@ button[onclick*="cancelSingleOccurrence"],
   };
 })();
 </script>
+
+<style id="fop-v136-mobile-cosmetic-polish">
+/* V136 — cosmetic/mobile polish ONLY. No business logic or filter-state changes. */
+
+/* 1) Planning capacity: prevent global .field min-width from forcing horizontal overflow. */
+#pmPlanner .pm-plan-capacity{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+#pmPlanner .pm-plan-capacity .field{min-width:0!important;max-width:100%!important}
+#pmPlanner .pm-plan-capacity input{box-sizing:border-box;min-width:0!important;max-width:100%!important}
+
+/* 2) Execution History: local four-filter grid must fit two columns on iPhone. */
+#pmHistory .history-filters .field{min-width:0!important;max-width:100%!important}
+#pmHistory .history-filters select,#pmHistory .history-filters input{box-sizing:border-box;min-width:0!important;max-width:100%!important;width:100%!important}
+
+/* 3) Task Management: keep filters compact and exports readable. */
+#pmEditTasks .tm-toolbar .field{min-width:0!important;max-width:100%!important}
+#pmEditTasks .tm-toolbar select,#pmEditTasks .tm-toolbar input{box-sizing:border-box;min-width:0!important;max-width:100%!important;width:100%!important}
+#pmEditTasks .tm-v131-export-actions{flex:1 0 100%;margin-inline-start:0!important}
+
+/* 4) Operator / Maintenance checks: same action language as the rest of the app. */
+#pmOperatorChecks button[onclick="printOperatorChecklist()"],
+#pmMaintenanceChecks button[onclick="printMaintenanceChecklist()"]{
+  appearance:none;-webkit-appearance:none;border:0!important;border-radius:12px!important;
+  min-height:44px;padding:11px 16px!important;background:var(--navy2)!important;color:#fff!important;
+  font:inherit;font-weight:900!important;box-shadow:0 5px 14px rgba(20,52,94,.10);cursor:pointer
+}
+#pmOperatorChecks .pm-exec-print-checklist-option,
+#pmMaintenanceChecks .pm-exec-print-checklist-option{min-height:44px;box-sizing:border-box}
+
+/* 5) Consistent section headings. */
+.pm-panel .section-title{align-items:flex-start}
+.pm-panel .section-title h3{line-height:1.2}
+.pm-panel .section-title small{line-height:1.45;max-width:62%;text-align:start}
+
+@media(max-width:620px){
+  /* Preserve 2-column mobile filters where it saves a lot of vertical space. */
+  #pmEditTasks .tm-toolbar{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px!important;padding:11px!important}
+  #pmEditTasks .tm-toolbar .tm-search{grid-column:1/-1!important}
+  #pmEditTasks .tm-toolbar .field label{font-size:9px}
+  #pmEditTasks .tm-toolbar select,#pmEditTasks .tm-toolbar input{font-size:11px}
+
+  /* Export controls: Print + PDF, then Excel full width, then checklist option full width. */
+  #pmEditTasks .tm-v131-export-actions{
+    display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:8px!important;width:100%!important;flex-basis:100%!important
+  }
+  #pmEditTasks .tm-v131-export-actions button{width:100%!important;min-width:0!important;margin:0!important}
+  #pmEditTasks .tm-v131-export-actions button:nth-of-type(3){grid-column:1/-1!important}
+  #pmEditTasks .tm-v131-checklist-option{grid-column:1/-1!important;width:100%!important;box-sizing:border-box;justify-content:flex-start}
+
+  /* Checklist action rows stack cleanly instead of squeezing. */
+  #pmOperatorChecks button[onclick="printOperatorChecklist()"],
+  #pmMaintenanceChecks button[onclick="printMaintenanceChecklist()"]{width:100%!important}
+  #pmOperatorChecks .pm-exec-print-checklist-option,
+  #pmMaintenanceChecks .pm-exec-print-checklist-option{width:100%!important;justify-content:flex-start}
+
+  /* Headings become one clean vertical block on narrow screens. */
+  .pm-panel .section-title{display:flex!important;flex-direction:column!important;gap:4px!important;margin:16px 0 10px!important}
+  .pm-panel .section-title small{max-width:none!important;width:100%!important}
+}
+
+@media(max-width:430px){
+  #pmPlanner .pm-plan-capacity{gap:7px!important}
+  #pmPlanner .pm-plan-capacity .field label{font-size:9px;line-height:1.3;min-height:24px}
+  #pmPlanner .pm-plan-capacity input{padding-inline:7px!important}
+}
+</style>
 </body></html>
