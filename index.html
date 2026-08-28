@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v133-postponed-assignment-guard"/>
+<meta name="fop-build" content="20260828-v135-cancellation-ui-removed"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -650,7 +650,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="field"><label>מקצוע</label><select id="pmPlannerTrade" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
     <div class="field"><label>סוג עבודה</label><select id="pmPlannerWorkType" onchange="renderUnplannedPlanner()"><option value="">הכול</option><option value="PM">PM מחזורי</option><option value="WO">לא מתוכנן</option></select></div>
     <button type="button" class="btn" onclick="openUnplannedModal()">➕ עבודה לא מתוכננת</button>
-    <div class="field"><label>סטטוס</label><select id="pmPlannerStatus" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל הסטטוסים</option><option value="waiting">טרם שובצה</option><option value="planned">שובצה לביצוע</option><option value="postponed">נדחתה</option><option value="overdue">באיחור</option><option value="cancelled">בוטלה</option><option value="completed">בוצעה</option></select></div>
+    <div class="field"><label>סטטוס</label><select id="pmPlannerStatus" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל הסטטוסים</option><option value="waiting">טרם שובצה</option><option value="planned">שובצה לביצוע</option><option value="postponed">נדחתה</option><option value="overdue">באיחור</option><option value="completed">בוצעה</option></select></div>
   </div>
 
   <div class="pm-plan-summary">
@@ -688,7 +688,6 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="field"><label>בחירה</label><button type="button" class="secondary-btn" onclick="toggleAllPlanRows(true)">בחר הכל המוצג</button></div>
     <button type="button" class="btn" onclick="saveSelectedPlanning()">שבץ לביצוע</button>
     <button type="button" class="secondary-btn" onclick="unplanSelected()">הסר מהתוכנית</button>
-    <button type="button" class="danger-btn" onclick="cancelSelectedPlanning()">בטל טיפול</button>
   </div>
 
   <div class="pm-plan-note" id="pmPlanSelectionInfo">לא נבחרו משימות.</div>
@@ -804,7 +803,6 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
         <option value="planned">שובצה לביצוע</option>
         <option value="postponed">נדחתה</option>
         <option value="overdue">באיחור</option>
-        <option value="cancelled">בוטלה</option>
         <option value="completed">בוצעה</option>
       </select>
     </div>
@@ -4098,7 +4096,7 @@ renderReport=function(){
 
   if(!list.length){pmOpenTasks.innerHTML='<div class="empty">אין משימות לביצוע בתאריך ובסינון שנבחרו.</div>';return}
   const canManage=pmCan('manageExceptions');
-  pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מקצוע: ${esc(maintenanceTrade(x.t))}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}${pmNonChecklistNotes(x.t.notes)?`<br><b>הערות:</b> ${esc(pmNonChecklistNotes(x.t.notes))}`:''}</div>${pmChecklistToggleHtml(x.t)}<div class="pm-task-actions"><button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}','${p?.id||''}','${x.due}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage&&p?`<button class="secondary-btn" onclick="removeSingleFromPlan('${x.t.id}','${p.id}')">↩ הסר מהתוכנית</button>`:''}${canManage?`<button class="pm-v3-cancel" onclick="cancelSingleOccurrence('${x.t.id}','${x.due}')">בטל טיפול</button>`:''}</div></div>`}).join('');
+  pmOpenTasks.innerHTML=list.map(x=>{const st=v3OccurrenceState(x,reportDate),p=x.plan;return `<div class="open-task ${st==='overdue'?'overdue':'today'} ${st==='overdue'?'topbar-red':st==='postponed'?'topbar-orange':'topbar-green'}"><div class="open-task-top"><div><h4>${esc(x.t.machine)}</h4><div class="desc">${esc(x.t.task)}</div></div><span class="badge">${p?(st==='postponed'?'נדחתה':'בתוכנית העבודה'):'לא שובצה'}</span></div><div class="big-late">${st==='overdue'?'באיחור':p?'לביצוע בתוכנית':'ממתינה לתכנון'}</div><div class="meta">מחלקה: ${esc(x.t.department)}<br>תדירות: ${esc(x.t.frequency)}<br>מקצוע: ${esc(maintenanceTrade(x.t))}<br>מבצע: ${esc(p?.assignedTo||x.t.performer||'')}<br>יעד PM: ${esc(fDate(x.due))}${p?.plannedDate?`<br>תאריך מתוכנן: ${esc(fDate(p.plannedDate))}`:''}${p?.postponedReason?`<br>סיבת דחייה: ${esc(p.postponedReason)}`:''}${x.t.duration?`<br>משך: ${x.t.duration} דקות`:''}${pmNonChecklistNotes(x.t.notes)?`<br><b>הערות:</b> ${esc(pmNonChecklistNotes(x.t.notes))}`:''}</div>${pmChecklistToggleHtml(x.t)}<div class="pm-task-actions"><button class="complete" onclick="return pmOpenCompletionModal('${x.t.id}','${p?.id||''}','${x.due}')">✓ בוצע</button>${canManage&&p?`<button class="pm-postpone" onclick="moveWorkPlan('${p.id}')">דחה</button>`:''}${canManage&&p?`<button class="secondary-btn" onclick="removeSingleFromPlan('${x.t.id}','${p.id}')">↩ הסר מהתוכנית</button>`:''}</div></div>`}).join('');
 };
 
 // Completion accepts Planned or Postponed rows and closes them as Completed.
@@ -10774,9 +10772,139 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
   window.pmV133Audit=function(){
     lockPlannerRows();
     const all=[...document.querySelectorAll('#pmPlanner .pm-plan-check')],locked=all.filter(x=>x.disabled),bad=locked.filter(x=>x.checked);
-    return {build:'20260828-v133-postponed-assignment-guard',today:tday(),checkboxes:all.length,locked:locked.length,lockedChecked:bad.length,ok:bad.length===0};
+    return {build:'20260828-v134-cancellation-disabled',today:tday(),checkboxes:all.length,locked:locked.length,lockedChecked:bad.length,ok:bad.length===0};
   };
 })();
 </script>
 
+
+<style id="fop-v134-cancellation-disabled-style">
+/* V134 — cancellation is historical/audit-only. No new PM cancellation can be created. */
+button[onclick*="cancelSelectedPlanning"],
+button[onclick*="cancelSingleOccurrence"],
+.pm-v3-cancel{display:none!important}
+</style>
+<script id="fop-v134-cancellation-disabled-script">
+(function(){
+  const $=id=>document.getElementById(id);
+  const message=()=>{
+    try{if(typeof statusLine==='function')statusLine('ביטול טיפול הוסר מהמערכת. ניתן לדחות טיפול או להפוך משימה ללא פעילה בניהול משימות.','error');}catch(e){}
+    return false;
+  };
+
+  // Defense in depth: legacy cancellation APIs are intentionally disabled.
+  window.cancelSelectedPlanning=message;
+  try{cancelSelectedPlanning=window.cancelSelectedPlanning}catch(e){}
+  window.cancelSingleOccurrence=message;
+  try{cancelSingleOccurrence=window.cancelSingleOccurrence}catch(e){}
+  window.cancelOccurrence=async function(){message();return false;};
+  try{cancelOccurrence=window.cancelOccurrence}catch(e){}
+
+  // Existing cancelled records are audit-only: do not restore them into the live plan from legacy UI.
+  window.pmV25RestoreCancelled=message;
+  try{pmV25RestoreCancelled=window.pmV25RestoreCancelled}catch(e){}
+
+  function cleanCancellationActions(){
+    document.querySelectorAll('button[onclick*="cancelSelectedPlanning"],button[onclick*="cancelSingleOccurrence"],.pm-v3-cancel').forEach(b=>b.remove());
+    const plannerStatus=$('pmPlannerStatus');
+    if(plannerStatus){
+      [...plannerStatus.options].filter(o=>String(o.value).toLowerCase()==='cancelled').forEach(o=>o.remove());
+      if(String(plannerStatus.value).toLowerCase()==='cancelled')plannerStatus.value='';
+    }
+    // Any legacy restore button attached to a cancelled PM is removed; the record remains visible in Reports/Audit.
+    document.querySelectorAll('button[onclick*="pmV25RestoreCancelled"]').forEach(b=>b.remove());
+  }
+
+  const oldShow=window.showTab;
+  window.showTab=function(name){
+    const r=typeof oldShow==='function'?oldShow.apply(this,arguments):undefined;
+    setTimeout(cleanCancellationActions,0);return r;
+  };
+  const mo=new MutationObserver(()=>cleanCancellationActions());
+  function boot(){cleanCancellationActions();if(document.body)mo.observe(document.body,{childList:true,subtree:true});}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+
+  window.pmV134Audit=function(){
+    const planner=$('pmPlannerStatus');
+    return {
+      build:'20260828-v134-cancellation-disabled',
+      bulkCancelButton:!!document.querySelector('button[onclick*="cancelSelectedPlanning"]'),
+      singleCancelButtons:document.querySelectorAll('button[onclick*="cancelSingleOccurrence"],.pm-v3-cancel').length,
+      plannerCancelledOption:!!planner?.querySelector('option[value="cancelled"]'),
+      reportsCancelledOption:!!$('pmReportsStatus')?.querySelector('option[value="cancelled"]'),
+      cancellationCreationDisabled:true,
+      historicalCancelledPreserved:true
+    };
+  };
+})();
+</script>
+
+
+<style id="fop-v135-cancellation-ui-removed-style">
+/* V135 — UI-only cleanup. Cancellation remains readable internally for legacy DB integrity,
+   but is not exposed as a KPI, filter value, status card or user action anywhere in the app. */
+.pm-v104-cancelled-kpi,
+.pm-v3-status.cancelled,
+#pmV25Cancelled,
+[data-status="cancelled"].pm-cancellation-ui-only{display:none!important}
+</style>
+<script id="fop-v135-cancellation-ui-removed-script">
+(function(){
+  const $=id=>document.getElementById(id);
+  let cleaning=false;
+  function stripCancelledOption(sel){
+    if(!sel||sel.tagName!=='SELECT')return;
+    [...sel.options].filter(o=>['cancelled','canceled'].includes(String(o.value||'').trim().toLowerCase())).forEach(o=>o.remove());
+    if(['cancelled','canceled'].includes(String(sel.value||'').trim().toLowerCase())){
+      const open=[...sel.options].find(o=>String(o.value||'').toLowerCase()==='open');
+      sel.value=open?'open':'';
+      if(sel.id==='pmReportsStatus')try{window.renderReports?.()}catch(e){}
+      if(sel.id==='pmPlannerStatus')try{window.renderPlanner?.()}catch(e){}
+    }
+  }
+  function cleanUI(){
+    if(cleaning)return;cleaning=true;
+    try{
+      // Never alter generic dialog "Cancel" buttons. Only treatment-cancellation UI/status is removed.
+      document.querySelectorAll('select').forEach(stripCancelledOption);
+
+      // Dashboard cancellation KPIs/cards are retained in DOM only for legacy render safety, but never visible.
+      document.querySelectorAll('.pm-v104-cancelled-kpi,.pm-v3-status.cancelled').forEach(el=>{el.style.display='none';el.setAttribute('aria-hidden','true');});
+
+      // Legacy cancelled-treatment cards must not surface in normal UI even if an old renderer is called.
+      document.querySelectorAll('#pmPlanner .task-card.cancelled,#pmPlanner .cancelled-plan').forEach(el=>{el.style.display='none';el.setAttribute('aria-hidden','true');});
+
+      // Remove cancellation wording from visible explanatory text only; business calculations are untouched.
+      document.querySelectorAll('.pm-workload-note').forEach(el=>{
+        if(/שבוטלה/.test(el.textContent||''))el.textContent='השעות מחושבות מהמשימות הפתוחות בתקופה ובסינון שנבחר. משימה שהושלמה או הועברה לתקופה אחרת אינה נכללת בעומס הנדרש של התקופה.';
+        else if(/Cancelled/i.test(el.textContent||''))el.textContent='Hours are calculated from open tasks in the selected period and filters. Completed or rescheduled tasks are excluded from the required workload.';
+      });
+      const perf=$('pmV97OriginalComplianceDetail');
+      if(perf){
+        perf.textContent=String(perf.textContent||'')
+          .replace(/\s*·\s*\d+\s+בוטלו/g,'')
+          .replace(/\s*·\s*\d+\s+cancelled/gi,'');
+      }
+    }finally{cleaning=false;}
+  }
+
+  // Ensure dynamically cloned/local filter controls never reintroduce the cancelled option.
+  const mo=new MutationObserver(()=>setTimeout(cleanUI,0));
+  const oldShow=window.showTab;
+  window.showTab=function(name){const r=typeof oldShow==='function'?oldShow.apply(this,arguments):undefined;setTimeout(cleanUI,0);return r;};
+
+  const oldDash=window.renderDashboard;
+  window.renderDashboard=function(){const r=typeof oldDash==='function'?oldDash.apply(this,arguments):undefined;setTimeout(cleanUI,0);return r;};
+  try{renderDashboard=window.renderDashboard}catch(e){}
+
+  function boot(){cleanUI();if(document.body)mo.observe(document.body,{childList:true,subtree:true});}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+
+  window.pmV135Audit=function(){
+    const badOptions=[...document.querySelectorAll('select option')].filter(o=>['cancelled','canceled'].includes(String(o.value||'').toLowerCase()));
+    const visibleCancelKpis=[...document.querySelectorAll('.pm-v104-cancelled-kpi,.pm-v3-status.cancelled')].filter(el=>getComputedStyle(el).display!=='none');
+    return {build:'20260828-v135-cancellation-ui-removed',cancelledFilterOptions:badOptions.length,visibleCancellationKpis:visibleCancelKpis.length,cancellationCreationDisabled:true,genericDialogCancelButtonsPreserved:true,ok:badOptions.length===0&&visibleCancelKpis.length===0};
+  };
+})();
+</script>
 </body></html>
