@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v118-original-compliance-window"/>
+<meta name="fop-build" content="20260828-v119-cumulative-pm-compliance"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -7987,64 +7987,74 @@ window.pmHistoryParityAudit=function(){
   }
   function renderPerformanceKpis(){
     const card=$('pmV97OriginalCompliance')?.closest('.pm-v17-kpi');
-    const wt=$('pmDashboardWorkType')?.value||'',en=document.documentElement.lang==='en';
-    if(wt==='WO'){
-      if($('pmV97Postponements'))$('pmV97Postponements').textContent='—';
-      if($('pmV97OriginalCompliance'))$('pmV97OriginalCompliance').textContent='—';
-      if($('pmV97PostponementsDetail'))$('pmV97PostponementsDetail').textContent=en?'PM KPI — switch work type to PM or All':'KPI של PM — בחר PM או הכול';
-      if($('pmV97OriginalComplianceDetail'))$('pmV97OriginalComplianceDetail').textContent=en?'PM KPI — not calculated for WO only':'KPI של PM — לא מחושב בסינון WO בלבד';
-      if(card)card.classList.remove('bad','warn');
-      return;
-    }
-
+    const en=document.documentElement.lang==='en';
     const period=(typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week';
-    const anchor=$('pmDashboardAnchor')?.value||today(),w=performanceWindow(period,anchor),list=selectedTasks(),ids=new Set(list.map(t=>String(t.id)));
-    const events=list.flatMap(t=>(typeof parsePostponeAudits==='function'?parsePostponeAudits(t):[]).map(e=>({...e,t})))
-      .filter(e=>{const d=iso10(e.date||e.reportedAt);return d&&d>=w.start&&d<=w.end;});
+    const anchor=$('pmDashboardAnchor')?.value||today(),w=performanceWindow(period,anchor);
+    const dep=$('pmDashboardDepartment')?.value||'',machine=$('pmDashboardMachine')?.value||'',trade=$('pmDashboardTrade')?.value||'';
 
+    // Postponements remain a period KPI, but they are always PM-only and never depend on WO selection.
+    const allPmTasks=(Array.isArray(tasks)?tasks:[]).filter(t=>t&&String(t.performer||'').trim()==='טכנאי אחזקה'&&norm(t.taskType??t.task_type)==='maintenance'&&(!dep||t.department===dep)&&(!machine||t.machine===machine)&&(!trade||tradeOf(t)===trade));
+    const ids=new Set(allPmTasks.map(t=>String(t.id)));
+    const events=allPmTasks.flatMap(t=>(typeof parsePostponeAudits==='function'?parsePostponeAudits(t):[]).map(e=>({...e,t})))
+      .filter(e=>{const d=iso10(e.date||e.reportedAt);return d&&d>=w.start&&d<=w.end;});
     if($('pmV97Postponements'))$('pmV97Postponements').textContent=String(events.length);
     if($('pmV97PostponementsDetail'))$('pmV97PostponementsDetail').textContent=en?`${w.label} ending ${anchor} · PM only`:`${w.label} אחורה עד ${typeof fDate==='function'?fDate(anchor):anchor} · PM בלבד`;
 
+    // Original-plan compliance is a CUMULATIVE HISTORICAL PM KPI.
+    // It is deliberately independent of Dashboard period and work-type (WO never enters numerator/denominator).
+    // Each PM occurrence matures only after its fixed original execution window (original due..due+6) has ended.
     const occ=new Map();
-    for(const p of latestPlanRows()){
+    for(const p of (Array.isArray(pmWorkPlan)?pmWorkPlan:[])){
       if(!ids.has(String(p.taskId))||String(p.notes||'').includes('PM_REBASE_SUPERSEDED:'))continue;
       const t=taskById(p.taskId);if(!t)continue;
-      const d=dueKey(p),orig=originalDueFromNotes(p.notes)||originalRoot(t,d)||d;
-      const windowEnd=orig?addDays(orig,6):'';
-      // KPI maturity follows the same operational contract: due..due+6 is still on time.
-      // Do not score an occurrence before its seven-day execution window has fully matured.
-      if(!orig||orig<w.start||orig>w.end||!windowEnd||windowEnd>anchor)continue;
-      const key=String(t.id)+'|'+orig,st=norm(p.status),doneDate=iso10(p.completedDate||p.completed_date);
+      const d=dueKey(p),orig=originalDueFromNotes(p.notes)||originalRoot(t,d)||d,windowEnd=orig?addDays(orig,6):'';
+      if(!orig||!windowEnd||windowEnd>anchor)continue;
+      const key=String(t.id)+'|'+orig;
+      const stamp=String(p.updatedAt??p.updated_at??p.createdAt??p.created_at??'');
+      const prev=occ.get(key);if(prev&&String(prev._stamp||'')>stamp)continue;
+      const st=norm(p.status),doneDate=iso10(p.completedDate||p.completed_date);
       const success=DONE.has(st)&&doneDate&&doneDate<=windowEnd;
       const lateEnd=(DONE.has(st)&&doneDate)?doneDate:((!CANCELLED.has(st))?anchor:'');
       const lateDays=lateEnd&&lateEnd>windowEnd?Math.max(0,Math.round(((dObj(lateEnd)||0)-(dObj(windowEnd)||0))/86400000)):0;
-      occ.set(key,{success,state:st,originalDue:orig,windowEnd,doneDate,lateDays});
-    }
-    for(const t of list){
-      const current=iso10(t.nextDue),orig=originalRoot(t,current)||current,windowEnd=orig?addDays(orig,6):'';
-      if(!orig||orig<w.start||orig>w.end||!windowEnd||windowEnd>anchor)continue;
-      const key=String(t.id)+'|'+orig;
-      const lateDays=anchor>windowEnd?Math.max(0,Math.round(((dObj(anchor)||0)-(dObj(windowEnd)||0))/86400000)):0;
-      if(!occ.has(key))occ.set(key,{success:false,state:'open',originalDue:orig,windowEnd,doneDate:'',lateDays});
+      occ.set(key,{taskId:String(t.id),success,state:st,originalDue:orig,windowEnd,doneDate,lateDays,_stamp:stamp});
     }
 
-    const matured=[...occ.values()],ok=matured.filter(x=>x.success).length,cancelled=matured.filter(x=>CANCELLED.has(norm(x.state))).length,late=matured.filter(x=>!x.success&&!CANCELLED.has(norm(x.state))).length,lateDays=matured.reduce((sum,x)=>sum+Number(x.lateDays||0),0),score=matured.length?Math.round(ok/matured.length*100):null;
+    // Include current active PM occurrences that have matured but do not yet have a work-plan row.
+    for(const t of allPmTasks.filter(t=>t.active!==false)){
+      const current=iso10(t.nextDue??t.next_due),orig=originalRoot(t,current)||current,windowEnd=orig?addDays(orig,6):'';
+      if(!orig||!windowEnd||windowEnd>anchor)continue;
+      const key=String(t.id)+'|'+orig;
+      if(occ.has(key))continue;
+      const lateDays=anchor>windowEnd?Math.max(0,Math.round(((dObj(anchor)||0)-(dObj(windowEnd)||0))/86400000)):0;
+      occ.set(key,{taskId:String(t.id),success:false,state:'open',originalDue:orig,windowEnd,doneDate:'',lateDays,_stamp:''});
+    }
+
+    const matured=[...occ.values()].map(({_stamp,...x})=>x);
+    const ok=matured.filter(x=>x.success).length;
+    const cancelled=matured.filter(x=>CANCELLED.has(norm(x.state))).length;
+    const late=matured.filter(x=>!x.success&&!CANCELLED.has(norm(x.state))).length;
+    const lateDays=matured.reduce((sum,x)=>sum+Number(x.lateDays||0),0);
+    const score=matured.length?Math.round(ok/matured.length*100):null;
+
     if($('pmV97OriginalCompliance'))$('pmV97OriginalCompliance').textContent=score===null?'—':score+'%';
     if($('pmV97OriginalComplianceDetail'))$('pmV97OriginalComplianceDetail').textContent=score===null
-      ? (en?'No original PM execution windows matured in this period':'אין חלונות PM מקוריים שהבשילו בתקופה')
-      : (en?`${ok} of ${matured.length} on time · ${late} late · ${cancelled} cancelled · ${lateDays} total late days`:`${ok} מתוך ${matured.length} בזמן · ${late} באיחור · ${cancelled} בוטלו · ${lateDays} ימי איחור מצטברים`);
+      ? (en?'No matured historical PM occurrences yet':'אין עדיין מופעי PM היסטוריים שהבשילו למדידה')
+      : (en?`Historical PM only · ${ok} of ${matured.length} on time · ${late} late · ${cancelled} cancelled · ${lateDays} total late days`:`PM היסטורי בלבד · ${ok} מתוך ${matured.length} בזמן · ${late} באיחור · ${cancelled} בוטלו · ${lateDays} ימי איחור מצטברים`);
+
+    const complianceLabel=$('pmV97OriginalCompliance')?.parentElement?.querySelector('small');
+    if(complianceLabel)complianceLabel.textContent=en?'Cumulative historical PM · original plan':'מצטבר היסטורי · PM בלבד · מול התוכנית המקורית';
 
     if(card){
       card.classList.toggle('bad',score!==null&&score<70);
       card.classList.toggle('warn',score!==null&&score>=70&&score<90);
     }
 
-    // Keep the lower legacy execution tile consistent with the new original-plan score.
+    // Keep the lower legacy execution tile consistent with the cumulative PM-only score.
     if($('pmV3Execution'))$('pmV3Execution').textContent=score===null?'—':score+'%';
-    if($('pmV3ExecutionDetail'))$('pmV3ExecutionDetail').textContent=score===null?'אין מועדים שהבשילו':`${ok} מתוך ${matured.length} בזמן · ${lateDays} ימי איחור`;
+    if($('pmV3ExecutionDetail'))$('pmV3ExecutionDetail').textContent=score===null?'אין מופעי PM שהבשילו':`${ok} מתוך ${matured.length} PM בזמן · ${lateDays} ימי איחור`;
     if($('pmV3ExecutionBar'))$('pmV3ExecutionBar').style.width=(score===null?0:score)+'%';
 
-    window.pmV97PerformanceAudit={window:w,postponements:events.length,matured:matured.length,onTimeOriginal:ok,lateOriginal:late,cancelledOriginal:cancelled,totalLateDays:lateDays,score,occurrences:matured,filters:{department:$('pmDashboardDepartment')?.value||'',machine:$('pmDashboardMachine')?.value||'',trade:$('pmDashboardTrade')?.value||''}};
+    window.pmV97PerformanceAudit={scope:'all-history-pm-only',asOf:anchor,periodIndependent:true,woExcluded:true,postponementsWindow:w,postponements:events.length,matured:matured.length,onTimeOriginal:ok,lateOriginal:late,cancelledOriginal:cancelled,totalLateDays:lateDays,score,occurrences:matured,filters:{department:dep,machine,trade}};
   }
 
   const previousDashboard=window.renderDashboard;
