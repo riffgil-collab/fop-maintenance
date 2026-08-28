@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v120-current-occurrence-resolver"/>
+<meta name="fop-build" content="20260828-v121-overdue-assigned-detail"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -573,7 +573,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('open')"><strong id="pmV17Open">0</strong><span>פתוחות</span><small>PM שמועד הטיפול שלהן הגיע ועדיין לא נסגרו</small></div>
     <div class="pm-v17-kpi" onclick="pmV31OpenPlanned()"><strong id="pmV31Planned">0</strong><span>שובצו לביצוע</span><small>פתוחות ששובצו ועדיין בתוך חלון הטיפול</small></div>
     <div class="pm-v17-kpi pm-v105-unassigned-kpi" onclick="return pmV105OpenUnassignedPlanner()"><strong id="pmV105Unassigned">0</strong><span>טרם שובצו לביצוע</span><small>פתוחות בתוך חלון 7 הימים שטרם שובצו</small></div>
-    <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('overdue')"><strong id="pmV17Overdue">0</strong><span>באיחור</span><small>עברו 7 ימים ממועד פתיחת הטיפול והוא לא בוצע</small></div>
+    <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('overdue')"><strong id="pmV17Overdue">0</strong><span>באיחור</span><small id="pmV17OverdueDetail">עברו 7 ימים ממועד פתיחת הטיפול והוא לא בוצע</small></div>
     <div class="pm-v17-kpi" onclick="pmV99OpenCompletedReport()"><strong id="pmV99Completed">0</strong><span>בוצעו</span><small id="pmV99CompletedDetail">הושלמו בתקופת הביצוע</small></div>
     <div class="pm-v17-kpi pm-v97-postpone-kpi" onclick="return pmV109OpenPostponed()"><strong id="pmV97Postponements">0</strong><span>נדחו</span><small id="pmV97PostponementsDetail">נדחו וממתינים למועד החדש</small></div>
     <div class="pm-v17-kpi pm-v104-cancelled-kpi" onclick="return pmV104OpenCancelledReport()"><strong id="pmV104Cancelled">0</strong><span>ביטולים</span><small id="pmV104CancelledDetail">ביטולים בתקופת הביצוע</small></div>
@@ -9555,6 +9555,8 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
     const woOpen=wt==='PM'?[]:woOpenRows(o),woOver=woOpen.filter(woLate),woPlanned=woOpen.filter(r=>!woLate(r)&&woAssigned(r)),woWaiting=woOpen.filter(r=>!woLate(r)&&!woAssigned(r));
     const open=[...pmOpen,...woOpen],planned=[...pmPlanned,...woPlanned],waiting=[...pmWaiting,...woWaiting],over=[...pmOver,...woOver],post=pmPost;
     setText('pmV17Open',open.length);setText('pmV31Planned',planned.length);setText('pmV105Unassigned',waiting.length);setText('pmV17Overdue',over.length);setText('pmV97Postponements',post.length);
+    const overdueAssigned=over.filter(r=>r.kind==='PM'?!!r.isAssigned:woAssigned(r)).length;
+    if($('pmV17OverdueDetail'))$('pmV17OverdueDetail').textContent=wt==='WO'?`מתוכם ${overdueAssigned} משובצים לביצוע`:`עברו 7 ימים ממועד פתיחת הטיפול · מתוכם ${overdueAssigned} משובצים לביצוע`;
     setText('pmV3Waiting',waiting.length);setText('pmV3Planned',planned.length);setText('pmV3Postponed',post.length);setText('pmV3Overdue',over.length);
     if($('pmV3WaitingDetail'))$('pmV3WaitingDetail').textContent=wt==='WO'?'WO פתוחות שטרם שובצו':wt==='PM'?'פתוחות בתוך חלון 7 ימים':'PM/WO פתוחות שטרם שובצו';
     if($('pmV97PostponementsDetail'))$('pmV97PostponementsDetail').textContent=wt==='WO'?'לא חל על WO':'נדחו וממתינים למועד החדש';
@@ -9593,7 +9595,7 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
   window.pmV109Audit=function(){
     const o={...dashOpts('open'),workType:'PM'},open=opPM(o),planned=opPM({...o,status:'planned'}),waiting=opPM({...o,status:'waiting'}),over=opPM({...o,status:'overdue'}),post=opPM({...o,status:'postponed'}),up=opPM({...o,status:'near'}),dup=[...open.reduce((m,r)=>(m.set(String(r.task?.id||r.id),(m.get(String(r.task?.id||r.id))||0)+1),m),new Map())].filter(([,n])=>n>1);
     const pointerMismatch=open.filter(r=>iso(r.due)!==iso(r.task?.nextDue??r.task?.next_due));
-    return {build:'20260828-v120-current-occurrence-resolver',windowDays:7,windowStartsAtNextDue:true,currentOccurrenceFromMasterNextDue:true,planMustMatchCurrentDue:true,assignmentDoesNotResetClock:true,postponeDays:7,nextRecurrenceFromCompletion:true,open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,upcoming7:up.length,partitionOk:open.length===planned.length+waiting.length+over.length,duplicateCurrentTasks:dup,pointerMismatch:pointerMismatch.length,ok:open.length===planned.length+waiting.length+over.length&&dup.length===0&&pointerMismatch.length===0};
+    return {build:'20260828-v121-overdue-assigned-detail',windowDays:7,windowStartsAtNextDue:true,currentOccurrenceFromMasterNextDue:true,planMustMatchCurrentDue:true,assignmentDoesNotResetClock:true,postponeDays:7,nextRecurrenceFromCompletion:true,open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,upcoming7:up.length,partitionOk:open.length===planned.length+waiting.length+over.length,duplicateCurrentTasks:dup,pointerMismatch:pointerMismatch.length,ok:open.length===planned.length+waiting.length+over.length&&dup.length===0&&pointerMismatch.length===0};
   };
   function boot(){applyUi();try{refreshDashboard();renderPlanner();window.renderReport?.();}catch(e){console.warn('V109 boot',e)}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
