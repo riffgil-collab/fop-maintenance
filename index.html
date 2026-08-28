@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v123-history-simple-period-only"/>
+<meta name="fop-build" content="20260828-v124-history-local-filters-fixed"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10293,4 +10293,108 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
 </script>
+
+<style id="fop-v124-history-local-filter-style">
+/* V124 — History has its own local filters; the operational global filter is hidden here. */
+body.pm-v124-history-active #pmV99GlobalFilter{display:none!important}
+#pmHistory .history-filters{
+  display:grid!important;
+  grid-template-columns:repeat(4,minmax(0,1fr))!important;
+  gap:9px!important;
+  align-items:end!important;
+  margin:0 0 12px!important;
+}
+#pmHistory .history-filters .field:has(#pmHistoryFrom),
+#pmHistory .history-filters .field:has(#pmHistoryTo),
+#pmHistory .history-filters .field:has(#pmHistorySearch){display:none!important}
+#pmHistory .history-filters .field:has(#pmHistoryDepartment),
+#pmHistory .history-filters .field:has(#pmHistoryMachine),
+#pmHistory .history-filters .field:has(#pmHistoryTrade),
+#pmHistory .history-filters .field:has(#pmHistoryWorkType){display:block!important}
+@media(max-width:620px){#pmHistory .history-filters{grid-template-columns:1fr 1fr!important}}
+</style>
+<script id="fop-v124-history-local-filters-fixed">
+/* V124 — Remove the global operational filter from Execution History.
+   Under the history KPIs keep exactly four local filters:
+   Department / Machine / Trade / Work Type. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const escH=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const fd=v=>{try{return typeof fDate==='function'?fDate(v):String(v||'')}catch(e){return String(v||'')}};
+  const priorUnified=window.pmHistoryUnifiedRows;
+  const priorRender=window.renderHistory;
+
+  function ensureWorkType(){
+    if($('pmHistoryWorkType'))return;
+    const trade=$('pmHistoryTrade')?.closest('.field');if(!trade)return;
+    const f=document.createElement('div');f.className='field';
+    f.innerHTML='<label>סוג עבודה</label><select id="pmHistoryWorkType"><option value="">הכול</option><option value="PM">PM</option><option value="WO">WO</option></select>';
+    trade.insertAdjacentElement('afterend',f);
+  }
+  function fieldValues(){return {department:$('pmHistoryDepartment')?.value||'',machine:$('pmHistoryMachine')?.value||'',trade:$('pmHistoryTrade')?.value||'',workType:$('pmHistoryWorkType')?.value||''};}
+  function restoreValues(v){if($('pmHistoryDepartment'))$('pmHistoryDepartment').value=v.department||'';if($('pmHistoryMachine'))$('pmHistoryMachine').value=v.machine||'';if($('pmHistoryTrade'))$('pmHistoryTrade').value=v.trade||'';if($('pmHistoryWorkType'))$('pmHistoryWorkType').value=v.workType||'';}
+  function periodRows(){
+    const keep=fieldValues();let rows=[];
+    try{rows=typeof priorUnified==='function'?(priorUnified()||[]):[]}catch(e){rows=[]}
+    restoreValues(keep);
+    return rows;
+  }
+  function populate(rows,keep){
+    const dep=$('pmHistoryDepartment'),machine=$('pmHistoryMachine'),trade=$('pmHistoryTrade'),wt=$('pmHistoryWorkType');
+    if(dep){const vals=[...new Set(rows.map(r=>r.department).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'));dep.innerHTML='<option value="">כל המחלקות</option>'+vals.map(v=>`<option value="${escH(v)}">${escH(v)}</option>`).join('');dep.value=vals.includes(keep.department)?keep.department:'';}
+    const dv=dep?.value||'';
+    if(machine){const vals=[...new Set(rows.filter(r=>!dv||r.department===dv).map(r=>r.machine).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'));machine.innerHTML='<option value="">כל המכונות</option>'+vals.map(v=>`<option value="${escH(v)}">${escH(v)}</option>`).join('');machine.value=vals.includes(keep.machine)?keep.machine:'';}
+    if(trade){trade.innerHTML='<option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option>';trade.value=['מכונאי','חשמלאי'].includes(keep.trade)?keep.trade:'';}
+    if(wt){wt.innerHTML='<option value="">הכול</option><option value="PM">PM</option><option value="WO">WO</option>';wt.value=['PM','WO'].includes(keep.workType)?keep.workType:'';}
+  }
+  function filteredRows(){
+    ensureWorkType();
+    const keep=fieldValues(),rows=periodRows();populate(rows,keep);const f=fieldValues();
+    return rows.filter(r=>(!f.department||r.department===f.department)&&(!f.machine||r.machine===f.machine)&&(!f.trade||r.trade===f.trade)&&(!f.workType||r.source===f.workType));
+  }
+  function rowHtml(r){
+    const eventLabel=r.source==='WO'?'WO בוצע':'PM בוצע',freqLabel=r.source==='WO'?`עדיפות: ${r.frequency||'—'}`:`תדירות: ${r.frequency||'—'}`;
+    const reporter=r.reportedBy?`<div class="history-user"><small>דווח על ידי</small><strong>${escH(r.reportedBy)}</strong></div>`:'';
+    const notes=r.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${escH(r.completionNotes)}</div>`:'';
+    const photos=(r.photo1Path||r.photo2Path)?`<div class="pm-history-photos">${r.photo1Path?`<button type="button" onclick="openMaintenancePhoto('${escH(r.photo1Path)}')">📷 תמונה 1</button>`:''}${r.photo2Path?`<button type="button" onclick="openMaintenancePhoto('${escH(r.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:'';
+    const canEdit=typeof pmCan==='function'&&pmCan('manageExceptions');
+    const edit=canEdit?`<button class="secondary-btn" type="button" onclick="openHistoryEdit('${escH(r.source)}','${escH(String(r.id??''))}')">✏️ עריכת תיעוד</button>`:'';
+    const undo=canEdit&&r.source==='PM'?`<button class="pm-undo" type="button" onclick="undoCompletion('${escH(String(r.id??''))}','${escH(String(r.taskId??''))}','${escH(String(r.date??''))}')">↩ החזר לתוכנית</button>`:'';
+    return `<div class="history-row"><div><strong>${escH(fd(r.date))}</strong><span class="pm-history-event completed">${eventLabel}</span></div><div><strong>${escH(r.machine)}</strong><small>${escH(r.task)}</small><small>${escH(r.department)} · <strong>מקצוע: ${escH(r.trade||'—')}</strong> · ${escH(freqLabel)} · ${Number(r.duration||0)} דק׳</small>${notes}${photos}</div>${reporter}${(edit||undo)?`<div class="pm-history-actions">${edit}${undo}</div>`:''}</div>`;
+  }
+  function fmtHours(mins){return (Number(mins||0)/60).toFixed(1);}
+  function renderV124(){
+    ensureWorkType();
+    const rows=filteredRows(),pm=rows.filter(r=>r.source==='PM').length,wo=rows.filter(r=>r.source==='WO').length;
+    const mech=rows.filter(r=>r.trade==='מכונאי').reduce((a,r)=>a+Number(r.duration||0),0),elec=rows.filter(r=>r.trade==='חשמלאי').reduce((a,r)=>a+Number(r.duration||0),0);
+    if($('pmHistoryV122Count'))$('pmHistoryV122Count').textContent=rows.length;
+    if($('pmHistoryV122CountDetail'))$('pmHistoryV122CountDetail').textContent=`PM ${pm} · WO ${wo}`;
+    if($('pmHistoryV122Mech'))$('pmHistoryV122Mech').textContent=fmtHours(mech);
+    if($('pmHistoryV122Elec'))$('pmHistoryV122Elec').textContent=fmtHours(elec);
+    const el=$('pmHistoryList');if(el)el.innerHTML=rows.length?rows.slice(0,500).map(rowHtml).join(''):'<div class="empty">לא נמצאו ביצועים בתקופה ובסינון שנבחרו.</div>';
+    window.pmV124HistoryAudit={count:rows.length,pm,wo,mechanicHours:fmtHours(mech),electricianHours:fmtHours(elec),filters:fieldValues()};
+  }
+  window.pmHistoryUnifiedRows=filteredRows;window.pmExecutionHistoryRows=filteredRows;window.renderHistory=renderV124;try{renderHistory=renderV124}catch(e){}
+  window.exportHistoryCSV=function(){
+    const rows=filteredRows(),f=fieldValues();
+    const data=[['סינון',`מחלקה: ${f.department||'הכול'} | מכונה: ${f.machine||'הכול'} | מקצוע: ${f.trade||'הכול'} | סוג עבודה: ${f.workType||'הכול'}`],[],['תאריך','סוג עבודה','מחלקה','מכונה','משימת טיפול','תדירות / עדיפות','מקצוע','משך (דקות)','דווח על ידי','הערות'],...rows.map(r=>[r.date,r.source,r.department,r.machine,r.task,r.frequency,r.trade,r.duration||0,r.reportedBy||'',r.completionNotes||''])];
+    const csv='\ufeff'+data.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download='maintenance_execution_history_filtered.csv';document.body.appendChild(a);a.click();const u=a.href;a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);
+  };try{exportHistoryCSV=window.exportHistoryCSV}catch(e){}
+
+  function setHistoryMode(on){document.body.classList.toggle('pm-v124-history-active',!!on);if(on)$('pmV99GlobalFilter')?.classList.remove('active');}
+  const prevShow=window.showTab;
+  window.showTab=function(name){const r=typeof prevShow==='function'?prevShow.apply(this,arguments):undefined;const hist=String(name||'').toLowerCase()==='history';setHistoryMode(hist);if(hist)setTimeout(renderV124,0);return r;};
+
+  document.addEventListener('change',function(ev){
+    const id=ev.target?.id||'';if(!['pmHistoryDepartment','pmHistoryMachine','pmHistoryTrade','pmHistoryWorkType'].includes(id))return;
+    ev.stopImmediatePropagation();if(id==='pmHistoryDepartment'&&$('pmHistoryMachine'))$('pmHistoryMachine').value='';setTimeout(renderV124,0);
+  },true);
+  document.addEventListener('click',function(ev){if(ev.target?.closest?.('#pmHistoryV122Periods button[data-hp]'))setTimeout(renderV124,0);},false);
+
+  const boot=()=>{ensureWorkType();setHistoryMode(!!$('pmHistory')?.classList.contains('active'));renderV124();};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
 </body></html>
