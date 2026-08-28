@@ -11122,4 +11122,68 @@ button[onclick*="cancelSingleOccurrence"],
 })();
 </script>
 
+
+<script id="fop-v143-dashboard-worktype-aligned">
+/* V143 — Align Dashboard "Work type" chart with the canonical management horizon.
+   PM = current master occurrences due by period end (no recurrence expansion).
+   WO = currently open WO backlog. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const iso=v=>{if(!v)return '';const m=String(v).match(/\d{4}-\d{2}-\d{2}/);return m?m[0]:''};
+  function state(){
+    const g=window.pmV99GlobalState||{};
+    return {
+      period:g.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),
+      anchor:g.anchor||$('pmDashboardAnchor')?.value||((typeof today==='function')?today():''),
+      department:g.department??$('pmDashboardDepartment')?.value??'',
+      machine:g.machine??$('pmDashboardMachine')?.value??'',
+      trade:g.trade??$('pmDashboardTrade')?.value??'',
+      workType:g.workType??$('pmDashboardWorkType')?.value??''
+    };
+  }
+  function addDays(s,n){const d=new Date(String(s)+'T12:00:00');d.setDate(d.getDate()+n);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+  function addMonths(s,n){const d=new Date(String(s)+'T12:00:00'),day=d.getDate();d.setDate(1);d.setMonth(d.getMonth()+n);const last=new Date(d.getFullYear(),d.getMonth()+1,0,12).getDate();d.setDate(Math.min(day,last));return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+  function endDate(o){
+    try{const e=window.fopUnifiedWorkSource;const b=e?.periodBounds?.(o.period,o.anchor)||e?.bounds?.(o.period,o.anchor);if(b?.end)return iso(b.end)}catch(_){ }
+    if(o.period==='month')return addMonths(o.anchor,1);
+    if(o.period==='half')return addMonths(o.anchor,6);
+    if(o.period==='year')return addMonths(o.anchor,12);
+    return addDays(o.anchor,6);
+  }
+  function matchTask(t,o){
+    if(o.department&&t.department!==o.department)return false;
+    if(o.machine&&t.machine!==o.machine)return false;
+    if(o.trade&&typeof maintenanceTrade==='function'&&maintenanceTrade(t)!==o.trade)return false;
+    return true;
+  }
+  function pmHorizon(o){
+    if(o.workType==='WO')return 0;
+    const end=endDate(o);
+    const list=typeof maintenanceTasks==='function'?maintenanceTasks():[];
+    return list.filter(t=>matchTask(t,o)).filter(t=>{const d=iso(t.nextDue??t.next_due);return d&&d<=end}).length;
+  }
+  function woOpen(o){
+    if(o.workType==='PM')return 0;
+    const rows=Array.isArray(window.pmWorkOrders)?window.pmWorkOrders:(typeof pmWorkOrders!=='undefined'&&Array.isArray(pmWorkOrders)?pmWorkOrders:[]);
+    return rows.filter(w=>{
+      const st=String(w.status||'').trim().toLowerCase();
+      if(['completed','done','בוצע','cancelled','canceled','בוטל'].includes(st))return false;
+      if(o.department&&w.department!==o.department)return false;
+      if(o.machine&&w.machine!==o.machine)return false;
+      if(o.trade&&String(w.trade||'מכונאי')!==o.trade)return false;
+      return true;
+    }).length;
+  }
+  function render(){
+    const el=$('pmV17Type');if(!el)return;
+    const o=state(),types={PM:pmHorizon(o),WO:woOpen(o)},mx=Math.max(1,types.PM,types.WO);
+    el.innerHTML=Object.entries(types).map(([k,v])=>`<div class="pm-v17-bar"><span>${k}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${v}</strong></div>`).join('');
+    window.pmV143WorkTypeAudit={period:o.period,anchor:o.anchor,end:endDate(o),pm:types.PM,wo:types.WO,source:'current next_due through horizon end + current open WO'};
+  }
+  const prev=window.renderDashboard;
+  window.renderDashboard=function(){const r=typeof prev==='function'?prev.apply(this,arguments):undefined;try{render()}catch(e){console.warn('V143 work type chart',e)}return r};
+  try{renderDashboard=window.renderDashboard}catch(e){}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(render,0));else setTimeout(render,0);
+})();
+</script>
 </body></html>
