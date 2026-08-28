@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v131-task-management-fixed-exports"/>
+<meta name="fop-build" content="20260828-v132-task-management-checklist-exports"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10591,6 +10591,9 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
 <style id="fop-v131-task-management-export-style">
 #pmEditTasks .tm-v131-export-actions{display:flex;gap:8px;flex-wrap:wrap;margin-inline-start:auto}
 #pmEditTasks .tm-v131-export-actions button{min-width:112px}
+#pmEditTasks .tm-v131-checklist-option{display:inline-flex;align-items:center;gap:7px;padding:8px 10px;border:1px solid #d7e0eb;border-radius:10px;background:#fff;font-size:11px;font-weight:800;color:#34465f}
+#pmEditTasks .tm-v131-checklist-option input{width:17px;height:17px}
+.tm-v131-checklist-detail{margin-top:5px;padding-top:4px;border-top:1px dashed #cbd6e4;font-size:9px;line-height:1.45}.tm-v131-checklist-detail strong{display:block;margin-bottom:2px}.tm-v131-checklist-detail span{display:block;margin:1px 0}
 .tm-v131-report-stage{position:fixed;left:-100000px;top:0;width:1180px;background:#fff;color:#162b48;z-index:-1;padding:24px;box-sizing:border-box;direction:rtl;font-family:Arial,"Noto Sans Hebrew",sans-serif}
 .tm-v131-report-head{border-bottom:2px solid #173765;padding-bottom:12px;margin-bottom:14px}
 .tm-v131-report-head h2{margin:0 0 6px;font-size:25px;color:#173765}.tm-v131-report-head p{margin:3px 0;font-size:12px;color:#5e6f87}
@@ -10607,7 +10610,7 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
 }
 </style>
 <script id="fop-v131-task-management-fixed-exports">
-/* V131 — Task Management repair + local print/PDF/Excel.
+/* V132 — Task Management repair + local print/PDF/Excel with optional consolidated-treatment details.
    - editTasks bypasses the removed legacy pmSettings* editor path.
    - The current tmRows() filtered population is the single source for screen/print/PDF/Excel.
    - No filter state is synchronized back to Dashboard/Planning/Execution/Reports. */
@@ -10621,6 +10624,9 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
   const origin=t=>/\[WO_SOURCE:[^\]]+\]/.test(String(t?.notes||''))?'נוצר מ-WO':'מאגר מקורי';
   const status=t=>t?.active===false?'לא פעילה':'פעילה';
   const currentRows=()=>typeof window.tmRowsForExport==='function'?window.tmRowsForExport():[];
+  const includeChecklistDetails=()=>$('tmV131ChecklistDetails')?.checked!==false;
+  const checklistItems=t=>typeof pmChecklistItems==='function'?(pmChecklistItems(t)||[]):[];
+  function taskCell(t){const items=includeChecklistDetails()?checklistItems(t):[];return `${escH(t.task||'')}${items.length?`<div class="tm-v131-checklist-detail"><strong>פעולות הטיפול (${items.length}):</strong>${items.map(x=>`<span>☐ ${escH(x)}</span>`).join('')}</div>`:''}`;}
 
   function filterText(){
     const bits=[];
@@ -10638,12 +10644,12 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
     const x=totals(rows),date=new Date().toLocaleString((window.pmLocale?window.pmLocale():'he-IL'));
     return `<div class="tm-v131-report-head"><h2>ניהול משימות — מאגר אחזקה</h2><p>${escH(filterText())}</p><p>הופק: ${escH(date)}</p></div>
       <div class="tm-v131-report-summary"><span>${x.count} משימות</span><span>${x.active} פעילות</span><span>${x.inactive} לא פעילות</span><span>${x.physical} PM</span><span>${x.inspection} בדיקות אחזקה</span><span>${x.operator} בדיקות מפעיל</span><span>${x.hours} שעות מחזור רשומות</span></div>
-      <table class="tm-v131-report-table"><thead><tr><th style="width:7%">סטטוס</th><th style="width:10%">מחלקה</th><th style="width:12%">מכונה / תשתית</th><th style="width:25%">משימה</th><th style="width:9%">סוג</th><th style="width:8%">מקצוע</th><th style="width:8%">תדירות</th><th style="width:6%">דק׳</th><th style="width:8%">טיפול הבא</th><th style="width:7%">מקור</th></tr></thead><tbody>${rows.map(t=>`<tr><td>${escH(status(t))}</td><td>${escH(t.department||'')}</td><td>${escH(t.machine||'')}</td><td>${escH(t.task||'')}</td><td>${escH(KIND[taskKind(t)]||taskKind(t))}</td><td>${escH(trade(t))}</td><td>${escH(t.frequency||'—')}</td><td>${Number(t.duration||0)}</td><td>${escH(normDate(t.nextDue??t.next_due)||'—')}</td><td>${escH(origin(t))}</td></tr>`).join('')}</tbody></table>`;
+      <table class="tm-v131-report-table"><thead><tr><th style="width:7%">סטטוס</th><th style="width:10%">מחלקה</th><th style="width:12%">מכונה / תשתית</th><th style="width:25%">משימה</th><th style="width:9%">סוג</th><th style="width:8%">מקצוע</th><th style="width:8%">תדירות</th><th style="width:6%">דק׳</th><th style="width:8%">טיפול הבא</th><th style="width:7%">מקור</th></tr></thead><tbody>${rows.map(t=>`<tr><td>${escH(status(t))}</td><td>${escH(t.department||'')}</td><td>${escH(t.machine||'')}</td><td>${taskCell(t)}</td><td>${escH(KIND[taskKind(t)]||taskKind(t))}</td><td>${escH(trade(t))}</td><td>${escH(t.frequency||'—')}</td><td>${Number(t.duration||0)}</td><td>${escH(normDate(t.nextDue??t.next_due)||'—')}</td><td>${escH(origin(t))}</td></tr>`).join('')}</tbody></table>`;
   }
   function ensureButtons(){
     const actions=$('pmEditTasks')?.querySelector('.tm-actions');if(!actions||$('tmV131ExportActions'))return;
     const box=document.createElement('div');box.id='tmV131ExportActions';box.className='tm-v131-export-actions';
-    box.innerHTML='<button class="secondary-btn" type="button" onclick="return tmPrintTasks()">🖨️ הדפסה</button><button class="secondary-btn" type="button" onclick="return tmPdfTasks(this)">📄 PDF</button><button class="export-btn" type="button" onclick="return tmExcelTasks()">📊 Excel</button>';
+    box.innerHTML='<button class="secondary-btn" type="button" onclick="return tmPrintTasks()">🖨️ הדפסה</button><button class="secondary-btn" type="button" onclick="return tmPdfTasks(this)">📄 PDF</button><button class="export-btn" type="button" onclick="return tmExcelTasks()">📊 Excel</button><label class="tm-v131-checklist-option"><input id="tmV131ChecklistDetails" type="checkbox" checked> כלול פירוט פעולות בטיפולים מרוכזים</label>';
     actions.appendChild(box);
   }
   function noRows(){try{if(typeof pmToast==='function')pmToast('אין משימות לפי הסינון הנוכחי.','error');else alert('אין משימות לפי הסינון הנוכחי.')}catch(e){}return false;}
@@ -10655,8 +10661,9 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
   };
   window.tmExcelTasks=function(){
     const rows=currentRows();if(!rows.length)return noRows();
-    const cols=['סטטוס','מחלקה','מכונה / תשתית','משימה','סוג משימה','מקצוע','תדירות','משך (דקות)','טיפול הבא','טיפול אחרון','מקור','חלקים נדרשים'];
-    const data=rows.map(t=>[status(t),t.department||'',t.machine||'',t.task||'',KIND[taskKind(t)]||taskKind(t),trade(t),t.frequency||'',Number(t.duration||0),normDate(t.nextDue??t.next_due),normDate(t.lastDone??t.last_done),origin(t),t.parts||'']);
+    const withDetails=includeChecklistDetails();
+    const cols=['סטטוס','מחלקה','מכונה / תשתית','משימה',...(withDetails?['פירוט פעולות הטיפול']:[]),'סוג משימה','מקצוע','תדירות','משך (דקות)','טיפול הבא','טיפול אחרון','מקור','חלקים נדרשים'];
+    const data=rows.map(t=>[status(t),t.department||'',t.machine||'',t.task||'',...(withDetails?[checklistItems(t).join(' | ')]:[]),KIND[taskKind(t)]||taskKind(t),trade(t),t.frequency||'',Number(t.duration||0),normDate(t.nextDue??t.next_due),normDate(t.lastDone??t.last_done),origin(t),t.parts||'']);
     const xe=v=>escH(v);const table=`<table border="1"><tr><th colspan="${cols.length}">ניהול משימות — ${xe(filterText())}</th></tr><tr>${cols.map(c=>`<th>${xe(c)}</th>`).join('')}</tr>${data.map(r=>`<tr>${r.map(v=>`<td>${xe(v)}</td>`).join('')}</tr>`).join('')}</table>`;
     const html=`<!doctype html><html dir="rtl"><head><meta charset="utf-8"></head><body>${table}</body></html>`,blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='maintenance_task_management.xls';document.body.appendChild(a);a.click();const u=a.href;a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);return false;
   };
@@ -10691,7 +10698,7 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
 
   function boot(){ensureButtons();if($('pmEditTasks')?.classList.contains('active')){try{window.tmRefreshFilters?.();window.tmRenderList?.()}catch(e){console.error(e)}}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
-  window.pmV131TaskManagementAudit=function(){const rows=currentRows(),buttons=!!$('tmV131ExportActions');return {build:'20260828-v131-task-management-fixed-exports',tasksLoaded:Array.isArray(window.tasks)?window.tasks.length:(typeof tasks!=='undefined'&&Array.isArray(tasks)?tasks.length:null),filtered:rows.length,buttons,legacyEditBypassed:true,print:true,pdf:true,excel:true};};
+  window.pmV131TaskManagementAudit=function(){const rows=currentRows(),buttons=!!$('tmV131ExportActions');return {build:'20260828-v132-task-management-checklist-exports',tasksLoaded:Array.isArray(window.tasks)?window.tasks.length:(typeof tasks!=='undefined'&&Array.isArray(tasks)?tasks.length:null),filtered:rows.length,buttons,legacyEditBypassed:true,print:true,pdf:true,excel:true,checklistDetailOption:!!$('tmV131ChecklistDetails'),includeChecklistDetails:includeChecklistDetails(),consolidatedVisible:rows.filter(t=>checklistItems(t).length>0).length};};
 })();
 </script>
 
