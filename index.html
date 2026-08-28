@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v129-reports-unified-filter-block"/>
+<meta name="fop-build" content="20260828-v130-tab-local-filters-restored"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10402,198 +10402,186 @@ body.pm-v124-history-active #pmV99GlobalFilter{display:none!important}
 </script>
 
 
-<style id="fop-v126-contextual-period-visibility">
-/* V126 — Period is meaningful only in Dashboard and Reports.
-   Planning and Execution operate on the current actionable occurrence/queue. */
-#pmV99GlobalFilter.pm-v126-no-period .pm-v126-period-field{display:none!important}
+
+<style id="fop-v130-tab-local-filter-style">
+/* V130 — strict per-tab filter contract.
+   Dashboard keeps V99 global filter unchanged.
+   Planner / Execution / Reports use local controls only; no local change writes back to Dashboard.
+*/
+body.pm-v130-planner #pmV99GlobalFilter,
+body.pm-v130-report #pmV99GlobalFilter,
+body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
 #pmPlanner .pm-plan-periods{display:none!important}
+#pmPlanner .pm-v130-local-field,
+#pmReport .pm-v130-local-field{display:block!important}
+#pmReports .pm-report-filter-grid{display:none!important}
+.pm-v130-reports-filter-grid{
+  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;
+  margin:0 0 14px;padding:14px;border:1px solid #d9e4f1;border-radius:17px;background:#f8fbff;
+  box-shadow:0 4px 15px rgba(22,52,91,.04);align-items:end
+}
+.pm-v130-reports-filter-grid .pm-v130-filter-title{grid-column:1/-1;margin-bottom:2px}
+.pm-v130-reports-filter-grid .pm-v130-filter-title strong{display:block;color:#14345e;font-size:13px}
+.pm-v130-reports-filter-grid .pm-v130-filter-title small{display:block;color:#6b7a90;font-size:9px;margin-top:3px}
+.pm-v130-reports-filter-grid .field{display:block!important;min-width:0}
+.pm-v130-reports-filter-grid .field label{font-size:9px;font-weight:900;color:#52647c}
+.pm-v130-reports-filter-grid select,.pm-v130-reports-filter-grid input{width:100%;height:42px;border:1px solid #d7e0eb;border-radius:10px;background:#fff;padding:0 9px;font:inherit;font-size:11px}
+@media(max-width:700px){.pm-v130-reports-filter-grid{grid-template-columns:1fr 1fr}}
 </style>
-<script id="fop-v126-contextual-period-visibility-script">
+<script id="fop-v130-tab-local-filter-script">
 (function(){
   const $=id=>document.getElementById(id);
-  function tagPeriodField(){
-    const f=$('pmV99Period')?.closest('.field');
-    if(f)f.classList.add('pm-v126-period-field');
+  const cloneSeq={planner:0,report:0};
+  const baseReports=window.renderReports;
+  let reportsPeriodContext='week';
+
+  function copyOptions(src,dst,keep){
+    if(!src||!dst||dst.tagName!=='SELECT')return;
+    dst.innerHTML=src.innerHTML;
+    const wanted=String(keep??src.value??'');
+    if([...dst.options].some(o=>o.value===wanted))dst.value=wanted;
+    else dst.value='';
   }
-  function apply(tab){
-    tagPeriodField();
-    const bar=$('pmV99GlobalFilter');if(!bar)return;
-    const key=String(tab||'').toLowerCase();
-    const noPeriod=key==='planner'||key==='report';
-    bar.classList.toggle('pm-v126-no-period',noPeriod);
-    const sub=bar.querySelector('.pm-v99-title small');
-    if(sub){
-      sub.textContent=noPeriod
-        ? 'סינון עבודה פעילה לפי מחלקה, מכונה, מקצוע וסוג עבודה'
-        : 'אותו חתך בדשבורד ובדוחות';
-    }
+  function makeField(srcId,newId,cls=''){
+    const src=$(srcId),oldField=src?.closest('.field');if(!src||!oldField)return null;
+    let field=$(newId)?.closest('.field');
+    if(field)return {field,control:$(newId)};
+    field=oldField.cloneNode(true);field.classList.remove('pm-v99-common-hidden');field.classList.add('pm-v130-local-field');if(cls)field.classList.add(cls);
+    const c=field.querySelector('select,input');if(!c)return null;c.id=newId;c.removeAttribute('onchange');c.removeAttribute('oninput');
+    oldField.parentNode.insertBefore(field,oldField);
+    if(c.tagName==='SELECT')copyOptions(src,c,src.value);else c.value=src.value||'';
+    return {field,control:c};
   }
-  const prev=window.showTab;
-  window.showTab=function(name){
-    const r=typeof prev==='function'?prev.apply(this,arguments):undefined;
-    setTimeout(()=>apply(name),0);
+  function setOld(id,val){const e=$(id);if(e)e.value=val??''}
+
+  /* ---------- Planner: local filter, PERIOD ONLY removed ---------- */
+  function ensurePlanner(){
+    const toolbar=$('pmPlanner')?.querySelector('.toolbar');if(!toolbar)return;
+    const a=makeField('pmPlannerStart','pmV130PlannerStart');
+    const d=makeField('pmPlannerDepartment','pmV130PlannerDepartment');
+    const m=makeField('pmPlannerMachine','pmV130PlannerMachine');
+    const t=makeField('pmPlannerTrade','pmV130PlannerTrade');
+    const w=makeField('pmPlannerWorkType','pmV130PlannerWorkType');
+    if(!a||a.control.dataset.v130Bound)return;
+    [a,d,m,t,w].forEach(x=>{if(x?.control)x.control.dataset.v130Bound='1'});
+    a.control.addEventListener('change',()=>{setOld('pmPlannerStart',a.control.value);try{pmPlanningPeriod='week'}catch(e){};try{pmPlanPage=0}catch(e){};window.renderPlanner?.();});
+    d.control.addEventListener('change',()=>{setOld('pmPlannerDepartment',d.control.value);setOld('pmPlannerMachine','');try{window.fillPlanningMachines?.()}catch(e){};copyOptions($('pmPlannerMachine'),m.control,'');try{pmPlanPage=0}catch(e){};window.renderPlanner?.();});
+    m.control.addEventListener('change',()=>{setOld('pmPlannerMachine',m.control.value);try{pmPlanPage=0}catch(e){};window.renderPlanner?.();});
+    t.control.addEventListener('change',()=>{setOld('pmPlannerTrade',t.control.value);try{pmPlanPage=0}catch(e){};window.renderPlanner?.();});
+    w.control.addEventListener('change',()=>{setOld('pmPlannerWorkType',w.control.value);try{pmPlanPage=0}catch(e){};window.renderPlanner?.();});
+  }
+  function syncPlannerFromOld(){
+    ensurePlanner();try{pmPlanningPeriod='week'}catch(e){};
+    const pairs=[['pmPlannerStart','pmV130PlannerStart'],['pmPlannerDepartment','pmV130PlannerDepartment'],['pmPlannerTrade','pmV130PlannerTrade'],['pmPlannerWorkType','pmV130PlannerWorkType']];
+    pairs.forEach(([s,d])=>{const a=$(s),b=$(d);if(!a||!b)return;if(b.tagName==='SELECT')copyOptions(a,b,a.value);else b.value=a.value||'';});
+    try{window.fillPlanningMachines?.()}catch(e){};copyOptions($('pmPlannerMachine'),$('pmV130PlannerMachine'),$('pmPlannerMachine')?.value||'');
+  }
+
+  /* ---------- Treatment reporting: existing local definition only ---------- */
+  function ensureReport(){
+    const toolbar=$('pmReport')?.querySelector('.toolbar');if(!toolbar)return;
+    const d=makeField('pmReportDepartment','pmV130ReportDepartment');
+    const m=makeField('pmReportMachine','pmV130ReportMachine');
+    const w=makeField('pmReportWorkType','pmV130ReportWorkType');
+    const t=makeField('pmReportTrade','pmV130ReportTrade');
+    if(!d||d.control.dataset.v130Bound)return;
+    [d,m,w,t].forEach(x=>{if(x?.control)x.control.dataset.v130Bound='1'});
+    d.control.addEventListener('change',()=>{setOld('pmReportDepartment',d.control.value);setOld('pmReportMachine','');try{window.fillReportMachines?.()}catch(e){};copyOptions($('pmReportMachine'),m.control,'');window.renderReport?.();});
+    m.control.addEventListener('change',()=>{setOld('pmReportMachine',m.control.value);window.renderReport?.();});
+    w.control.addEventListener('change',()=>{setOld('pmReportWorkType',w.control.value);window.renderReport?.();});
+    t.control.addEventListener('change',()=>{setOld('pmReportTrade',t.control.value);window.renderReport?.();});
+  }
+  function syncReportFromOld(){
+    ensureReport();
+    copyOptions($('pmReportDepartment'),$('pmV130ReportDepartment'),$('pmReportDepartment')?.value||'');
+    try{window.fillReportMachines?.()}catch(e){};copyOptions($('pmReportMachine'),$('pmV130ReportMachine'),$('pmReportMachine')?.value||'');
+    copyOptions($('pmReportWorkType'),$('pmV130ReportWorkType'),$('pmReportWorkType')?.value||'');
+    copyOptions($('pmReportTrade'),$('pmV130ReportTrade'),$('pmReportTrade')?.value||'');
+  }
+
+  /* ---------- Reports: one LOCAL block, no period ---------- */
+  function reportGrid(){
+    let g=$('pmV130ReportsFilterGrid');if(g)return g;
+    const old=$('pmReports')?.querySelector('.pm-report-filter-grid');if(!old)return null;
+    g=document.createElement('div');g.id='pmV130ReportsFilterGrid';g.className='pm-v130-reports-filter-grid';
+    g.innerHTML=`<div class="pm-v130-filter-title"><strong>סינון דוחות</strong><small>פירוט והדפסה של מצב העבודה לפי הסינון בכרטיסייה זו בלבד</small></div>
+      <div class="field"><label>תאריך עוגן</label><input id="pmV130ReportsAnchor" type="date"></div>
+      <div class="field"><label>מחלקה</label><select id="pmV130ReportsDepartment"></select></div>
+      <div class="field"><label>מכונה</label><select id="pmV130ReportsMachine"></select></div>
+      <div class="field"><label>מקצוע</label><select id="pmV130ReportsTrade"></select></div>
+      <div class="field"><label>סוג עבודה</label><select id="pmV130ReportsWorkType"></select></div>
+      <div class="field"><label>סטטוס</label><select id="pmV130ReportsStatus"></select></div>`;
+    old.parentNode.insertBefore(g,old);return g;
+  }
+  function syncReportsFromOld(){
+    if(!reportGrid())return;
+    const anchor=$('pmReportsAnchor');if(anchor&&!anchor.value)anchor.value=(typeof today==='function'?today():new Date().toISOString().slice(0,10));
+    $('pmV130ReportsAnchor').value=anchor?.value||'';
+    copyOptions($('pmReportsDepartment'),$('pmV130ReportsDepartment'),$('pmReportsDepartment')?.value||'');
+    try{window.fillReportMachinesV4?.()}catch(e){};copyOptions($('pmReportsMachine'),$('pmV130ReportsMachine'),$('pmReportsMachine')?.value||'');
+    copyOptions($('pmReportsTrade'),$('pmV130ReportsTrade'),$('pmReportsTrade')?.value||'');
+    copyOptions($('pmReportsWorkType'),$('pmV130ReportsWorkType'),$('pmReportsWorkType')?.value||'');
+    copyOptions($('pmReportsStatus'),$('pmV130ReportsStatus'),$('pmReportsStatus')?.value||'open');
+    reportsPeriodContext=String(window.pmV99GlobalState?.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||$('pmReportsPeriod')?.value||'week'));
+    setOld('pmReportsPeriod',reportsPeriodContext);
+  }
+  function syncReportsToOld(){
+    setOld('pmReportsPeriod',reportsPeriodContext||'week');setOld('pmReportsAnchor',$('pmV130ReportsAnchor')?.value||'');setOld('pmReportsDepartment',$('pmV130ReportsDepartment')?.value||'');setOld('pmReportsMachine',$('pmV130ReportsMachine')?.value||'');setOld('pmReportsTrade',$('pmV130ReportsTrade')?.value||'');setOld('pmReportsWorkType',$('pmV130ReportsWorkType')?.value||'');setOld('pmReportsStatus',$('pmV130ReportsStatus')?.value||'open');
+  }
+  function renderReportsLocal(){
+    syncReportsToOld();
+    const g=window.pmV99GlobalState||null;
+    const saved=g?{period:g.period,anchor:g.anchor,department:g.department,machine:g.machine,trade:g.trade,workType:g.workType}:null;
+    if(g){g.period=reportsPeriodContext||'week';g.anchor=$('pmReportsAnchor')?.value||'';g.department=$('pmReportsDepartment')?.value||'';g.machine=$('pmReportsMachine')?.value||'';g.trade=$('pmReportsTrade')?.value||'';g.workType=$('pmReportsWorkType')?.value||'';}
+    let r;
+    try{r=typeof baseReports==='function'?baseReports.apply(this,arguments):undefined;}
+    finally{if(g&&saved)Object.assign(g,saved);}
     return r;
-  };
-  function boot(){
-    tagPeriodField();
-    const active=document.querySelector('.pm-panel.active')?.id||'';
-    const map={pmPlanner:'planner',pmReport:'report',pmDashboard:'dashboard',pmReports:'reports'};
-    apply(map[active]||'');
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
-  window.pmV126Audit=function(){
-    const bar=$('pmV99GlobalFilter');
-    return {build:'20260828-v126-hide-period-planning-execution',periodHidden:!!bar?.classList.contains('pm-v126-no-period'),plannerPeriodButtonsHidden:true};
-  };
-})();
-</script>
+  function bindReports(){
+    const g=reportGrid();if(!g||g.dataset.v130Bound)return;g.dataset.v130Bound='1';
+    $('pmV130ReportsAnchor')?.addEventListener('change',()=>renderReportsLocal());
+    $('pmV130ReportsDepartment')?.addEventListener('change',()=>{setOld('pmReportsDepartment',$('pmV130ReportsDepartment').value);setOld('pmReportsMachine','');try{window.fillReportMachinesV4?.()}catch(e){};copyOptions($('pmReportsMachine'),$('pmV130ReportsMachine'),'');renderReportsLocal();});
+    ['pmV130ReportsMachine','pmV130ReportsTrade','pmV130ReportsWorkType','pmV130ReportsStatus'].forEach(id=>$(id)?.addEventListener('change',()=>renderReportsLocal()));
+  }
 
+  // Final public Reports renderer is local to Reports; print/PDF/Excel therefore use the same rows.
+  window.renderReports=renderReportsLocal;try{renderReports=renderReportsLocal}catch(e){}
 
-
-<style id="fop-v128-reports-period-visibility">
-/* V128 — In Reports, period is shown only for historical closed statuses. */
-#pmV99GlobalFilter.pm-v128-reports-live .pm-v126-period-field{display:none!important}
-</style>
-<script id="fop-v128-reports-period-visibility-script">
-(function(){
-  const $=id=>document.getElementById(id);
-  const HISTORICAL=new Set(['completed','cancelled']);
-  function status(){return String($('pmReportsStatus')?.value||'open').trim().toLowerCase();}
-  function isReportsActive(tab){
-    const key=String(tab||'').toLowerCase();
-    return key==='reports'||!!$('pmReports')?.classList.contains('active');
+  function setBodyTab(name){
+    const b=document.body,key=String(name||'').toLowerCase();
+    b.classList.toggle('pm-v130-planner',key==='planner');
+    b.classList.toggle('pm-v130-report',key==='report');
+    b.classList.toggle('pm-v130-reports',key==='reports');
   }
-  function apply(tab){
-    const bar=$('pmV99GlobalFilter');if(!bar)return;
-    const reports=isReportsActive(tab),historical=reports&&HISTORICAL.has(status());
-    const field=$('pmV99Period')?.closest('.field');
-    if(field){
-      field.classList.add('pm-v126-period-field');
-      const label=field.querySelector('label');
-      if(label)label.textContent=historical?'תקופת היסטוריה':'תקופה';
-    }
-    bar.classList.toggle('pm-v128-reports-live',reports&&!historical);
-    const sub=bar.querySelector('.pm-v99-title small');
-    if(reports){
-      sub.textContent=historical
-        ? 'דוח היסטורי לפי תקופה, מחלקה, מכונה, מקצוע וסוג עבודה'
-        : 'פירוט מצב העבודה הנוכחי לפי מחלקה, מכונה, מקצוע וסוג עבודה';
-    }
-  }
-  const previousShow=window.showTab;
-  window.showTab=function(name){
-    const result=typeof previousShow==='function'?previousShow.apply(this,arguments):undefined;
-    setTimeout(()=>apply(name),0);
-    return result;
-  };
-  document.addEventListener('change',function(ev){
-    if(ev?.target?.id==='pmReportsStatus')setTimeout(()=>apply('reports'),0);
-  });
-  const previousRender=window.renderReports;
-  if(typeof previousRender==='function'){
-    window.renderReports=function(){
-      const result=previousRender.apply(this,arguments);
-      setTimeout(()=>apply('reports'),0);
-      return result;
-    };
-    try{renderReports=window.renderReports}catch(e){}
-  }
-  function boot(){
-    const active=document.querySelector('.pm-panel.active')?.id||'';
-    const map={pmDashboard:'dashboard',pmPlanner:'planner',pmReport:'report',pmReports:'reports',pmHistory:'history'};
-    apply(map[active]||'');
-  }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
-  window.pmV128Audit=function(){
-    const bar=$('pmV99GlobalFilter'),st=status();
-    return {build:'20260828-v128-reports-period-fixed',status:st,historical:HISTORICAL.has(st),hiddenForLiveReports:!!bar?.classList.contains('pm-v128-reports-live')};
-  };
-})();
-</script>
-
-
-<style id="fop-v129-reports-unified-filter-style">
-/* V129 — Reports uses one unified filter block; Status is moved into the top filter bar. */
-body.pm-v129-reports-active #pmReports .pm-report-filter-grid{display:none!important}
-#pmV99GlobalFilter .pm-v129-status-field{min-width:150px;flex:1 1 150px}
-#pmV99GlobalFilter.pm-v129-reports-unified{align-items:end}
-@media(max-width:600px){#pmV99GlobalFilter .pm-v129-status-field{min-width:100%;flex-basis:100%}}
-</style>
-<script id="fop-v129-reports-unified-filter-script">
-(function(){
-  const $=id=>document.getElementById(id);
-  let placeholder=null,statusField=null,originalTitle='',originalSub='';
-  function ensure(){
-    const st=$('pmReportsStatus');
-    if(!st)return false;
-    statusField=st.closest('.field');
-    if(!statusField)return false;
-    if(!placeholder){
-      placeholder=document.createElement('span');
-      placeholder.id='pmV129StatusPlaceholder';
-      placeholder.style.display='none';
-      statusField.parentNode?.insertBefore(placeholder,statusField);
-    }
-    statusField.classList.add('pm-v129-status-field');
-    return true;
-  }
-  function moveIntoBar(){
-    if(!ensure())return;
-    const bar=$('pmV99GlobalFilter');if(!bar)return;
-    const title=bar.querySelector('.pm-v99-title strong'),sub=bar.querySelector('.pm-v99-title small');
-    if(title&&!originalTitle)originalTitle=title.textContent||'';
-    if(sub&&!originalSub)originalSub=sub.textContent||'';
-    const sync=bar.querySelector('.pm-v99-sync-note');
-    if(statusField.parentNode!==bar){
-      if(sync)bar.insertBefore(statusField,sync); else bar.appendChild(statusField);
-    }
-    if(title)title.textContent='סינון דוחות';
-    if(sub)sub.textContent='פירוט והדפסה לפי אותם חתכים וסטטוסים של הדשבורד';
-    bar.classList.add('pm-v129-reports-unified');
-    document.body.classList.add('pm-v129-reports-active');
-  }
-  function restore(){
-    if(statusField&&placeholder?.parentNode&&statusField.parentNode!==placeholder.parentNode){
-      placeholder.parentNode.insertBefore(statusField,placeholder.nextSibling);
-    }
-    const bar=$('pmV99GlobalFilter');
-    if(bar){
-      bar.classList.remove('pm-v129-reports-unified');
-      const title=bar.querySelector('.pm-v99-title strong'),sub=bar.querySelector('.pm-v99-title small');
-      if(title&&originalTitle)title.textContent=originalTitle;
-      if(sub&&originalSub)sub.textContent=originalSub;
-    }
-    document.body.classList.remove('pm-v129-reports-active');
-  }
-  function apply(name){
-    const key=String(name||'').toLowerCase();
-    const active=key==='reports'||!!$('pmReports')?.classList.contains('active');
-    if(active)moveIntoBar(); else restore();
+  function activate(name){
+    const key=String(name||'').toLowerCase();setBodyTab(key);
+    if(key==='planner'){syncPlannerFromOld();setTimeout(()=>window.renderPlanner?.(),0);}
+    else if(key==='report'){syncReportFromOld();setTimeout(()=>window.renderReport?.(),0);}
+    else if(key==='reports'){syncReportsFromOld();bindReports();setTimeout(()=>renderReportsLocal(),0);}
   }
   const prevShow=window.showTab;
   window.showTab=function(name){
     const r=typeof prevShow==='function'?prevShow.apply(this,arguments):undefined;
-    setTimeout(()=>apply(name),0);
-    return r;
+    setTimeout(()=>activate(name),80);return r;
   };
-  const prevRender=window.renderReports;
-  if(typeof prevRender==='function'){
-    window.renderReports=function(){
-      const r=prevRender.apply(this,arguments);
-      setTimeout(()=>moveIntoBar(),0);
-      return r;
-    };
-    try{renderReports=window.renderReports}catch(e){}
-  }
   function boot(){
-    ensure();
+    ensurePlanner();ensureReport();reportGrid();bindReports();
     const id=document.querySelector('.pm-panel.active')?.id||'';
-    apply(id==='pmReports'?'reports':'');
+    const map={pmDashboard:'dashboard',pmPlanner:'planner',pmReport:'report',pmReports:'reports',pmHistory:'history'};
+    setTimeout(()=>activate(map[id]||''),120);
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
-  window.pmV129Audit=function(){
-    const bar=$('pmV99GlobalFilter');
-    return {build:'20260828-v129-reports-unified-filter-block',reportsActive:document.body.classList.contains('pm-v129-reports-active'),statusInsideBar:!!statusField&&statusField.parentNode===bar,periodVisible:!!$('pmV99Period')?.closest('.field')&&!getComputedStyle($('pmV99Period').closest('.field')).display.includes('none')};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+
+  window.pmV130Audit=function(){
+    const active=document.querySelector('.pm-panel.active')?.id||'';
+    return {build:'20260828-v130-tab-local-filters-restored',active,
+      dashboardPeriodPresent:!!$('pmV99Period'),
+      plannerPeriodVisible:getComputedStyle($('pmPlanner')?.querySelector('.pm-plan-periods')||document.body).display!=='none',
+      reportLocal:!!$('pmV130ReportDepartment'),
+      reportsLocal:!!$('pmV130ReportsFilterGrid'),
+      reportsPeriodVisible:false,
+      reportsStatusInsideLocal:!!$('pmV130ReportsStatus')?.closest('#pmV130ReportsFilterGrid')};
   };
 })();
 </script>
