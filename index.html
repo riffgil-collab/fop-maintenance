@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v130-tab-local-filters-restored"/>
+<meta name="fop-build" content="20260828-v131-task-management-fixed-exports"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -5840,6 +5840,7 @@ renderPlanner=function(){
      return (!d||t.department===d)&&(!m||t.machine===m)&&(!k||tk===k)&&(!tr||trade===tr)&&(!f||t.frequency===f)&&(!st||(st==='active'?(t.active!==false):(t.active===false)))&&(!origin||(origin==='wo'?/\[WO_SOURCE:[^\]]+\]/.test(String(t.notes||'')):!/\[WO_SOURCE:[^\]]+\]/.test(String(t.notes||''))))&&(!q||`${t.department} ${t.machine} ${t.task} ${cleanMeta(t.notes)} ${trade}`.toLowerCase().includes(q));
    });
  }
+ window.tmRowsForExport=tmRows;
  window.tmRefreshFilters=function(){
    if(!$('tmDepartment'))return;
    options($('tmDepartment'),uniq(tasks.map(t=>t.department)),'כל המחלקות');
@@ -10585,4 +10586,113 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
   };
 })();
 </script>
+
+
+<style id="fop-v131-task-management-export-style">
+#pmEditTasks .tm-v131-export-actions{display:flex;gap:8px;flex-wrap:wrap;margin-inline-start:auto}
+#pmEditTasks .tm-v131-export-actions button{min-width:112px}
+.tm-v131-report-stage{position:fixed;left:-100000px;top:0;width:1180px;background:#fff;color:#162b48;z-index:-1;padding:24px;box-sizing:border-box;direction:rtl;font-family:Arial,"Noto Sans Hebrew",sans-serif}
+.tm-v131-report-head{border-bottom:2px solid #173765;padding-bottom:12px;margin-bottom:14px}
+.tm-v131-report-head h2{margin:0 0 6px;font-size:25px;color:#173765}.tm-v131-report-head p{margin:3px 0;font-size:12px;color:#5e6f87}
+.tm-v131-report-summary{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0 14px}.tm-v131-report-summary span{border:1px solid #dbe4ee;border-radius:10px;padding:7px 10px;background:#f8fbff;font-size:11px;font-weight:700}
+.tm-v131-report-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px}.tm-v131-report-table th,.tm-v131-report-table td{border:1px solid #dbe3ec;padding:6px 5px;text-align:right;vertical-align:top;word-break:break-word}.tm-v131-report-table th{background:#edf3f9;color:#173765;font-weight:900}.tm-v131-report-table tbody tr:nth-child(even){background:#fafcfe}
+@media(max-width:700px){#pmEditTasks .tm-v131-export-actions{width:100%;margin-inline-start:0}#pmEditTasks .tm-v131-export-actions button{flex:1;min-width:0}}
+@media print{
+ body.pm-v131-task-print *{visibility:hidden!important}
+ body.pm-v131-task-print #tmV131PrintStage,body.pm-v131-task-print #tmV131PrintStage *{visibility:visible!important}
+ body.pm-v131-task-print #tmV131PrintStage{position:absolute!important;left:0!important;right:0!important;top:0!important;width:100%!important;z-index:999999!important;padding:8mm!important;background:#fff!important}
+ body.pm-v131-task-print .tm-v131-report-table{font-size:8.5pt!important}
+ body.pm-v131-task-print .tm-v131-report-table th,body.pm-v131-task-print .tm-v131-report-table td{padding:4px!important}
+ @page{size:A4 landscape;margin:8mm}
+}
+</style>
+<script id="fop-v131-task-management-fixed-exports">
+/* V131 — Task Management repair + local print/PDF/Excel.
+   - editTasks bypasses the removed legacy pmSettings* editor path.
+   - The current tmRows() filtered population is the single source for screen/print/PDF/Excel.
+   - No filter state is synchronized back to Dashboard/Planning/Execution/Reports. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const escH=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const normDate=v=>String(v||'').slice(0,10);
+  const KIND={physical:'PM',inspection:'בדיקת אחזקה',operator:'בדיקת מפעיל'};
+  const taskKind=t=>typeof window.tmTaskKind==='function'?window.tmTaskKind(t):(String(t?.performer||'').trim()==='מפעיל'?'operator':String((t?.taskType??t?.task_type)||'').toLowerCase()==='inspection'?'inspection':'physical');
+  const trade=t=>taskKind(t)==='operator'?'מפעיל':String(t?.trade||((typeof maintenanceTrade==='function')?maintenanceTrade(t):'')||'').trim()||'מכונאי';
+  const origin=t=>/\[WO_SOURCE:[^\]]+\]/.test(String(t?.notes||''))?'נוצר מ-WO':'מאגר מקורי';
+  const status=t=>t?.active===false?'לא פעילה':'פעילה';
+  const currentRows=()=>typeof window.tmRowsForExport==='function'?window.tmRowsForExport():[];
+
+  function filterText(){
+    const bits=[];
+    const add=(id,label)=>{const e=$(id);if(e?.value)bits.push(`${label}: ${e.options?.[e.selectedIndex]?.text||e.value}`)};
+    add('tmDepartment','מחלקה');add('tmMachine','מכונה');add('tmKind','סוג משימה');add('tmTrade','מקצוע');add('tmFrequency','תדירות');add('tmStatus','סטטוס');add('tmOrigin','מקור');
+    const q=String($('tmSearch')?.value||'').trim();if(q)bits.push(`חיפוש: ${q}`);
+    return bits.length?bits.join(' · '):'כל מאגר המשימות';
+  }
+  function totals(rows){
+    const byKind={physical:0,inspection:0,operator:0};let mins=0,active=0,inactive=0;
+    rows.forEach(t=>{byKind[taskKind(t)]=(byKind[taskKind(t)]||0)+1;mins+=Number(t?.duration||0);if(t?.active===false)inactive++;else active++;});
+    return {count:rows.length,active,inactive,physical:byKind.physical||0,inspection:byKind.inspection||0,operator:byKind.operator||0,hours:(mins/60).toFixed(1)};
+  }
+  function reportHtml(rows){
+    const x=totals(rows),date=new Date().toLocaleString((window.pmLocale?window.pmLocale():'he-IL'));
+    return `<div class="tm-v131-report-head"><h2>ניהול משימות — מאגר אחזקה</h2><p>${escH(filterText())}</p><p>הופק: ${escH(date)}</p></div>
+      <div class="tm-v131-report-summary"><span>${x.count} משימות</span><span>${x.active} פעילות</span><span>${x.inactive} לא פעילות</span><span>${x.physical} PM</span><span>${x.inspection} בדיקות אחזקה</span><span>${x.operator} בדיקות מפעיל</span><span>${x.hours} שעות מחזור רשומות</span></div>
+      <table class="tm-v131-report-table"><thead><tr><th style="width:7%">סטטוס</th><th style="width:10%">מחלקה</th><th style="width:12%">מכונה / תשתית</th><th style="width:25%">משימה</th><th style="width:9%">סוג</th><th style="width:8%">מקצוע</th><th style="width:8%">תדירות</th><th style="width:6%">דק׳</th><th style="width:8%">טיפול הבא</th><th style="width:7%">מקור</th></tr></thead><tbody>${rows.map(t=>`<tr><td>${escH(status(t))}</td><td>${escH(t.department||'')}</td><td>${escH(t.machine||'')}</td><td>${escH(t.task||'')}</td><td>${escH(KIND[taskKind(t)]||taskKind(t))}</td><td>${escH(trade(t))}</td><td>${escH(t.frequency||'—')}</td><td>${Number(t.duration||0)}</td><td>${escH(normDate(t.nextDue??t.next_due)||'—')}</td><td>${escH(origin(t))}</td></tr>`).join('')}</tbody></table>`;
+  }
+  function ensureButtons(){
+    const actions=$('pmEditTasks')?.querySelector('.tm-actions');if(!actions||$('tmV131ExportActions'))return;
+    const box=document.createElement('div');box.id='tmV131ExportActions';box.className='tm-v131-export-actions';
+    box.innerHTML='<button class="secondary-btn" type="button" onclick="return tmPrintTasks()">🖨️ הדפסה</button><button class="secondary-btn" type="button" onclick="return tmPdfTasks(this)">📄 PDF</button><button class="export-btn" type="button" onclick="return tmExcelTasks()">📊 Excel</button>';
+    actions.appendChild(box);
+  }
+  function noRows(){try{if(typeof pmToast==='function')pmToast('אין משימות לפי הסינון הנוכחי.','error');else alert('אין משימות לפי הסינון הנוכחי.')}catch(e){}return false;}
+
+  window.tmPrintTasks=function(){
+    const rows=currentRows();if(!rows.length)return noRows();
+    $('tmV131PrintStage')?.remove();const stage=document.createElement('div');stage.id='tmV131PrintStage';stage.className='tm-v131-report-stage';stage.innerHTML=reportHtml(rows);document.body.appendChild(stage);document.body.classList.add('pm-v131-task-print');
+    const cleanup=()=>{document.body.classList.remove('pm-v131-task-print');stage.remove();window.removeEventListener('afterprint',cleanup)};window.addEventListener('afterprint',cleanup);setTimeout(()=>window.print(),30);setTimeout(()=>{if(document.body.contains(stage))cleanup()},30000);return false;
+  };
+  window.tmExcelTasks=function(){
+    const rows=currentRows();if(!rows.length)return noRows();
+    const cols=['סטטוס','מחלקה','מכונה / תשתית','משימה','סוג משימה','מקצוע','תדירות','משך (דקות)','טיפול הבא','טיפול אחרון','מקור','חלקים נדרשים'];
+    const data=rows.map(t=>[status(t),t.department||'',t.machine||'',t.task||'',KIND[taskKind(t)]||taskKind(t),trade(t),t.frequency||'',Number(t.duration||0),normDate(t.nextDue??t.next_due),normDate(t.lastDone??t.last_done),origin(t),t.parts||'']);
+    const xe=v=>escH(v);const table=`<table border="1"><tr><th colspan="${cols.length}">ניהול משימות — ${xe(filterText())}</th></tr><tr>${cols.map(c=>`<th>${xe(c)}</th>`).join('')}</tr>${data.map(r=>`<tr>${r.map(v=>`<td>${xe(v)}</td>`).join('')}</tr>`).join('')}</table>`;
+    const html=`<!doctype html><html dir="rtl"><head><meta charset="utf-8"></head><body>${table}</body></html>`,blob=new Blob(['\ufeff'+html],{type:'application/vnd.ms-excel;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='maintenance_task_management.xls';document.body.appendChild(a);a.click();const u=a.href;a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500);return false;
+  };
+  window.tmPdfTasks=async function(btn){
+    const rows=currentRows();if(!rows.length)return noRows();
+    if(!window.html2canvas||!window.jspdf?.jsPDF){try{if(typeof pmToast==='function')pmToast('רכיב PDF עדיין לא נטען. נסה שוב בעוד רגע.','error')}catch(e){}return false;}
+    const old=btn?.innerHTML;if(btn){btn.disabled=true;btn.innerHTML='מכין PDF…'}
+    const stage=document.createElement('div');stage.className='tm-v131-report-stage';stage.innerHTML=reportHtml(rows);document.body.appendChild(stage);
+    try{
+      const canvas=await window.html2canvas(stage,{backgroundColor:'#fff',scale:1.15,useCORS:true,logging:false,windowWidth:1180});
+      const {jsPDF}=window.jspdf,pdf=new jsPDF({orientation:'landscape',unit:'mm',format:'a4',compress:true}),pw=pdf.internal.pageSize.getWidth(),ph=pdf.internal.pageSize.getHeight(),margin=5,maxW=pw-margin*2,maxH=ph-margin*2,scale=maxW/canvas.width,slicePx=Math.max(1,Math.floor(maxH/scale));
+      let y=0,page=0;while(y<canvas.height){if(page++)pdf.addPage('a4','landscape');const h=Math.min(slicePx,canvas.height-y),c=document.createElement('canvas');c.width=canvas.width;c.height=h;c.getContext('2d').drawImage(canvas,0,y,canvas.width,h,0,0,canvas.width,h);const img=c.toDataURL('image/jpeg',0.92);pdf.addImage(img,'JPEG',margin,margin,maxW,h*scale,undefined,'FAST');y+=h;}
+      const blob=pdf.output('blob'),url=URL.createObjectURL(blob);setTimeout(()=>{try{window.location.assign(url)}catch(e){window.location.href=url}},20);setTimeout(()=>URL.revokeObjectURL(url),10*60*1000);
+    }catch(e){console.error('Task management PDF',e);try{if(typeof pmToast==='function')pmToast('יצירת PDF נכשלה.','error')}catch(_){} }
+    finally{stage.remove();if(btn){btn.disabled=false;btn.innerHTML=old||'📄 PDF'}}return false;
+  };
+
+  /* Repair editTasks navigation: legacy showTab calls removed pmSettings* controls and throws.
+     Intercept editTasks before that path and activate only the current TM implementation. */
+  const previousShow=window.showTab;
+  window.showTab=function(name){
+    const key=String(name||'');if(key!=='editTasks'&&key!=='addTask')return typeof previousShow==='function'?previousShow.apply(this,arguments):undefined;
+    const cfg=(typeof PM_ROLES!=='undefined'?(PM_ROLES[pmCurrentRole]||PM_ROLES.viewer):null);
+    if(cfg&&!cfg.tabs.includes('editTasks')){try{return statusLine('אין הרשאה לכרטיסייה זו.','error')}catch(e){return false}}
+    if(typeof pmCan==='function'&&!pmCan('settings')){try{return statusLine('אין הרשאה לניהול משימות.','error')}catch(e){return false}}
+    document.querySelectorAll('.pm-tab').forEach(b=>b.classList.toggle('active',b.dataset.pm==='editTasks'));
+    document.querySelectorAll('.pm-panel').forEach(p=>p.classList.remove('active'));$('pmEditTasks')?.classList.add('active');
+    document.body.classList.remove('pm-v130-planner','pm-v130-report','pm-v130-reports','pm-v124-history-active','pm-v131-task-print');$('pmV99GlobalFilter')?.classList.remove('active');
+    setTimeout(()=>{try{window.tmRefreshFilters?.();window.tmRenderList?.();ensureButtons();}catch(e){console.error('Task management render',e);const list=$('tmTaskList');if(list)list.innerHTML='<div class="empty">טעינת ניהול המשימות נכשלה. יש לטעון מחדש את הנתונים.</div>'; }},0);
+    return false;
+  };try{showTab=window.showTab}catch(e){}
+
+  function boot(){ensureButtons();if($('pmEditTasks')?.classList.contains('active')){try{window.tmRefreshFilters?.();window.tmRenderList?.()}catch(e){console.error(e)}}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+  window.pmV131TaskManagementAudit=function(){const rows=currentRows(),buttons=!!$('tmV131ExportActions');return {build:'20260828-v131-task-management-fixed-exports',tasksLoaded:Array.isArray(window.tasks)?window.tasks.length:(typeof tasks!=='undefined'&&Array.isArray(tasks)?tasks.length:null),filtered:rows.length,buttons,legacyEditBypassed:true,print:true,pdf:true,excel:true};};
+})();
+</script>
+
 </body></html>
