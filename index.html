@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v115-execution-history-only"/>
+<meta name="fop-build" content="20260828-v116-history-filter-delegated"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -9944,6 +9944,40 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
   window.pmV115Audit=function(){const h=executionRows(),wo=completedWOsForReport();return {build:'20260828-v115-execution-history-only',history:{rows:h.length,pm:h.filter(r=>r.source==='PM').length,wo:h.filter(r=>r.source==='WO').length,postponed:h.filter(r=>r.eventType==='postponed').length},reportCompletedWO:wo.length,ok:h.every(r=>r.eventType==='completed')};};
   function boot(){ensureNote();if($('pmHistory')?.classList.contains('active'))renderExecutionHistory();if($('pmReports')?.classList.contains('active')){normalizeWOReportSelection();window.renderReports?.();}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
+<script id="fop-v116-history-filter-delegated">
+/* V116 — Execution History reacts to the dynamically-created global V99 filter.
+   V114/V115 attempted to bind directly to #pmV99* while the HTML was still parsing.
+   Those controls are created later by V99 on DOMContentLoaded, so those bindings can be absent.
+   Delegating from document makes the refresh independent of control creation timing. */
+(function(){
+  const FILTER_IDS=new Set(['pmV99Period','pmV99Anchor','pmV99Department','pmV99Machine','pmV99Trade','pmV99WorkType']);
+  document.addEventListener('change',function(ev){
+    const id=ev && ev.target ? ev.target.id : '';
+    if(!FILTER_IDS.has(id))return;
+    setTimeout(function(){
+      const history=document.getElementById('pmHistory');
+      if(history && history.classList.contains('active')){
+        try{ if(typeof window.renderHistory==='function') window.renderHistory(); }
+        catch(e){ console.warn('V116 history filter refresh',e); }
+      }
+    },0);
+  });
+  window.pmV116HistoryFilterAudit=function(){
+    const g=window.pmV99GlobalState||{};
+    let rows=[];
+    try{ if(typeof window.pmExecutionHistoryRows==='function') rows=window.pmExecutionHistoryRows(); }catch(e){}
+    return {
+      build:'20260828-v116-history-filter-delegated',
+      workType:String(g.workType||''),
+      rows:rows.length,
+      pm:rows.filter(r=>r&&r.source==='PM').length,
+      wo:rows.filter(r=>r&&r.source==='WO').length,
+      typeFilterOK:!g.workType||rows.every(r=>r&&r.source===g.workType)
+    };
+  };
 })();
 </script>
 </body></html>
