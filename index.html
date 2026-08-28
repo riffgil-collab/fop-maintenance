@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v117-checklists-operator-maintenance"/>
+<meta name="fop-build" content="20260828-v118-original-compliance-window"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -7733,8 +7733,9 @@ window.pmHistoryParityAudit=function(){
    2) The current occurrence is re-keyed to the new due date to prevent duplicate rows.
    3) PM_ORIGINAL_DUE preserves the immutable original occurrence date for audit/KPI.
    4) Future recurrence projections honor PM_POSTPONE audit chains.
-   5) Original-plan adherence = matured original PM occurrences completed on/before
-      their original due date / all matured original PM occurrences in the lookback window.
+   5) Original-plan adherence uses the fixed 7-day execution window: original due..original due+6.
+      An occurrence matures into the KPI only after that window has ended.
+      Completion after the window is a KPI miss and its calendar days late are retained for audit.
 */
 (function(){
   const $=id=>document.getElementById(id);
@@ -8009,23 +8010,29 @@ window.pmHistoryParityAudit=function(){
       if(!ids.has(String(p.taskId))||String(p.notes||'').includes('PM_REBASE_SUPERSEDED:'))continue;
       const t=taskById(p.taskId);if(!t)continue;
       const d=dueKey(p),orig=originalDueFromNotes(p.notes)||originalRoot(t,d)||d;
-      if(!orig||orig<w.start||orig>w.end||orig>anchor)continue;
+      const windowEnd=orig?addDays(orig,6):'';
+      // KPI maturity follows the same operational contract: due..due+6 is still on time.
+      // Do not score an occurrence before its seven-day execution window has fully matured.
+      if(!orig||orig<w.start||orig>w.end||!windowEnd||windowEnd>anchor)continue;
       const key=String(t.id)+'|'+orig,st=norm(p.status),doneDate=iso10(p.completedDate||p.completed_date);
-      const success=DONE.has(st)&&doneDate&&doneDate<=orig;
-      occ.set(key,{success,state:st,originalDue:orig,doneDate});
+      const success=DONE.has(st)&&doneDate&&doneDate<=windowEnd;
+      const lateEnd=(DONE.has(st)&&doneDate)?doneDate:((!CANCELLED.has(st))?anchor:'');
+      const lateDays=lateEnd&&lateEnd>windowEnd?Math.max(0,Math.round(((dObj(lateEnd)||0)-(dObj(windowEnd)||0))/86400000)):0;
+      occ.set(key,{success,state:st,originalDue:orig,windowEnd,doneDate,lateDays});
     }
     for(const t of list){
-      const current=iso10(t.nextDue),orig=originalRoot(t,current)||current;
-      if(!orig||orig<w.start||orig>w.end||orig>anchor)continue;
+      const current=iso10(t.nextDue),orig=originalRoot(t,current)||current,windowEnd=orig?addDays(orig,6):'';
+      if(!orig||orig<w.start||orig>w.end||!windowEnd||windowEnd>anchor)continue;
       const key=String(t.id)+'|'+orig;
-      if(!occ.has(key))occ.set(key,{success:false,state:'open',originalDue:orig,doneDate:''});
+      const lateDays=anchor>windowEnd?Math.max(0,Math.round(((dObj(anchor)||0)-(dObj(windowEnd)||0))/86400000)):0;
+      if(!occ.has(key))occ.set(key,{success:false,state:'open',originalDue:orig,windowEnd,doneDate:'',lateDays});
     }
 
-    const matured=[...occ.values()],ok=matured.filter(x=>x.success).length,score=matured.length?Math.round(ok/matured.length*100):null;
+    const matured=[...occ.values()],ok=matured.filter(x=>x.success).length,cancelled=matured.filter(x=>CANCELLED.has(norm(x.state))).length,late=matured.filter(x=>!x.success&&!CANCELLED.has(norm(x.state))).length,lateDays=matured.reduce((sum,x)=>sum+Number(x.lateDays||0),0),score=matured.length?Math.round(ok/matured.length*100):null;
     if($('pmV97OriginalCompliance'))$('pmV97OriginalCompliance').textContent=score===null?'—':score+'%';
     if($('pmV97OriginalComplianceDetail'))$('pmV97OriginalComplianceDetail').textContent=score===null
-      ? (en?'No original PM due dates matured in this window':'אין מועדי PM מקוריים שהבשילו בתקופה')
-      : (en?`${ok} of ${matured.length} matured original due dates met on time`:`${ok} מתוך ${matured.length} מועדים מקוריים בוצעו בזמן`);
+      ? (en?'No original PM execution windows matured in this period':'אין חלונות PM מקוריים שהבשילו בתקופה')
+      : (en?`${ok} of ${matured.length} on time · ${late} late · ${cancelled} cancelled · ${lateDays} total late days`:`${ok} מתוך ${matured.length} בזמן · ${late} באיחור · ${cancelled} בוטלו · ${lateDays} ימי איחור מצטברים`);
 
     if(card){
       card.classList.toggle('bad',score!==null&&score<70);
@@ -8034,10 +8041,10 @@ window.pmHistoryParityAudit=function(){
 
     // Keep the lower legacy execution tile consistent with the new original-plan score.
     if($('pmV3Execution'))$('pmV3Execution').textContent=score===null?'—':score+'%';
-    if($('pmV3ExecutionDetail'))$('pmV3ExecutionDetail').textContent=score===null?'אין מועדים שהבשילו':`${ok} מתוך ${matured.length}`;
+    if($('pmV3ExecutionDetail'))$('pmV3ExecutionDetail').textContent=score===null?'אין מועדים שהבשילו':`${ok} מתוך ${matured.length} בזמן · ${lateDays} ימי איחור`;
     if($('pmV3ExecutionBar'))$('pmV3ExecutionBar').style.width=(score===null?0:score)+'%';
 
-    window.pmV97PerformanceAudit={window:w,postponements:events.length,matured:matured.length,onTimeOriginal:ok,score,filters:{department:$('pmDashboardDepartment')?.value||'',machine:$('pmDashboardMachine')?.value||'',trade:$('pmDashboardTrade')?.value||''}};
+    window.pmV97PerformanceAudit={window:w,postponements:events.length,matured:matured.length,onTimeOriginal:ok,lateOriginal:late,cancelledOriginal:cancelled,totalLateDays:lateDays,score,occurrences:matured,filters:{department:$('pmDashboardDepartment')?.value||'',machine:$('pmDashboardMachine')?.value||'',trade:$('pmDashboardTrade')?.value||''}};
   }
 
   const previousDashboard=window.renderDashboard;
