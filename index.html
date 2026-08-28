@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v119-cumulative-pm-compliance"/>
+<meta name="fop-build" content="20260828-v120-current-occurrence-resolver"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -9416,11 +9416,26 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
     return {...r,task:t,item:r?.item||{t,due:d,plan:p,backlog:d<asOf},due:d,plan:p,state:late?'overdue':a?'planned':'waiting',isAssigned:a,assignmentDate:a?pDate(p):'',executionDeadline:deadline(d),date:a?pDate(p):d,effectiveDate:d,overdueUnassigned:late&&!a,forceOverdue:forced};
   }
   function broad(opts={}){
-    const asOf=iso(opts.anchor||tday());
-    const raw=basePM({...opts,anchor:asOf,period:'year',status:'open'})||[];
-    const m=new Map();
-    for(const r of raw){const t=tOf(r),d=dueOf(r);if(!t?.id||!d)continue;const k=String(t.id);const old=m.get(k);if(!old||dueOf(old)>d)m.set(k,r);}
-    return [...m.values()];
+    // V120: the ONLY operational PM occurrence is the master pointer in pm_tasks.next_due.
+    // Historical/projected rows must never resurrect an older occurrence on Dashboard/Planner/Reports.
+    const dep=String(opts.department||''),mach=String(opts.machine||''),trade=String(opts.trade||'');
+    const out=[];
+    for(const t of (Array.isArray(tasks)?tasks:[])){
+      if(!t||t.active===false)continue;
+      if(String(t.performer||'').trim()!=='טכנאי אחזקה'||norm(t.taskType??t.task_type)!=='maintenance')continue;
+      if(dep&&String(t.department||'')!==dep)continue;
+      if(mach&&String(t.machine||'')!==mach)continue;
+      const tr=String((typeof maintenanceTrade==='function'?maintenanceTrade(t):(t.trade||''))||'');
+      if(trade&&tr!==trade)continue;
+      const d=iso(t.nextDue??t.next_due);if(!d)continue;
+      const p=latestPlan(t.id,d); // strict occurrence match: PM_DUE must equal current next_due
+      out.push({
+        kind:'PM',id:t.id,key:`PM|${String(t.id)}|${d}`,task:t,item:{t,due:d,plan:p,backlog:false},
+        department:t.department||'',machine:t.machine||'',description:t.task||'',frequency:t.frequency||'',
+        performer:t.performer||'',trade:tr,duration:Number(t.duration||0),due:d,plan:p,date:d,effectiveDate:d
+      });
+    }
+    return out;
   }
   function activeDeferredRows(opts={}){
     const asOf=iso(opts.anchor||tday()),dep=String(opts.department||''),mach=String(opts.machine||''),trade=String(opts.trade||'');
@@ -9529,16 +9544,25 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
   };
   window.pmPostponeDialog=async function(currentDate){const reason=String(window.prompt('סיבת הדחייה (המופע הנוכחי יזוז שבוע אחד קדימה):','')||'').trim();if(!reason)return null;return {date:postponeTo(iso(currentDate||tday())),reason,note:'',combined:reason};};
 
-  function dashOpts(status='open'){const g=window.pmV99GlobalState||{};return {period:g.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),anchor:g.anchor||$('pmDashboardAnchor')?.value||tday(),department:g.department??$('pmDashboardDepartment')?.value??'',machine:g.machine??$('pmDashboardMachine')?.value??'',trade:g.trade??$('pmDashboardTrade')?.value??'',workType:'PM',status};}
+  function dashOpts(status='open'){const g=window.pmV99GlobalState||{};return {period:g.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),anchor:g.anchor||$('pmDashboardAnchor')?.value||tday(),department:g.department??$('pmDashboardDepartment')?.value??'',machine:g.machine??$('pmDashboardMachine')?.value??'',trade:g.trade??$('pmDashboardTrade')?.value??'',workType:g.workType??$('pmDashboardWorkType')?.value??'',status};}
   function setText(id,v){const e=$(id);if(e)e.textContent=v;}
+  function woOpenRows(o){try{return baseWO({...o,status:'open'})||[]}catch(e){return []}}
+  function woAssigned(r){const w=r?.wo||r||{},s=norm(w.status??r?.status),pd=iso(w.plannedDate??w.planned_date??r?.plannedDate??r?.planned_date);return !!pd&&!CLOSED.has(s);}
+  function woLate(r){return norm(r?.state)==='overdue'||norm(r?.status)==='overdue';}
   function refreshDashboard(){
-    const open=opPM(dashOpts('open')),planned=opPM(dashOpts('planned')),waiting=opPM(dashOpts('waiting')),over=opPM(dashOpts('overdue')),post=opPM(dashOpts('postponed'));
+    const o=dashOpts('open'),wt=String(o.workType||'');
+    const pmOpen=wt==='WO'?[]:opPM({...o,workType:'PM',status:'open'}),pmPlanned=wt==='WO'?[]:opPM({...o,workType:'PM',status:'planned'}),pmWaiting=wt==='WO'?[]:opPM({...o,workType:'PM',status:'waiting'}),pmOver=wt==='WO'?[]:opPM({...o,workType:'PM',status:'overdue'}),pmPost=wt==='WO'?[]:opPM({...o,workType:'PM',status:'postponed'});
+    const woOpen=wt==='PM'?[]:woOpenRows(o),woOver=woOpen.filter(woLate),woPlanned=woOpen.filter(r=>!woLate(r)&&woAssigned(r)),woWaiting=woOpen.filter(r=>!woLate(r)&&!woAssigned(r));
+    const open=[...pmOpen,...woOpen],planned=[...pmPlanned,...woPlanned],waiting=[...pmWaiting,...woWaiting],over=[...pmOver,...woOver],post=pmPost;
     setText('pmV17Open',open.length);setText('pmV31Planned',planned.length);setText('pmV105Unassigned',waiting.length);setText('pmV17Overdue',over.length);setText('pmV97Postponements',post.length);
-    setText('pmV3Waiting',waiting.length);setText('pmV3Planned',planned.length);setText('pmV3Postponed',post.length);setText('pmV3Overdue',over.length);if($('pmV3WaitingDetail'))$('pmV3WaitingDetail').textContent='פתוחות בתוך חלון 7 ימים';if($('pmV97PostponementsDetail'))$('pmV97PostponementsDetail').textContent='נדחו וממתינים למועד החדש';
-    const assignedAny=open.filter(r=>r.isAssigned),coverage=open.length?Math.round(assignedAny.length/open.length*100):100;setText('pmV3Coverage',coverage+'%');if($('pmV3CoverageDetail'))$('pmV3CoverageDetail').textContent=`${assignedAny.length} מתוך ${open.length}`;if($('pmV3CoverageBar'))$('pmV3CoverageBar').style.width=coverage+'%';
-    const trades={};for(const r of open)trades[r.trade||'לא מוגדר']=(trades[r.trade||'לא מוגדר']||0)+Number(r.duration||0)/60;const tb=$('pmV17Trade'),mx=Math.max(1,...Object.values(trades));if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${eh(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${v.toFixed(1)}ש׳</strong></div>`).join('')||'<div class="empty">אין כרגע עומס PM פתוח.</div>';
-    const att=[...over,...waiting].slice(0,12),box=$('pmV17Attention');if(box)box.innerHTML=att.length?att.map(r=>`<div class="pm-v3-mini"><div><strong>${eh(r.machine)} — ${eh(r.description)}</strong><small>${eh(r.trade||'')} · ${r.state==='overdue'?'באיחור':'טרם שובצה'}</small></div><span class="tag ${r.state==='overdue'?'red':''}">${r.state==='overdue'?'באיחור':'טרם שובצה'}</span></div>`).join(''):'<div class="empty">אין כרגע משימות שדורשות תשומת לב.</div>';
-    window.pmV109Partition={open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,invariant:open.length===planned.length+waiting.length+over.length};
+    setText('pmV3Waiting',waiting.length);setText('pmV3Planned',planned.length);setText('pmV3Postponed',post.length);setText('pmV3Overdue',over.length);
+    if($('pmV3WaitingDetail'))$('pmV3WaitingDetail').textContent=wt==='WO'?'WO פתוחות שטרם שובצו':wt==='PM'?'פתוחות בתוך חלון 7 ימים':'PM/WO פתוחות שטרם שובצו';
+    if($('pmV97PostponementsDetail'))$('pmV97PostponementsDetail').textContent=wt==='WO'?'לא חל על WO':'נדחו וממתינים למועד החדש';
+    const assignedAny=planned,coverage=open.length?Math.round(assignedAny.length/open.length*100):100;setText('pmV3Coverage',coverage+'%');if($('pmV3CoverageDetail'))$('pmV3CoverageDetail').textContent=`${assignedAny.length} מתוך ${open.length}`;if($('pmV3CoverageBar'))$('pmV3CoverageBar').style.width=coverage+'%';
+    const trades={};for(const r of open)trades[r.trade||r.wo?.trade||'לא מוגדר']=(trades[r.trade||r.wo?.trade||'לא מוגדר']||0)+Number(r.duration||r.wo?.duration||0)/60;const tb=$('pmV17Trade'),mx=Math.max(1,...Object.values(trades));if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${eh(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${v.toFixed(1)}ש׳</strong></div>`).join('')||`<div class="empty">אין כרגע עומס ${wt||'PM/WO'} פתוח.</div>`;
+    const att=[...over,...waiting].slice(0,12),box=$('pmV17Attention');if(box)box.innerHTML=att.length?att.map(r=>`<div class="pm-v3-mini"><div><strong>${eh(r.machine||r.wo?.machine||'')} — ${eh(r.description||r.wo?.description||'')}</strong><small>${eh(r.trade||r.wo?.trade||'')} · ${over.includes(r)?'באיחור':'טרם שובצה'}</small></div><span class="tag ${over.includes(r)?'red':''}">${over.includes(r)?'באיחור':'טרם שובצה'}</span></div>`).join(''):'<div class="empty">אין כרגע משימות שדורשות תשומת לב.</div>';
+    window.pmV120Partition={workType:wt||'ALL',open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,invariant:open.length===planned.length+waiting.length+over.length};
+    window.pmV109Partition=window.pmV120Partition;
   }
   const prevDash=window.renderDashboard;window.renderDashboard=renderDashboard=function(){const r=typeof prevDash==='function'?prevDash.apply(this,arguments):undefined;try{refreshDashboard()}catch(e){console.warn('V109 dashboard',e)}return r;};
 
@@ -9567,8 +9591,9 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
   }
 
   window.pmV109Audit=function(){
-    const o=dashOpts('open'),open=opPM(o),planned=opPM({...o,status:'planned'}),waiting=opPM({...o,status:'waiting'}),over=opPM({...o,status:'overdue'}),post=opPM({...o,status:'postponed'}),up=opPM({...o,status:'near'}),dup=[...open.reduce((m,r)=>(m.set(String(r.task?.id||r.id),(m.get(String(r.task?.id||r.id))||0)+1),m),new Map())].filter(([,n])=>n>1);
-    return {build:'20260828-v113-postpone-report-parity',windowDays:7,windowStartsAtNextDue:true,assignmentDoesNotResetClock:true,postponeDays:7,nextRecurrenceFromCompletion:true,open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,upcoming7:up.length,partitionOk:open.length===planned.length+waiting.length+over.length,duplicateCurrentTasks:dup,ok:open.length===planned.length+waiting.length+over.length&&dup.length===0};
+    const o={...dashOpts('open'),workType:'PM'},open=opPM(o),planned=opPM({...o,status:'planned'}),waiting=opPM({...o,status:'waiting'}),over=opPM({...o,status:'overdue'}),post=opPM({...o,status:'postponed'}),up=opPM({...o,status:'near'}),dup=[...open.reduce((m,r)=>(m.set(String(r.task?.id||r.id),(m.get(String(r.task?.id||r.id))||0)+1),m),new Map())].filter(([,n])=>n>1);
+    const pointerMismatch=open.filter(r=>iso(r.due)!==iso(r.task?.nextDue??r.task?.next_due));
+    return {build:'20260828-v120-current-occurrence-resolver',windowDays:7,windowStartsAtNextDue:true,currentOccurrenceFromMasterNextDue:true,planMustMatchCurrentDue:true,assignmentDoesNotResetClock:true,postponeDays:7,nextRecurrenceFromCompletion:true,open:open.length,planned:planned.length,waiting:waiting.length,overdue:over.length,postponed:post.length,upcoming7:up.length,partitionOk:open.length===planned.length+waiting.length+over.length,duplicateCurrentTasks:dup,pointerMismatch:pointerMismatch.length,ok:open.length===planned.length+waiting.length+over.length&&dup.length===0&&pointerMismatch.length===0};
   };
   function boot(){applyUi();try{refreshDashboard();renderPlanner();window.renderReport?.();}catch(e){console.warn('V109 boot',e)}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
