@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v132-task-management-checklist-exports"/>
+<meta name="fop-build" content="20260828-v133-postponed-assignment-guard"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10699,6 +10699,83 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
   function boot(){ensureButtons();if($('pmEditTasks')?.classList.contains('active')){try{window.tmRefreshFilters?.();window.tmRenderList?.()}catch(e){console.error(e)}}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
   window.pmV131TaskManagementAudit=function(){const rows=currentRows(),buttons=!!$('tmV131ExportActions');return {build:'20260828-v132-task-management-checklist-exports',tasksLoaded:Array.isArray(window.tasks)?window.tasks.length:(typeof tasks!=='undefined'&&Array.isArray(tasks)?tasks.length:null),filtered:rows.length,buttons,legacyEditBypassed:true,print:true,pdf:true,excel:true,checklistDetailOption:!!$('tmV131ChecklistDetails'),includeChecklistDetails:includeChecklistDetails(),consolidatedVisible:rows.filter(t=>checklistItems(t).length>0).length};};
+})();
+</script>
+
+<style id="fop-v133-postponed-assignment-guard-style">
+#pmPlanner .pm-plan-check:disabled{opacity:.35;cursor:not-allowed;filter:grayscale(1)}
+#pmPlanner .pm-v133-locked{opacity:.92}
+#pmPlanner .pm-v133-lock-note{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:4px 8px;border-radius:999px;background:#f4f6f9;color:#677489;font-size:10px;font-weight:900}
+</style>
+<script id="fop-v133-postponed-assignment-guard">
+/* V133 — postponed/future PM is view-only until its real opening date.
+   Selection eligibility is based on REAL today, never on planner anchor.
+   Bulk select must never select disabled/future/postponed rows. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const iso=v=>String(v||'').slice(0,10);
+  const tday=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
+  function dueFromCheck(c){
+    const v=String(c?.value||''),p=v.lastIndexOf('@@');
+    return p>=0?iso(v.slice(p+2)):'';
+  }
+  function lockPlannerRows(){
+    const todayReal=tday();
+    document.querySelectorAll('#pmPlanner .pm-plan-check').forEach(c=>{
+      const row=c.closest('.pm-plan-row'),due=dueFromCheck(c);
+      const postponed=!!row?.classList.contains('pm-v109-postponed')||!!row?.querySelector('.pm-v110-status.postponed');
+      const upcoming=!!row?.classList.contains('pm-v109-upcoming')||!!row?.querySelector('.pm-v110-status.upcoming');
+      const future=!!due&&due>todayReal;
+      const locked=postponed||upcoming||future;
+      if(locked){
+        c.disabled=true;c.checked=false;c.setAttribute('aria-disabled','true');
+        c.title=postponed?'משימה נדחתה וטרם נפתחה לשיבוץ':'המשימה טרם נפתחה לשיבוץ';
+        row?.classList.add('pm-v133-locked');
+        const main=row?.querySelector('.pm-plan-main');
+        if(main&&!main.querySelector('.pm-v133-lock-note')){
+          const n=document.createElement('span');n.className='pm-v133-lock-note';n.textContent=`🔒 ניתן לשבץ החל מ-${due||'מועד הפתיחה'}`;main.appendChild(n);
+        }
+      }
+    });
+    try{window.updatePlanSelectionInfo?.()}catch(e){}
+  }
+
+  window.selectedPlanKeys=selectedPlanKeys=function(){
+    return [...document.querySelectorAll('#pmPlanner .pm-plan-check:checked:not(:disabled)')].map(x=>x.value);
+  };
+  window.toggleAllPlanRows=toggleAllPlanRows=function(on=true){
+    document.querySelectorAll('#pmPlanner .pm-plan-check').forEach(x=>{x.checked=!!on&&!x.disabled;});
+    try{updatePlanSelectionInfo()}catch(e){}
+  };
+
+  const priorRender=window.renderPlanner;
+  window.renderPlanner=renderPlanner=function(){
+    const r=typeof priorRender==='function'?priorRender.apply(this,arguments):undefined;
+    lockPlannerRows();
+    return r;
+  };
+
+  const priorSave=window.saveSelectedPlanning;
+  window.saveSelectedPlanning=saveSelectedPlanning=async function(){
+    lockPlannerRows();
+    const keys=window.selectedPlanKeys();
+    if(!keys.length){
+      const hasLocked=[...document.querySelectorAll('#pmPlanner .pm-plan-check')].some(x=>x.disabled);
+      return typeof statusLine==='function'?statusLine(hasLocked?'המשימות המוצגות טרם נפתחו לשיבוץ. ניתן לשבץ רק החל ממועד הפתיחה.':'יש לבחור לפחות משימה אחת.','error'):false;
+    }
+    const now=tday();
+    for(const key of keys){const d=iso(String(key).split('@@').pop());if(d&&d>now)return statusLine(`אי אפשר לשבץ משימה לפני מועד פתיחתה (${typeof fDate==='function'?fDate(d):d}).`,'error');}
+    return typeof priorSave==='function'?priorSave.apply(this,arguments):undefined;
+  };
+
+  document.addEventListener('change',ev=>{if(ev.target?.classList?.contains('pm-plan-check')&&ev.target.disabled)ev.target.checked=false;},true);
+  const boot=()=>{if($('pmPlanner')?.classList.contains('active'))lockPlannerRows();};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+  window.pmV133Audit=function(){
+    lockPlannerRows();
+    const all=[...document.querySelectorAll('#pmPlanner .pm-plan-check')],locked=all.filter(x=>x.disabled),bad=locked.filter(x=>x.checked);
+    return {build:'20260828-v133-postponed-assignment-guard',today:tday(),checkboxes:all.length,locked:locked.length,lockedChecked:bad.length,ok:bad.length===0};
+  };
 })();
 </script>
 
