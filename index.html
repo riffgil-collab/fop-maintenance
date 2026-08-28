@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v139-atomic-pm-completion"/>
+<meta name="fop-build" content="20260828-v142-wo-open-kpi"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -571,6 +571,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div id="pmV17Dashboard">
   <div class="pm-v17-kpis pm-v99-kpis">
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('open')"><strong id="pmV17Open">0</strong><span>פתוחות</span><small>PM שמועד הטיפול שלהן הגיע ועדיין לא נסגרו</small></div>
+    <div class="pm-v17-kpi pm-v142-wo-kpi" onclick="return pmV142OpenWOPlanner()"><strong id="pmV142WOOpen">0</strong><span>WO פתוחות</span><small>עבודות לא מתוכננות שטרם נסגרו</small></div>
     <div class="pm-v17-kpi" onclick="pmV31OpenPlanned()"><strong id="pmV31Planned">0</strong><span>שובצו לביצוע</span><small>פתוחות ששובצו ועדיין בתוך חלון הטיפול</small></div>
     <div class="pm-v17-kpi pm-v105-unassigned-kpi" onclick="return pmV105OpenUnassignedPlanner()"><strong id="pmV105Unassigned">0</strong><span>טרם שובצו לביצוע</span><small>פתוחות בתוך חלון 7 הימים שטרם שובצו</small></div>
     <div class="pm-v17-kpi" onclick="pmV17OpenPlanner('overdue')"><strong id="pmV17Overdue">0</strong><span>באיחור</span><small id="pmV17OverdueDetail">עברו 7 ימים ממועד פתיחת הטיפול והוא לא בוצע</small></div>
@@ -7422,7 +7423,26 @@ async function saveHistoryEdit(){
     setText('pmV3Waiting',pm.length);setText('pmV3Planned',planned.filter(r=>r.kind==='PM').length);setText('pmV3Completed',completed.filter(r=>r.kind==='PM').length);setText('pmV3Postponed',postponed.filter(r=>r.kind==='PM').length);setText('pmV3Cancelled',cancelled.filter(r=>r.kind==='PM').length);setText('pmV3Overdue',pmOver.length);setText('pmV3BacklogTotal',pm.length);
     setText('pmWOOpen',wo.length);setText('pmWOUrgent',urgent.length);setText('pmWOPlanned',planned.filter(r=>r.kind==='WO').length);setText('pmWODone',completed.filter(r=>r.kind==='WO').length);
 
-    const range=$('pmV3RangeText');if(range)range.textContent=`${rangeLabel(o.period,o.anchor)} · ${open.length} עבודות פתוחות בטווח שנבחר`;
+    const range=$('pmV3RangeText');
+    if(range){
+      if(o.workType==='WO'){
+        range.textContent=`${rangeLabel(o.period,o.anchor)} · ${open.filter(r=>r.kind==='WO').length} עבודות WO פתוחות בטווח שנבחר`;
+      }else{
+        const pmMaster=maintenanceTasks().filter(t=>{
+          if(o.department&&t.department!==o.department)return false;
+          if(o.machine&&t.machine!==o.machine)return false;
+          if(o.trade&&maintenanceTrade(t)!==o.trade)return false;
+          return true;
+        });
+        const anchor=iso10(o.anchor),end=iso10(b.end);
+        const currentOpen=pmMaster.filter(t=>{const d=iso10(t.nextDue??t.next_due);return d&&d<=anchor;}).length;
+        const upcoming=pmMaster.filter(t=>{const d=iso10(t.nextDue??t.next_due);return d&&d>anchor&&d<=end;}).length;
+        const total=currentOpen+upcoming;
+        const endLabel=typeof fDate==='function'?fDate(end):end;
+        const currentLabel=anchor===iso10((typeof today==='function')?today():anchor)?'פתוחים כעת':'פתוחים עד מועד העוגן';
+        range.textContent=`${rangeLabel(o.period,o.anchor)} · ${total} טיפולי PM עד ${endLabel} · ${currentOpen} ${currentLabel} + ${upcoming} שייפתחו במהלך התקופה`;
+      }
+    }
     const wd=$('pmV3WaitingDetail'),bd=$('pmV3BacklogDetail'),en=document.documentElement.lang==='en';
     const pmInPeriod=pm.filter(r=>r.state!=='overdue').length;
     if(wd)wd.textContent=en?`${pmOver.length} overdue | ${pmInPeriod} in selected period`:`${pmOver.length} באיחור | ${pmInPeriod} בתקופה שנבחרה`;
@@ -10155,7 +10175,9 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
   }
   function completionRows(o){
     const w=backwardWindow(o.period,o.anchor),wt=String(o.workType||'');
+    const activeIds=new Set((Array.isArray(tasks)?tasks:[]).filter(t=>t&&t.active!==false).map(t=>String(t.id)));
     return [...(wt==='WO'?[]:rawPMCompletions()),...(wt==='PM'?[]:rawWOCompletions())].filter(r=>{
+      if(r.kind==='PM'&&r.taskId&&!activeIds.has(String(r.taskId)))return false;
       if(r.date<w.start||r.date>w.end)return false;
       if(o.department&&r.department!==o.department)return false;if(o.machine&&r.machine!==o.machine)return false;if(o.trade&&r.trade!==o.trade)return false;
       return true;
@@ -11013,8 +11035,91 @@ button[onclick*="cancelSingleOccurrence"],
   window.pmV139HistoryAudit=function(){
     const periods=[...document.querySelectorAll('#pmHistoryV122Periods button[data-hp]')].map(b=>({period:b.dataset.hp,label:(b.textContent||'').trim(),active:b.classList.contains('active')}));
     const filters=['pmHistoryDepartment','pmHistoryMachine','pmHistoryTrade','pmHistoryWorkType'].map(id=>({id,value:document.getElementById(id)?.value||''}));
-    return {build:'20260828-v139-atomic-pm-completion',periods,filters,count:Number(document.getElementById('pmHistoryV122Count')?.textContent||0),controller:'V122-authoritative + V125-compatible'};
+    return {build:'20260828-v140-completed-population-aligned',periods,filters,count:Number(document.getElementById('pmHistoryV122Count')?.textContent||0),controller:'V122-authoritative + V125-compatible'};
   };
 })();
 </script>
+
+<script id="fop-v142-wo-open-kpi-script">
+/* V142 — Dashboard WO backlog is explicit and separate from PM lifecycle KPIs.
+   PM lifecycle cards remain PM-only. Completed KPI keeps its existing PM/WO filter semantics. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const val=id=>$(id)?.value||'';
+  function dashBase(){
+    const g=window.pmV99GlobalState||{};
+    return {
+      period:g.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),
+      anchor:g.anchor||val('pmDashboardAnchor')||((typeof today==='function')?today():''),
+      department:g.department??val('pmDashboardDepartment'),
+      machine:g.machine??val('pmDashboardMachine'),
+      trade:g.trade??val('pmDashboardTrade')
+    };
+  }
+  function operational(){return window.pmV109Operational||null;}
+  function pmRows(status){
+    const e=operational();if(!e?.getPM)return [];
+    try{return e.getPM({...dashBase(),workType:'PM',status})||[]}catch(err){console.warn('V142 PM KPI',err);return []}
+  }
+  function woRows(){
+    const e=operational();if(!e?.getWork)return [];
+    try{return (e.getWork({...dashBase(),workType:'WO',status:'open'})||[]).filter(r=>r?.kind==='WO')}catch(err){console.warn('V142 WO KPI',err);return []}
+  }
+  function renderSeparatedBacklogs(){
+    const open=pmRows('open'),planned=pmRows('planned'),waiting=pmRows('waiting'),over=pmRows('overdue'),post=pmRows('postponed'),wo=woRows();
+    if($('pmV17Open'))$('pmV17Open').textContent=open.length;
+    if($('pmV31Planned'))$('pmV31Planned').textContent=planned.length;
+    if($('pmV105Unassigned'))$('pmV105Unassigned').textContent=waiting.length;
+    if($('pmV17Overdue'))$('pmV17Overdue').textContent=over.length;
+    if($('pmV97Postponements'))$('pmV97Postponements').textContent=post.length;
+    if($('pmV142WOOpen'))$('pmV142WOOpen').textContent=wo.length;
+    const overdueAssigned=over.filter(r=>!!r.isAssigned).length;
+    if($('pmV17OverdueDetail'))$('pmV17OverdueDetail').textContent=`עברו 7 ימים ממועד פתיחת הטיפול · מתוכם ${overdueAssigned} משובצים לביצוע`;
+    window.pmV142DashboardAudit={pmOpen:open.length,pmPlanned:planned.length,pmWaiting:waiting.length,pmOverdue:over.length,pmPostponed:post.length,woOpen:wo.length,pmInvariant:open.length===planned.length+waiting.length+over.length};
+  }
+
+  function setControl(id,value){const e=$(id);if(e)e.value=value??'';}
+  function copySelectOptions(srcId,dstId,value){
+    const a=$(srcId),b=$(dstId);if(!a||!b||a.tagName!=='SELECT'||b.tagName!=='SELECT')return;
+    b.innerHTML=a.innerHTML;b.value=[...b.options].some(o=>o.value===String(value??''))?String(value??''):'';
+  }
+  window.pmV142OpenWOPlanner=function(){
+    const b=dashBase();
+    try{window.showTab?.('planner')}catch(e){}
+    setTimeout(()=>{
+      setControl('pmPlannerStart',b.anchor);
+      setControl('pmPlannerDepartment',b.department);
+      try{window.fillPlanningMachines?.()}catch(e){}
+      setControl('pmPlannerMachine',b.machine);
+      setControl('pmPlannerTrade',b.trade);
+      setControl('pmPlannerWorkType','WO');
+      // WO list itself is open-only; keep the PM status selector neutral.
+      setControl('pmPlannerStatus','');
+      setControl('pmV130PlannerStart',b.anchor);
+      copySelectOptions('pmPlannerDepartment','pmV130PlannerDepartment',b.department);
+      copySelectOptions('pmPlannerMachine','pmV130PlannerMachine',b.machine);
+      copySelectOptions('pmPlannerTrade','pmV130PlannerTrade',b.trade);
+      copySelectOptions('pmPlannerWorkType','pmV130PlannerWorkType','WO');
+      try{pmPlanPage=0}catch(e){}
+      try{window.renderPlanner?.()}catch(e){console.warn('V142 WO planner render',e)}
+      try{window.renderUnplannedPlanner?.()}catch(e){}
+      setTimeout(()=>{
+        const list=$('pmWOPlannerList'),panel=list?.closest('.panel-box');
+        if(panel)try{panel.scrollIntoView({behavior:'smooth',block:'start'})}catch(e){panel.scrollIntoView()}
+      },80);
+    },0);
+    return false;
+  };
+
+  const previousDashboard=window.renderDashboard;
+  window.renderDashboard=function(){
+    const r=typeof previousDashboard==='function'?previousDashboard.apply(this,arguments):undefined;
+    try{renderSeparatedBacklogs()}catch(e){console.warn('V142 dashboard WO KPI',e)}
+    return r;
+  };
+  try{renderDashboard=window.renderDashboard}catch(e){}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(renderSeparatedBacklogs,0));else setTimeout(renderSeparatedBacklogs,0);
+})();
+</script>
+
 </body></html>
