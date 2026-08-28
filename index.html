@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v137-history-initial-render-fixed"/>
+<meta name="fop-build" content="20260828-v138-history-controller-fixed"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10231,7 +10231,7 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
     }
     if(!$('pmHistoryV122Periods')){
       const p=document.createElement('div');p.id='pmHistoryV122Periods';p.className='pm-v122-history-periods';p.innerHTML='<button type="button" data-hp="all"></button><button type="button" data-hp="month">חודש</button><button type="button" data-hp="half">חצי שנה</button><button type="button" data-hp="year">שנה</button>';filters?.insertAdjacentElement('beforebegin',p);
-      p.addEventListener('click',ev=>{const b=ev.target.closest('button[data-hp]');if(!b)return;H.period=b.dataset.hp||'all';const rr=window.renderHistory;typeof rr==='function'?rr():renderHistoryV122();});
+      p.addEventListener('click',ev=>{const b=ev.target.closest('button[data-hp]');if(!b)return;H.period=b.dataset.hp||'all';renderHistoryV122();});
     }
     if(!$('pmHistoryV122Summary')){
       const s=document.createElement('div');s.id='pmHistoryV122Summary';s.className='pm-v122-history-summary';s.innerHTML='<div class="pm-v122-history-kpi"><span>ביצועים בתקופה</span><strong id="pmHistoryV122Count">0</strong><small id="pmHistoryV122CountDetail">PM 0 · WO 0</small></div><div class="pm-v122-history-kpi"><span>שעות מכונאי</span><strong id="pmHistoryV122Mech">0.0</strong><small>לפי משכי הטיפול הרשומים</small></div><div class="pm-v122-history-kpi"><span>שעות חשמלאי</span><strong id="pmHistoryV122Elec">0.0</strong><small>לפי משכי הטיפול הרשומים</small></div>';
@@ -10250,13 +10250,33 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
   }
   function filteredHistoryV122(){
     ensureHistoryUI();
-    const raw=rawExecutionRows(),b=historyBounds();
-    // V123: Execution History is intentionally simple. Only the local period buttons
-    // filter the history; legacy department/machine/trade/work-type/date/search fields
-    // are ignored so hidden stale values can never change the statistics.
-    ['pmHistoryDepartment','pmHistoryMachine','pmHistoryTrade','pmHistoryWorkType','pmHistorySearch'].forEach(id=>{const e=$(id);if(e)e.value='';});
-    if($('pmHistoryFrom'))$('pmHistoryFrom').value=b.start;if($('pmHistoryTo'))$('pmHistoryTo').value=b.end;
-    return raw.filter(r=>r.date>=b.start&&r.date<=b.end);
+    const b=historyBounds();
+    const dep=$('pmHistoryDepartment')?.value||'';
+    const machine=$('pmHistoryMachine')?.value||'';
+    const trade=$('pmHistoryTrade')?.value||'';
+    const workType=$('pmHistoryWorkType')?.value||'';
+    const activeIds=new Set((Array.isArray(tasks)?tasks:[]).filter(t=>t&&t.active!==false).map(t=>String(t.id)));
+
+    // V138: one authoritative Execution History population.
+    // 1) period comes only from the local history period buttons;
+    // 2) local Department / Machine / Trade / Work Type filters are preserved and applied;
+    // 3) PM whose master task is currently inactive is hidden; WO history is unaffected.
+    const raw=rawExecutionRows().filter(r=>r?.source!=='PM'||!r?.taskId||activeIds.has(String(r.taskId)));
+    populateHistoryFilters(raw);
+    if($('pmHistoryDepartment'))$('pmHistoryDepartment').value=dep;
+    if($('pmHistoryMachine'))$('pmHistoryMachine').value=machine;
+    if($('pmHistoryTrade'))$('pmHistoryTrade').value=trade;
+    if($('pmHistoryWorkType'))$('pmHistoryWorkType').value=workType;
+    if($('pmHistoryFrom'))$('pmHistoryFrom').value=b.start;
+    if($('pmHistoryTo'))$('pmHistoryTo').value=b.end;
+
+    return raw.filter(r=>
+      r.date>=b.start&&r.date<=b.end&&
+      (!dep||r.department===dep)&&
+      (!machine||r.machine===machine)&&
+      (!trade||r.trade===trade)&&
+      (!workType||r.source===workType)
+    );
   }
   function historyRowHtml(r){
     const eventLabel=r.source==='WO'?'WO בוצע':'PM בוצע',freqLabel=r.source==='WO'?`עדיפות: ${r.frequency||'—'}`:`תדירות: ${r.frequency||'—'}`;
@@ -10283,12 +10303,12 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
 
   function bindCapture(){
     const reportIds=new Set(['pmReportsStatus','pmReportsPeriod','pmReportsAnchor','pmReportsDepartment','pmReportsMachine','pmReportsTrade','pmReportsWorkType']);
-    document.addEventListener('change',ev=>{const id=ev.target?.id||'';if(reportIds.has(id)){ev.stopImmediatePropagation();setTimeout(renderReportsV122,0);return}if(['pmHistoryDepartment','pmHistoryMachine','pmHistoryTrade','pmHistoryWorkType'].includes(id)){ev.stopImmediatePropagation();setTimeout(()=>{const rr=window.renderHistory;typeof rr==='function'?rr():renderHistoryV122();},0);}},true);
-    document.addEventListener('input',ev=>{if(ev.target?.id==='pmHistorySearch'){ev.stopImmediatePropagation();setTimeout(()=>{const rr=window.renderHistory;typeof rr==='function'?rr():renderHistoryV122();},0)}},true);
+    document.addEventListener('change',ev=>{const id=ev.target?.id||'';if(reportIds.has(id)){ev.stopImmediatePropagation();setTimeout(renderReportsV122,0);return}if(['pmHistoryDepartment','pmHistoryMachine','pmHistoryTrade','pmHistoryWorkType'].includes(id)){ev.stopImmediatePropagation();setTimeout(renderHistoryV122,0);}},true);
+    document.addEventListener('input',ev=>{if(ev.target?.id==='pmHistorySearch'){ev.stopImmediatePropagation();setTimeout(renderHistoryV122,0)}},true);
   }
-  const prevShow=window.showTab;window.showTab=function(name){const k=String(name||'').toLowerCase(),beforeStatus=k==='reports'?($('pmReportsStatus')?.value||'open'):null;const r=typeof prevShow==='function'?prevShow.apply(this,arguments):undefined;if(k==='reports'){if($('pmReportsStatus')&&beforeStatus)$('pmReportsStatus').value=beforeStatus;setTimeout(renderReportsV122,30)}if(k==='history')setTimeout(()=>{const rr=window.renderHistory;typeof rr==='function'?rr():renderHistoryV122();},30);return r};
+  const prevShow=window.showTab;window.showTab=function(name){const k=String(name||'').toLowerCase(),beforeStatus=k==='reports'?($('pmReportsStatus')?.value||'open'):null;const r=typeof prevShow==='function'?prevShow.apply(this,arguments):undefined;if(k==='reports'){if($('pmReportsStatus')&&beforeStatus)$('pmReportsStatus').value=beforeStatus;setTimeout(renderReportsV122,30)}if(k==='history')setTimeout(renderHistoryV122,30);return r};
 
-  function boot(){ensureHistoryUI();bindCapture();updateDashboardClosedKpis();const rr=window.renderHistory;typeof rr==='function'?rr():renderHistoryV122();if($('pmReports')?.classList.contains('active'))renderReportsV122();setTimeout(()=>{try{updateDashboardClosedKpis();const r2=window.renderHistory;typeof r2==='function'?r2():renderHistoryV122();if($('pmReports')?.classList.contains('active'))renderReportsV122()}catch(e){}},120);}
+  function boot(){ensureHistoryUI();bindCapture();updateDashboardClosedKpis();renderHistoryV122();if($('pmReports')?.classList.contains('active'))renderReportsV122();setTimeout(()=>{try{updateDashboardClosedKpis();renderHistoryV122();if($('pmReports')?.classList.contains('active'))renderReportsV122()}catch(e){}},120);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
 </script>
@@ -10974,10 +10994,13 @@ button[onclick*="cancelSingleOccurrence"],
 }
 </style>
 
-<script id="fop-v137-history-initial-render-audit">
-window.pmV137Audit=function(){
-  const rows=typeof window.pmHistoryUnifiedRows==='function'?window.pmHistoryUnifiedRows():[];
-  return {build:'20260828-v137-history-initial-render-fixed',historyRows:Array.isArray(rows)?rows.length:null,finalRenderer:window.renderHistory?.name||'anonymous',raw42FlashRemoved:true};
-};
+<script id="fop-v138-history-controller-audit">
+(function(){
+  window.pmV138HistoryAudit=function(){
+    const periods=[...document.querySelectorAll('#pmHistoryV122Periods button[data-hp]')].map(b=>({period:b.dataset.hp,label:(b.textContent||'').trim(),active:b.classList.contains('active')}));
+    const filters=['pmHistoryDepartment','pmHistoryMachine','pmHistoryTrade','pmHistoryWorkType'].map(id=>({id,value:document.getElementById(id)?.value||''}));
+    return {build:'20260828-v138-history-controller-fixed',periods,filters,count:Number(document.getElementById('pmHistoryV122Count')?.textContent||0),controller:'V122-authoritative + V125-compatible'};
+  };
+})();
 </script>
 </body></html>
