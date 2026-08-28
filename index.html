@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260828-v136-cosmetic-mobile-polish"/>
+<meta name="fop-build" content="20260828-v137-history-initial-render-fixed"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -10231,7 +10231,7 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
     }
     if(!$('pmHistoryV122Periods')){
       const p=document.createElement('div');p.id='pmHistoryV122Periods';p.className='pm-v122-history-periods';p.innerHTML='<button type="button" data-hp="all"></button><button type="button" data-hp="month">חודש</button><button type="button" data-hp="half">חצי שנה</button><button type="button" data-hp="year">שנה</button>';filters?.insertAdjacentElement('beforebegin',p);
-      p.addEventListener('click',ev=>{const b=ev.target.closest('button[data-hp]');if(!b)return;H.period=b.dataset.hp||'all';renderHistoryV122();});
+      p.addEventListener('click',ev=>{const b=ev.target.closest('button[data-hp]');if(!b)return;H.period=b.dataset.hp||'all';const rr=window.renderHistory;typeof rr==='function'?rr():renderHistoryV122();});
     }
     if(!$('pmHistoryV122Summary')){
       const s=document.createElement('div');s.id='pmHistoryV122Summary';s.className='pm-v122-history-summary';s.innerHTML='<div class="pm-v122-history-kpi"><span>ביצועים בתקופה</span><strong id="pmHistoryV122Count">0</strong><small id="pmHistoryV122CountDetail">PM 0 · WO 0</small></div><div class="pm-v122-history-kpi"><span>שעות מכונאי</span><strong id="pmHistoryV122Mech">0.0</strong><small>לפי משכי הטיפול הרשומים</small></div><div class="pm-v122-history-kpi"><span>שעות חשמלאי</span><strong id="pmHistoryV122Elec">0.0</strong><small>לפי משכי הטיפול הרשומים</small></div>';
@@ -10283,12 +10283,12 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
 
   function bindCapture(){
     const reportIds=new Set(['pmReportsStatus','pmReportsPeriod','pmReportsAnchor','pmReportsDepartment','pmReportsMachine','pmReportsTrade','pmReportsWorkType']);
-    document.addEventListener('change',ev=>{const id=ev.target?.id||'';if(reportIds.has(id)){ev.stopImmediatePropagation();setTimeout(renderReportsV122,0);return}if(['pmHistoryDepartment','pmHistoryMachine','pmHistoryTrade','pmHistoryWorkType'].includes(id)){ev.stopImmediatePropagation();setTimeout(renderHistoryV122,0);}},true);
-    document.addEventListener('input',ev=>{if(ev.target?.id==='pmHistorySearch'){ev.stopImmediatePropagation();setTimeout(renderHistoryV122,0)}},true);
+    document.addEventListener('change',ev=>{const id=ev.target?.id||'';if(reportIds.has(id)){ev.stopImmediatePropagation();setTimeout(renderReportsV122,0);return}if(['pmHistoryDepartment','pmHistoryMachine','pmHistoryTrade','pmHistoryWorkType'].includes(id)){ev.stopImmediatePropagation();setTimeout(()=>{const rr=window.renderHistory;typeof rr==='function'?rr():renderHistoryV122();},0);}},true);
+    document.addEventListener('input',ev=>{if(ev.target?.id==='pmHistorySearch'){ev.stopImmediatePropagation();setTimeout(()=>{const rr=window.renderHistory;typeof rr==='function'?rr():renderHistoryV122();},0)}},true);
   }
-  const prevShow=window.showTab;window.showTab=function(name){const k=String(name||'').toLowerCase(),beforeStatus=k==='reports'?($('pmReportsStatus')?.value||'open'):null;const r=typeof prevShow==='function'?prevShow.apply(this,arguments):undefined;if(k==='reports'){if($('pmReportsStatus')&&beforeStatus)$('pmReportsStatus').value=beforeStatus;setTimeout(renderReportsV122,30)}if(k==='history')setTimeout(renderHistoryV122,30);return r};
+  const prevShow=window.showTab;window.showTab=function(name){const k=String(name||'').toLowerCase(),beforeStatus=k==='reports'?($('pmReportsStatus')?.value||'open'):null;const r=typeof prevShow==='function'?prevShow.apply(this,arguments):undefined;if(k==='reports'){if($('pmReportsStatus')&&beforeStatus)$('pmReportsStatus').value=beforeStatus;setTimeout(renderReportsV122,30)}if(k==='history')setTimeout(()=>{const rr=window.renderHistory;typeof rr==='function'?rr():renderHistoryV122();},30);return r};
 
-  function boot(){ensureHistoryUI();bindCapture();updateDashboardClosedKpis();renderHistoryV122();if($('pmReports')?.classList.contains('active'))renderReportsV122();setTimeout(()=>{try{updateDashboardClosedKpis();renderHistoryV122();if($('pmReports')?.classList.contains('active'))renderReportsV122()}catch(e){}},120);}
+  function boot(){ensureHistoryUI();bindCapture();updateDashboardClosedKpis();const rr=window.renderHistory;typeof rr==='function'?rr():renderHistoryV122();if($('pmReports')?.classList.contains('active'))renderReportsV122();setTimeout(()=>{try{updateDashboardClosedKpis();const r2=window.renderHistory;typeof r2==='function'?r2():renderHistoryV122();if($('pmReports')?.classList.contains('active'))renderReportsV122()}catch(e){}},120);}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
 </script>
@@ -10973,4 +10973,11 @@ button[onclick*="cancelSingleOccurrence"],
   #pmPlanner .pm-plan-capacity input{padding-inline:7px!important}
 }
 </style>
+
+<script id="fop-v137-history-initial-render-audit">
+window.pmV137Audit=function(){
+  const rows=typeof window.pmHistoryUnifiedRows==='function'?window.pmHistoryUnifiedRows():[];
+  return {build:'20260828-v137-history-initial-render-fixed',historyRows:Array.isArray(rows)?rows.length:null,finalRenderer:window.renderHistory?.name||'anonymous',raw42FlashRemoved:true};
+};
+</script>
 </body></html>
