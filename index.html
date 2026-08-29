@@ -651,7 +651,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="field"><label>מכונה</label><select id="pmPlannerMachine" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המכונות</option></select></div>
     <div class="field"><label>מקצוע</label><select id="pmPlannerTrade" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
     <div class="field"><label>סוג עבודה</label><select id="pmPlannerWorkType" onchange="renderUnplannedPlanner()"><option value="">הכול</option><option value="PM">PM מחזורי</option><option value="WO">לא מתוכנן</option></select></div>
-    <button type="button" class="btn pm-planner-wo-btn" onclick="openUnplannedModal()">➕ עבודה לא מתוכננת</button>
+    <button type="button" class="btn pm-planner-wo-btn" onclick="openUnplannedModal()"><span class="pm-wo-plus">＋</span><span><strong>עבודה לא מתוכננת</strong><small>פתיחת WO חדש</small></span></button>
     <div class="field pm-planner-status-field"><label>סטטוס</label><select id="pmPlannerStatus" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל הסטטוסים</option><option value="waiting">טרם שובצה</option><option value="planned">שובצה לביצוע</option><option value="postponed">נדחתה</option><option value="overdue">באיחור</option><option value="upcoming">ייפתחו בתקופה</option><option value="completed">בוצעה</option></select></div>
   </div>
 
@@ -674,22 +674,21 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     </div>
   </div>
 
-  <div class="panel-box">
-    <h3>קיבולת צוות</h3>
-    <div class="pm-plan-capacity">
-      <div class="field"><label>מספר עובדים זמינים</label><input id="pmPlanPeople" type="number" min="0" step="1" value="2" onchange="savePlanningCapacity();renderPlanner()"/></div>
-      <div class="field"><label>שעות עבודה לעובד ביום</label><input id="pmPlanHoursPerDay" type="number" min="0" step="0.5" value="8" onchange="savePlanningCapacity();renderPlanner()"/></div>
+  <div class="panel-box pm-capacity-readonly">
+    <div class="pm-capacity-readonly-head">
+      <div><h3>קיבולת צוות</h3><small>מחושבת אוטומטית מהגדרות האתחול</small></div>
+      <span class="pm-capacity-settings-badge">הגדרת מערכת</span>
     </div>
     <div id="pmPlanCapacityText" class="pm-plan-note"></div>
   </div>
 
-  <div class="pm-plan-actions">
+  <div class="pm-plan-actions pm-plan-actions-clean">
     <input id="pmPlanDate" type="hidden"/>
-    <div class="field"><label>עדיפות</label><select id="pmPlanPriority"><option value="גבוהה">גבוהה</option><option value="בינונית" selected>בינונית</option><option value="נמוכה">נמוכה</option></select></div>
-    <div class="field"><label>שיבוץ למבצע</label><input id="pmPlanAssignee" type="text" placeholder="למשל: טכנאי אחזקה"/></div>
-    <div class="field"><label>בחירה</label><button type="button" class="secondary-btn" onclick="toggleAllPlanRows(true)">בחר הכל המוצג</button></div>
-    <button type="button" class="btn" onclick="saveSelectedPlanning()">שבץ לביצוע</button>
-    <button type="button" class="secondary-btn" onclick="unplanSelected()">הסר מהתוכנית</button>
+    <input id="pmPlanPriority" type="hidden" value="בינונית"/>
+    <input id="pmPlanAssignee" type="hidden" value=""/>
+    <button type="button" class="secondary-btn pm-select-all-btn" onclick="toggleAllPlanRows(true)">✓ בחר הכל המוצג</button>
+    <button type="button" class="btn pm-schedule-btn" onclick="saveSelectedPlanning()">שבץ לביצוע</button>
+    <button type="button" class="secondary-btn pm-unplan-btn" onclick="unplanSelected()">↩ הסר מהתוכנית</button>
   </div>
 
   <div class="pm-plan-note" id="pmPlanSelectionInfo">לא נבחרו משימות.</div>
@@ -699,7 +698,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <span id="pmPlanPageInfo">—</span>
     <button type="button" onclick="changePlanPage(1)">הבא</button>
   </div>
-<div class="panel-box" style="margin-top:16px"><h3>עבודות לא מתוכננות (WO)</h3><div class="pm-plan-note">עבודות חד־פעמיות שהתגלו בבדיקה או בתקלה. הן משתלבות בעומס ובתכנון אך אינן יוצרות מחזור עתידי.</div><div id="pmWOPlannerList"></div></div>
+<div class="panel-box pm-wo-planner-panel" style="margin-top:16px"><div class="pm-wo-planner-head"><div><h3>עבודות לא מתוכננות</h3><small>WO · עבודה חד־פעמית</small></div><span class="pm-wo-badge">WO</span></div><div class="pm-plan-note">עבודות חד־פעמיות שהתגלו בבדיקה או בתקלה. הן משתלבות בעומס ובתכנון אך אינן יוצרות מחזור עתידי.</div><div id="pmWOPlannerList"></div></div>
 </section>
 <section class="pm-panel" id="pmReport">
 <div id="pmTechnicianScopeNote" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#475569">מכונאים וחשמלאים רואים את כלל טיפולי האחזקה ויכולים לדווח ביצוע, הערה ועד שתי תמונות.</div>
@@ -971,6 +970,20 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
   <div id="pmInitDate" class="sub" style="margin-bottom:14px"></div>
   <p style="margin:0 0 14px">האתחול יוצר נקודת התחלה חדשה לתוכנית האחזקה. תוכנית העבודה והיסטוריית התוכנית הקודמת יאופסו, אך מאגר המכונות ומשימות הטיפול יישמר.</p>
   <button class="danger-btn" id="pmInitBtn" type="button" onclick="initializePMPlan()" style="display:none">אתחול תוכנית</button>
+</div>
+
+<div class="panel-box pm-init-capacity-card">
+  <div class="pm-init-capacity-head">
+    <div><h3>קיבולת צוות אחזקה</h3><small>הנתונים משמשים לחישוב עומסים בתכנון העבודה בלבד</small></div>
+    <span class="pm-init-capacity-total" id="pmInitCapacityTotal">3 עובדים</span>
+  </div>
+  <input id="pmPlanPeople" type="hidden" value="3"/>
+  <div class="pm-init-capacity-grid">
+    <div class="field"><label>מכונאים</label><input id="pmInitMechanics" type="number" min="0" step="1" value="2" onchange="savePlanningCapacity();renderInitCapacitySummary();renderPlanner()"/></div>
+    <div class="field"><label>חשמלאים</label><input id="pmInitElectricians" type="number" min="0" step="1" value="1" onchange="savePlanningCapacity();renderInitCapacitySummary();renderPlanner()"/></div>
+    <div class="field"><label>שעות עבודה לעובד ביום</label><input id="pmPlanHoursPerDay" type="number" min="0" step="0.5" value="8" onchange="savePlanningCapacity();renderInitCapacitySummary();renderPlanner()"/></div>
+  </div>
+  <div class="pm-init-capacity-summary" id="pmInitCapacitySummary">ברירת מחדל: 2 מכונאים + 1 חשמלאי · 8 שעות עבודה ביום לעובד.</div>
 </div>
 </section>
 
@@ -11252,6 +11265,66 @@ button[onclick*="cancelSingleOccurrence"],
  function pin(){const d=t();['pmDashboardAnchor','pmPlannerStart','pmReportsAnchor'].forEach(id=>{const e=$(id);if(e)e.value=d;});try{if(window.pmV99GlobalState)window.pmV99GlobalState.anchor=d;}catch(_){ }try{const p=$('pmReportsPeriod');if(p)p.value=String(window.pmV99GlobalState?.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'));}catch(_){ }}
  const oldShow=window.showTab;if(typeof oldShow==='function')window.showTab=function(){pin();const r=oldShow.apply(this,arguments);setTimeout(pin,0);return r;};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{pin();setTimeout(pin,80);setTimeout(pin,350)});else{pin();setTimeout(pin,80)}
+})();
+</script>
+<style id="fop-v146-planner-capacity-polish">
+/* V146 — Planner cleanup + capacity settings in Initialization. Dashboard untouched. */
+#pmPlanner .pm-capacity-readonly{padding:13px 14px!important;border:1px solid #dce6f2!important;background:linear-gradient(135deg,#fbfdff 0%,#f7fafc 100%)!important;box-shadow:none!important}
+#pmPlanner .pm-capacity-readonly-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px}
+#pmPlanner .pm-capacity-readonly-head h3{margin:0;color:var(--navy2);font-size:15px}
+#pmPlanner .pm-capacity-readonly-head small{display:block;margin-top:2px;color:var(--muted);font-size:9px;font-weight:700}
+#pmPlanner .pm-capacity-settings-badge{white-space:nowrap;border:1px solid #d6e1ee;background:#fff;color:#58708e;border-radius:999px;padding:5px 8px;font-size:9px;font-weight:900}
+#pmPlanner #pmPlanCapacityText{margin:0!important;padding:0!important;background:transparent!important;border:0!important;font-size:11px!important;font-weight:800!important;color:#405873!important;line-height:1.5!important}
+#pmPlanner .pm-plan-actions-clean{display:grid!important;grid-template-columns:1fr 1.2fr 1fr!important;gap:10px!important;align-items:stretch!important;margin:12px 0 8px!important;padding:12px!important;border:1px solid #dce6f2!important;border-radius:16px!important;background:#fff!important;box-shadow:0 6px 18px rgba(22,52,91,.05)!important}
+#pmPlanner .pm-plan-actions-clean button{width:100%!important;min-height:46px!important;margin:0!important;border-radius:12px!important;font-weight:900!important}
+#pmPlanner .pm-plan-actions-clean .pm-schedule-btn{box-shadow:0 5px 14px rgba(17,91,169,.16)!important}
+#pmPlanner .pm-plan-actions-clean .pm-unplan-btn{color:#9a2832!important;border-color:#e6c5c9!important;background:#fffafa!important}
+#pmPlanner .pm-plan-actions-clean .pm-select-all-btn{color:#315d89!important;border-color:#cbd9e8!important;background:#f8fbff!important}
+#pmPlanner .pm-planner-filterbar .pm-planner-wo-btn{display:flex!important;align-items:center!important;justify-content:center!important;gap:9px!important;height:46px!important;background:#fff!important;color:#173765!important;border:1px solid #cfdceb!important;box-shadow:none!important;text-align:right!important;padding:6px 10px!important}
+#pmPlanner .pm-planner-filterbar .pm-planner-wo-btn:hover{border-color:#9db8d7!important;background:#f7fbff!important}
+#pmPlanner .pm-planner-filterbar .pm-planner-wo-btn .pm-wo-plus{display:flex;align-items:center;justify-content:center;width:27px;height:27px;flex:0 0 27px;border-radius:9px;background:#173765;color:#fff;font-size:18px;line-height:1}
+#pmPlanner .pm-planner-filterbar .pm-planner-wo-btn span:last-child{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+#pmPlanner .pm-planner-filterbar .pm-planner-wo-btn strong{font-size:11px;color:#173765}
+#pmPlanner .pm-planner-filterbar .pm-planner-wo-btn small{font-size:8px;color:#718299;margin-top:2px;font-weight:800}
+#pmPlanner .pm-wo-planner-panel{border:1px solid #e3e8ef!important;background:linear-gradient(180deg,#fff 0%,#fbfcfe 100%)!important;box-shadow:0 7px 20px rgba(22,52,91,.045)!important}
+#pmPlanner .pm-wo-planner-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:7px}
+#pmPlanner .pm-wo-planner-head h3{margin:0!important;font-size:15px!important;color:var(--navy2)!important}
+#pmPlanner .pm-wo-planner-head small{display:block;margin-top:2px;font-size:9px;color:var(--muted);font-weight:800}
+#pmPlanner .pm-wo-badge{display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:26px;border-radius:999px;background:#fff2f3;color:#b4232e;border:1px solid #efcdd1;font-size:10px;font-weight:950}
+#pmInitialization .pm-init-capacity-card{margin-top:14px!important;border:1px solid #d8e4f0!important;background:linear-gradient(135deg,#fbfdff 0%,#f7fafc 100%)!important;box-shadow:0 8px 24px rgba(22,52,91,.055)!important}
+#pmInitialization .pm-init-capacity-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}
+#pmInitialization .pm-init-capacity-head h3{margin:0;color:var(--navy2);font-size:16px}
+#pmInitialization .pm-init-capacity-head small{display:block;margin-top:3px;color:var(--muted);font-size:10px;font-weight:700}
+#pmInitialization .pm-init-capacity-total{white-space:nowrap;border-radius:999px;background:#173765;color:#fff;padding:6px 10px;font-size:10px;font-weight:900}
+#pmInitialization .pm-init-capacity-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+#pmInitialization .pm-init-capacity-grid .field{min-width:0}
+#pmInitialization .pm-init-capacity-grid input{width:100%;box-sizing:border-box;height:44px;border:1px solid #d4dfeb;border-radius:11px;padding:0 10px;background:#fff;color:#173765;font-weight:900}
+#pmInitialization .pm-init-capacity-summary{margin-top:10px;padding:9px 11px;border-radius:11px;background:#fff;border:1px solid #e0e7ef;color:#536b86;font-size:10px;font-weight:800;line-height:1.45}
+@media(max-width:700px){
+ #pmPlanner .pm-plan-actions-clean{grid-template-columns:1fr 1fr!important;padding:10px!important;gap:8px!important}
+ #pmPlanner .pm-plan-actions-clean .pm-schedule-btn{grid-column:1/-1!important;grid-row:1!important}
+ #pmPlanner .pm-plan-actions-clean .pm-select-all-btn{grid-column:1!important;grid-row:2!important}
+ #pmPlanner .pm-plan-actions-clean .pm-unplan-btn{grid-column:2!important;grid-row:2!important}
+ #pmPlanner .pm-planner-filterbar .pm-planner-wo-btn{grid-column:1/-1!important;justify-content:flex-start!important;padding-inline:14px!important}
+ #pmPlanner .pm-capacity-readonly-head{align-items:center}
+ #pmInitialization .pm-init-capacity-grid{grid-template-columns:1fr 1fr!important}
+ #pmInitialization .pm-init-capacity-grid .field:last-child{grid-column:1/-1!important}
+ #pmInitialization .pm-init-capacity-head{align-items:center}
+}
+</style>
+<script id="fop-v146-planner-capacity-script">
+(function(){
+ const $=id=>document.getElementById(id);
+ const n=(id,def)=>{const v=Number($(id)?.value);return Number.isFinite(v)&&v>=0?v:def};
+ function capacity(){const mechanics=n('pmInitMechanics',2),electricians=n('pmInitElectricians',1),hrs=n('pmPlanHoursPerDay',8);return {mechanics,electricians,hrs,total:mechanics+electricians};}
+ window.renderInitCapacitySummary=function(){const c=capacity(),total=$('pmPlanPeople'),badge=$('pmInitCapacityTotal'),summary=$('pmInitCapacitySummary');if(total)total.value=String(c.total);if(badge)badge.textContent=`${c.total} עובדים`;if(summary)summary.textContent=`${c.mechanics} מכונאים + ${c.electricians} חשמלאים · ${c.hrs} שעות עבודה ביום לעובד · קיבולת יומית כוללת ${Number(c.total*c.hrs).toFixed(1)} שעות.`;return c;};
+ window.savePlanningCapacity=function(){const c=renderInitCapacitySummary();try{localStorage.setItem('fop_pm_capacity',JSON.stringify({people:String(c.total),mechanics:String(c.mechanics),electricians:String(c.electricians),hrs:String(c.hrs),version:2}))}catch(_e){}};
+ window.loadPlanningCapacity=function(){let c={};try{c=JSON.parse(localStorage.getItem('fop_pm_capacity')||'{}')||{}}catch(_e){}const mechanics=c.mechanics!=null?Number(c.mechanics):2,electricians=c.electricians!=null?Number(c.electricians):1,hrs=c.hrs!=null?Number(c.hrs):8;if($('pmInitMechanics'))$('pmInitMechanics').value=String(Number.isFinite(mechanics)?mechanics:2);if($('pmInitElectricians'))$('pmInitElectricians').value=String(Number.isFinite(electricians)?electricians:1);if($('pmPlanHoursPerDay'))$('pmPlanHoursPerDay').value=String(Number.isFinite(hrs)?hrs:8);renderInitCapacitySummary();savePlanningCapacity();};
+ function peopleForPlanner(){const c=capacity(),trade=String($('pmPlannerTrade')?.value||'').trim();return trade==='מכונאי'?c.mechanics:trade==='חשמלאי'?c.electricians:c.total;}
+ function syncPlannerCapacity(){const p=$('pmPlanPeople');if(p)p.value=String(peopleForPlanner());return capacity();}
+ const prevRender=window.renderPlanner;if(typeof prevRender==='function'){window.renderPlanner=renderPlanner=function(){syncPlannerCapacity();return prevRender.apply(this,arguments)};}
+ document.addEventListener('change',ev=>{if(ev.target?.id==='pmPlannerTrade')syncPlannerCapacity();},true);
+ const boot=()=>{loadPlanningCapacity();syncPlannerCapacity();renderInitCapacitySummary();};if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
 })();
 </script>
 </body></html>
