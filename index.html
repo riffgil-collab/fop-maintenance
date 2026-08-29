@@ -561,7 +561,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 </div>
 
 <div class="toolbar pm-v3-filterbar">
-  <div class="field"><label>תאריך עוגן</label><input id="pmDashboardAnchor" type="date" onchange="syncPlanningAnchorFromDashboard()"/></div>
+  <input id="pmDashboardAnchor" type="hidden"/>
   <div class="field"><label>מחלקה</label><select id="pmDashboardDepartment" onchange="fillDashboardMachines();renderDashboard()"></select></div>
   <div class="field"><label>מכונה</label><select id="pmDashboardMachine" onchange="renderDashboard()"><option value="">כל המכונות</option></select></div>
   <div class="field"><label>מקצוע</label><select id="pmDashboardTrade" onchange="renderDashboard()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
@@ -645,14 +645,14 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <button type="button" class="pm-plan-period" data-period="year" onclick="setPlanningPeriod('year')">שנה</button>
   </div>
 
-  <div class="toolbar">
-    <div class="field"><label>תאריך עוגן</label><input id="pmPlannerStart" type="date" onchange="syncDashboardAnchorFromPlanning()"/></div>
+  <div class="toolbar pm-planner-filterbar">
+    <input id="pmPlannerStart" type="hidden"/>
     <div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="fillPlanningMachines();pmPlanPage=0;renderPlanner()"></select></div>
     <div class="field"><label>מכונה</label><select id="pmPlannerMachine" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המכונות</option></select></div>
     <div class="field"><label>מקצוע</label><select id="pmPlannerTrade" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
     <div class="field"><label>סוג עבודה</label><select id="pmPlannerWorkType" onchange="renderUnplannedPlanner()"><option value="">הכול</option><option value="PM">PM מחזורי</option><option value="WO">לא מתוכנן</option></select></div>
-    <button type="button" class="btn" onclick="openUnplannedModal()">➕ עבודה לא מתוכננת</button>
-    <div class="field"><label>סטטוס</label><select id="pmPlannerStatus" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל הסטטוסים</option><option value="waiting">טרם שובצה</option><option value="planned">שובצה לביצוע</option><option value="postponed">נדחתה</option><option value="overdue">באיחור</option><option value="upcoming">ייפתחו בתקופה</option><option value="completed">בוצעה</option></select></div>
+    <button type="button" class="btn pm-planner-wo-btn" onclick="openUnplannedModal()">➕ עבודה לא מתוכננת</button>
+    <div class="field pm-planner-status-field"><label>סטטוס</label><select id="pmPlannerStatus" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל הסטטוסים</option><option value="waiting">טרם שובצה</option><option value="planned">שובצה לביצוע</option><option value="postponed">נדחתה</option><option value="overdue">באיחור</option><option value="upcoming">ייפתחו בתקופה</option><option value="completed">בוצעה</option></select></div>
   </div>
 
   <div class="pm-plan-summary">
@@ -772,15 +772,8 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
   </div>
 
   <div class="pm-report-filter-grid">
-    <div class="field"><label>תקופה</label>
-      <select id="pmReportsPeriod" onchange="renderReports()">
-        <option value="week">שבוע</option>
-        <option value="month">חודש</option>
-        <option value="half">חצי שנה</option>
-        <option value="year">שנה</option>
-      </select>
-    </div>
-    <div class="field"><label>תאריך עוגן</label><input id="pmReportsAnchor" type="date" onchange="renderReports()"/></div>
+    <select id="pmReportsPeriod" style="display:none" aria-hidden="true"><option value="week">שבוע</option><option value="month">חודש</option><option value="half">חצי שנה</option><option value="year">שנה</option></select>
+    <input id="pmReportsAnchor" type="hidden"/>
     <div class="field"><label>מחלקה</label><select id="pmReportsDepartment" onchange="fillReportMachinesV4();renderReports()"><option value="">כל המחלקות</option></select></div>
     <div class="field"><label>מכונה</label><select id="pmReportsMachine" onchange="renderReports()"><option value="">כל המכונות</option></select></div>
     <div class="field"><label>מקצוע</label>
@@ -8274,7 +8267,6 @@ window.pmHistoryParityAudit=function(){
     let bar=$('pmV99GlobalFilter'); if(bar)return bar;
     bar=document.createElement('div');bar.id='pmV99GlobalFilter';bar.innerHTML=`<div class="pm-v99-title"><strong>סינון אחיד לכל המערכת</strong><small>אותו חתך בדשבורד, תכנון, דיווח טיפול ודוחות</small></div>
       <div class="field"><label>תקופה</label><select id="pmV99Period"><option value="week">שבוע</option><option value="month">חודש</option><option value="half">חצי שנה</option><option value="year">שנה</option></select></div>
-      <div class="field"><label>תאריך עוגן</label><input id="pmV99Anchor" type="date"></div>
       <div class="field"><label>מחלקה</label><select id="pmV99Department"></select></div>
       <div class="field"><label>מכונה</label><select id="pmV99Machine"></select></div>
       <div class="field"><label>מקצוע</label><select id="pmV99Trade"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
@@ -8282,7 +8274,6 @@ window.pmHistoryParityAudit=function(){
       <div class="pm-v99-sync-note">שינוי כאן מתעדכן בכל הכרטיסיות</div>`;
     const tabs=document.querySelector('.pm-tabs'); if(tabs?.parentNode)tabs.parentNode.insertBefore(bar,tabs.nextSibling); else document.body.prepend(bar);
     $('pmV99Period').addEventListener('change',()=>readGlobalAndApply('period'));
-    $('pmV99Anchor').addEventListener('change',()=>readGlobalAndApply('anchor'));
     $('pmV99Department').addEventListener('change',()=>{state.machine='';readGlobalAndApply('department')});
     $('pmV99Machine').addEventListener('change',()=>readGlobalAndApply('machine'));
     $('pmV99Trade').addEventListener('change',()=>readGlobalAndApply('trade'));
@@ -8293,7 +8284,7 @@ window.pmHistoryParityAudit=function(){
     globalBar(); const ds=departments(),d=$('pmV99Department'),m=$('pmV99Machine');
     if(d){d.innerHTML='<option value="">כל המחלקות</option>'+ds.map(x=>`<option value="${String(x).replace(/"/g,'&quot;')}">${x}</option>`).join('');if(ds.includes(state.department))d.value=state.department;else{state.department='';d.value=''}}
     const ms=machines(state.department);if(m){m.innerHTML='<option value="">כל המכונות</option>'+ms.map(x=>`<option value="${String(x).replace(/"/g,'&quot;')}">${x}</option>`).join('');if(ms.includes(state.machine))m.value=state.machine;else{state.machine='';m.value=''}}
-    if($('pmV99Period'))$('pmV99Period').value=state.period;if($('pmV99Anchor'))$('pmV99Anchor').value=state.anchor||currentToday();if($('pmV99Trade'))$('pmV99Trade').value=state.trade;if($('pmV99WorkType'))$('pmV99WorkType').value=state.workType;
+    state.anchor=currentToday();if($('pmV99Period'))$('pmV99Period').value=state.period;if($('pmV99Trade'))$('pmV99Trade').value=state.trade;if($('pmV99WorkType'))$('pmV99WorkType').value=state.workType;
   }
   function setSelect(id,val){const e=$(id);if(!e)return;const wanted=String(val??'');if([...e.options].some(o=>o.value===wanted))e.value=wanted;else if(!wanted)e.value=''}
   function markInternalCommonFields(){
@@ -8322,15 +8313,15 @@ window.pmHistoryParityAudit=function(){
   }
   function applyState(render=true){if(syncing)return;syncing=true;try{fillGlobalOptions();setCommonControls();markInternalCommonFields();if(render)renderAll();}finally{syncing=false}}
   function readGlobalAndApply(changed){
-    state.period=$('pmV99Period')?.value||state.period||'week';state.anchor=$('pmV99Anchor')?.value||state.anchor||currentToday();state.department=$('pmV99Department')?.value||'';state.machine=$('pmV99Machine')?.value||'';state.trade=$('pmV99Trade')?.value||'';state.workType=$('pmV99WorkType')?.value||'';
+    state.period=$('pmV99Period')?.value||state.period||'week';state.anchor=currentToday();state.department=$('pmV99Department')?.value||'';state.machine=$('pmV99Machine')?.value||'';state.trade=$('pmV99Trade')?.value||'';state.workType=$('pmV99WorkType')?.value||'';
     if(changed==='department')state.machine='';applyState(true);
   }
   function pullFrom(source){
     if(syncing)return;
-    if(source==='dashboard'){state.anchor=$('pmDashboardAnchor')?.value||state.anchor;state.department=$('pmDashboardDepartment')?.value||'';state.machine=$('pmDashboardMachine')?.value||'';state.trade=$('pmDashboardTrade')?.value||'';state.workType=$('pmDashboardWorkType')?.value||'';try{state.period=pmV3DashboardPeriod||state.period}catch(e){}}
-    if(source==='planner'){state.anchor=$('pmPlannerStart')?.value||state.anchor;state.department=$('pmPlannerDepartment')?.value||'';state.machine=$('pmPlannerMachine')?.value||'';state.trade=$('pmPlannerTrade')?.value||'';state.workType=$('pmPlannerWorkType')?.value||'';try{state.period=pmPlanningPeriod||state.period}catch(e){}}
+    if(source==='dashboard'){state.anchor=currentToday();state.department=$('pmDashboardDepartment')?.value||'';state.machine=$('pmDashboardMachine')?.value||'';state.trade=$('pmDashboardTrade')?.value||'';state.workType=$('pmDashboardWorkType')?.value||'';try{state.period=pmV3DashboardPeriod||state.period}catch(e){}}
+    if(source==='planner'){state.anchor=currentToday();state.department=$('pmPlannerDepartment')?.value||'';state.machine=$('pmPlannerMachine')?.value||'';state.trade=$('pmPlannerTrade')?.value||'';state.workType=$('pmPlannerWorkType')?.value||'';try{state.period=pmPlanningPeriod||state.period}catch(e){}}
     if(source==='execution'){state.department=$('pmReportDepartment')?.value||'';state.machine=$('pmReportMachine')?.value||'';state.trade=$('pmReportTrade')?.value||'';state.workType=$('pmReportWorkType')?.value||''}
-    if(source==='reports'){state.period=$('pmReportsPeriod')?.value||state.period;state.anchor=$('pmReportsAnchor')?.value||state.anchor;state.department=$('pmReportsDepartment')?.value||'';state.machine=$('pmReportsMachine')?.value||'';state.trade=$('pmReportsTrade')?.value||'';state.workType=$('pmReportsWorkType')?.value||''}
+    if(source==='reports'){state.period=$('pmReportsPeriod')?.value||state.period;state.anchor=currentToday();state.department=$('pmReportsDepartment')?.value||'';state.machine=$('pmReportsMachine')?.value||'';state.trade=$('pmReportsTrade')?.value||'';state.workType=$('pmReportsWorkType')?.value||''}
     applyState(true);
   }
   function bindExisting(){
@@ -10518,14 +10509,13 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
   /* ---------- Planner: local filter, PERIOD ONLY removed ---------- */
   function ensurePlanner(){
     const toolbar=$('pmPlanner')?.querySelector('.toolbar');if(!toolbar)return;
-    const a=makeField('pmPlannerStart','pmV130PlannerStart');
+    setOld('pmPlannerStart',typeof today==='function'?today():new Date().toISOString().slice(0,10));
     const d=makeField('pmPlannerDepartment','pmV130PlannerDepartment');
     const m=makeField('pmPlannerMachine','pmV130PlannerMachine');
     const t=makeField('pmPlannerTrade','pmV130PlannerTrade');
     const w=makeField('pmPlannerWorkType','pmV130PlannerWorkType');
-    if(!a||a.control.dataset.v130Bound)return;
-    [a,d,m,t,w].forEach(x=>{if(x?.control)x.control.dataset.v130Bound='1'});
-    a.control.addEventListener('change',()=>{setOld('pmPlannerStart',a.control.value);try{pmPlanningPeriod='week'}catch(e){};try{pmPlanPage=0}catch(e){};window.renderPlanner?.();});
+    if(!d||d.control.dataset.v130Bound)return;
+    [d,m,t,w].forEach(x=>{if(x?.control)x.control.dataset.v130Bound='1'});
     d.control.addEventListener('change',()=>{setOld('pmPlannerDepartment',d.control.value);setOld('pmPlannerMachine','');try{window.fillPlanningMachines?.()}catch(e){};copyOptions($('pmPlannerMachine'),m.control,'');try{pmPlanPage=0}catch(e){};window.renderPlanner?.();});
     m.control.addEventListener('change',()=>{setOld('pmPlannerMachine',m.control.value);try{pmPlanPage=0}catch(e){};window.renderPlanner?.();});
     t.control.addEventListener('change',()=>{setOld('pmPlannerTrade',t.control.value);try{pmPlanPage=0}catch(e){};window.renderPlanner?.();});
@@ -10533,7 +10523,8 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
   }
   function syncPlannerFromOld(){
     ensurePlanner();try{pmPlanningPeriod='week'}catch(e){};
-    const pairs=[['pmPlannerStart','pmV130PlannerStart'],['pmPlannerDepartment','pmV130PlannerDepartment'],['pmPlannerTrade','pmV130PlannerTrade'],['pmPlannerWorkType','pmV130PlannerWorkType']];
+    setOld('pmPlannerStart',typeof today==='function'?today():new Date().toISOString().slice(0,10));
+    const pairs=[['pmPlannerDepartment','pmV130PlannerDepartment'],['pmPlannerTrade','pmV130PlannerTrade'],['pmPlannerWorkType','pmV130PlannerWorkType']];
     pairs.forEach(([s,d])=>{const a=$(s),b=$(d);if(!a||!b)return;if(b.tagName==='SELECT')copyOptions(a,b,a.value);else b.value=a.value||'';});
     try{window.fillPlanningMachines?.()}catch(e){};copyOptions($('pmPlannerMachine'),$('pmV130PlannerMachine'),$('pmPlannerMachine')?.value||'');
   }
@@ -10565,19 +10556,17 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
     let g=$('pmV130ReportsFilterGrid');if(g)return g;
     const old=$('pmReports')?.querySelector('.pm-report-filter-grid');if(!old)return null;
     g=document.createElement('div');g.id='pmV130ReportsFilterGrid';g.className='pm-v130-reports-filter-grid';
-    g.innerHTML=`<div class="pm-v130-filter-title"><strong>סינון דוחות</strong><small>פירוט והדפסה של מצב העבודה לפי הסינון בכרטיסייה זו בלבד</small></div>
-      <div class="field"><label>תאריך עוגן</label><input id="pmV130ReportsAnchor" type="date"></div>
+    g.innerHTML=`<div class="pm-v130-filter-title"><strong>סינון דוחות</strong><small>פירוט והדפסה של סטטוסי הדשבורד · התקופה נקבעת בדשבורד ומחושבת תמיד מהיום</small></div>
       <div class="field"><label>מחלקה</label><select id="pmV130ReportsDepartment"></select></div>
       <div class="field"><label>מכונה</label><select id="pmV130ReportsMachine"></select></div>
       <div class="field"><label>מקצוע</label><select id="pmV130ReportsTrade"></select></div>
       <div class="field"><label>סוג עבודה</label><select id="pmV130ReportsWorkType"></select></div>
-      <div class="field"><label>סטטוס</label><select id="pmV130ReportsStatus"></select></div>`;
+      <div class="field pm-v130-status-field"><label>סטטוס</label><select id="pmV130ReportsStatus"></select></div>`;
     old.parentNode.insertBefore(g,old);return g;
   }
   function syncReportsFromOld(){
     if(!reportGrid())return;
-    const anchor=$('pmReportsAnchor');if(anchor&&!anchor.value)anchor.value=(typeof today==='function'?today():new Date().toISOString().slice(0,10));
-    $('pmV130ReportsAnchor').value=anchor?.value||'';
+    const anchor=$('pmReportsAnchor');if(anchor)anchor.value=(typeof today==='function'?today():new Date().toISOString().slice(0,10));
     copyOptions($('pmReportsDepartment'),$('pmV130ReportsDepartment'),$('pmReportsDepartment')?.value||'');
     try{window.fillReportMachinesV4?.()}catch(e){};copyOptions($('pmReportsMachine'),$('pmV130ReportsMachine'),$('pmReportsMachine')?.value||'');
     copyOptions($('pmReportsTrade'),$('pmV130ReportsTrade'),$('pmReportsTrade')?.value||'');
@@ -10587,13 +10576,13 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
     setOld('pmReportsPeriod',reportsPeriodContext);
   }
   function syncReportsToOld(){
-    setOld('pmReportsPeriod',reportsPeriodContext||'week');setOld('pmReportsAnchor',$('pmV130ReportsAnchor')?.value||'');setOld('pmReportsDepartment',$('pmV130ReportsDepartment')?.value||'');setOld('pmReportsMachine',$('pmV130ReportsMachine')?.value||'');setOld('pmReportsTrade',$('pmV130ReportsTrade')?.value||'');setOld('pmReportsWorkType',$('pmV130ReportsWorkType')?.value||'');setOld('pmReportsStatus',$('pmV130ReportsStatus')?.value||'open');
+    setOld('pmReportsPeriod',reportsPeriodContext||'week');setOld('pmReportsAnchor',typeof today==='function'?today():new Date().toISOString().slice(0,10));setOld('pmReportsDepartment',$('pmV130ReportsDepartment')?.value||'');setOld('pmReportsMachine',$('pmV130ReportsMachine')?.value||'');setOld('pmReportsTrade',$('pmV130ReportsTrade')?.value||'');setOld('pmReportsWorkType',$('pmV130ReportsWorkType')?.value||'');setOld('pmReportsStatus',$('pmV130ReportsStatus')?.value||'open');
   }
   function renderReportsLocal(){
     syncReportsToOld();
     const g=window.pmV99GlobalState||null;
     const saved=g?{period:g.period,anchor:g.anchor,department:g.department,machine:g.machine,trade:g.trade,workType:g.workType}:null;
-    if(g){g.period=reportsPeriodContext||'week';g.anchor=$('pmReportsAnchor')?.value||'';g.department=$('pmReportsDepartment')?.value||'';g.machine=$('pmReportsMachine')?.value||'';g.trade=$('pmReportsTrade')?.value||'';g.workType=$('pmReportsWorkType')?.value||'';}
+    if(g){g.period=reportsPeriodContext||'week';g.anchor=typeof today==='function'?today():new Date().toISOString().slice(0,10);g.department=$('pmReportsDepartment')?.value||'';g.machine=$('pmReportsMachine')?.value||'';g.trade=$('pmReportsTrade')?.value||'';g.workType=$('pmReportsWorkType')?.value||'';}
     let r;
     try{r=typeof baseReports==='function'?baseReports.apply(this,arguments):undefined;}
     finally{if(g&&saved)Object.assign(g,saved);}
@@ -10601,7 +10590,6 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
   }
   function bindReports(){
     const g=reportGrid();if(!g||g.dataset.v130Bound)return;g.dataset.v130Bound='1';
-    $('pmV130ReportsAnchor')?.addEventListener('change',()=>renderReportsLocal());
     $('pmV130ReportsDepartment')?.addEventListener('change',()=>{setOld('pmReportsDepartment',$('pmV130ReportsDepartment').value);setOld('pmReportsMachine','');try{window.fillReportMachinesV4?.()}catch(e){};copyOptions($('pmReportsMachine'),$('pmV130ReportsMachine'),'');renderReportsLocal();});
     ['pmV130ReportsMachine','pmV130ReportsTrade','pmV130ReportsWorkType','pmV130ReportsStatus'].forEach(id=>$(id)?.addEventListener('change',()=>renderReportsLocal()));
   }
@@ -11230,31 +11218,40 @@ button[onclick*="cancelSingleOccurrence"],
 </script>
 
 
-<style id="fop-no-anchor-ui-fixed">
-#pmDashboardAnchor,#pmPlannerStart,#pmReportsAnchor,#pmV130ReportsAnchor{display:none!important}
+
+<style id="fop-v145-clean-filter-layout">
+/* V145 — clean no-anchor filter layout: Dashboard / Planning / Reports only. */
+#pmV99GlobalFilter{display:none;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:end;padding:14px;margin:12px 0 16px;border:1px solid #d9e4f1;border-radius:18px;background:#f8fbff;box-shadow:0 5px 18px rgba(22,52,91,.045)}
+#pmV99GlobalFilter.active{display:grid!important}
+#pmV99GlobalFilter .pm-v99-title{grid-column:1/-1;min-width:0;padding-bottom:2px}
+#pmV99GlobalFilter .pm-v99-title strong{font-size:13px}
+#pmV99GlobalFilter .pm-v99-title small{font-size:9px;line-height:1.45}
+#pmV99GlobalFilter .field{min-width:0!important;flex:none!important}
+#pmV99GlobalFilter .pm-v99-sync-note{grid-column:1/-1;padding-top:1px;text-align:right}
+#pmPlanner .pm-planner-filterbar{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:end;padding:14px;margin:12px 0 16px;border:1px solid #d9e4f1;border-radius:18px;background:#f8fbff;box-shadow:0 5px 18px rgba(22,52,91,.045)}
+#pmPlanner .pm-planner-filterbar .field{min-width:0!important;display:block!important}
+#pmPlanner .pm-planner-filterbar .pm-v99-common-hidden{display:none!important}
+#pmPlanner .pm-planner-filterbar select,#pmPlanner .pm-planner-filterbar input{width:100%}
+#pmPlanner .pm-planner-filterbar .pm-planner-wo-btn{height:46px;margin:0;width:100%;min-width:0}
+.pm-v130-reports-filter-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:10px!important;padding:14px!important;border-radius:18px!important}
+.pm-v130-reports-filter-grid .pm-v130-filter-title{grid-column:1/-1!important;padding-bottom:2px}
+@media(max-width:700px){
+ #pmV99GlobalFilter{grid-template-columns:1fr 1fr!important;padding:13px 12px!important;gap:10px!important}
+ #pmV99GlobalFilter .pm-v99-title,#pmV99GlobalFilter .pm-v99-sync-note{grid-column:1/-1!important}
+ #pmV99GlobalFilter .field:last-of-type{grid-column:1/-1!important}
+ #pmPlanner .pm-planner-filterbar{grid-template-columns:1fr 1fr!important;padding:13px 12px!important;gap:10px!important}
+ #pmPlanner .pm-planner-filterbar .pm-planner-status-field{grid-column:1/-1!important}
+ .pm-v130-reports-filter-grid{grid-template-columns:1fr 1fr!important;padding:13px 12px!important;gap:10px!important}
+ .pm-v130-reports-filter-grid .pm-v130-filter-title,.pm-v130-reports-filter-grid .pm-v130-status-field{grid-column:1/-1!important}
+}
 </style>
-<script id="fop-no-anchor-fixed-script">
+
+<script id="fop-v145-anchor-today-compat">
 (function(){
-  const $=id=>document.getElementById(id);
-  const todayIso=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
-  function hideField(id){const el=$(id);if(!el)return;const f=el.closest('.field');if(f)f.style.display='none';else el.style.display='none';}
-  function dashPeriod(){try{return String(window.pmV99GlobalState?.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'));}catch(_){return 'week';}}
-  function pin(){
-    const d=todayIso();
-    ['pmDashboardAnchor','pmPlannerStart','pmReportsAnchor','pmV130ReportsAnchor'].forEach(id=>{const el=$(id);if(el)el.value=d;});
-    try{if(window.pmV99GlobalState)window.pmV99GlobalState.anchor=d;}catch(_){ }
-    try{const p=$('pmReportsPeriod');if(p)p.value=dashPeriod();}catch(_){ }
-    return d;
-  }
-  function apply(){['pmDashboardAnchor','pmPlannerStart','pmReportsAnchor','pmV130ReportsAnchor'].forEach(hideField);pin();}
-  function wrap(name){const prev=window[name];if(typeof prev!=='function')return;window[name]=function(){pin();return prev.apply(this,arguments);};try{eval(name+'=window["'+name+'"]')}catch(_){ }}
-  wrap('renderDashboard');wrap('renderPlanner');wrap('renderReports');
-  window.syncPlanningAnchorFromDashboard=function(){pin();try{window.renderDashboard?.()}catch(_){ }};
-  window.syncDashboardAnchorFromPlanning=function(){pin();try{window.renderPlanner?.()}catch(_){ }};
-  const oldShow=window.showTab;if(typeof oldShow==='function')window.showTab=function(){pin();const r=oldShow.apply(this,arguments);setTimeout(apply,0);return r;};
-  function boot(){apply();setTimeout(apply,100);setTimeout(apply,500);}
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+ const $=id=>document.getElementById(id),t=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
+ function pin(){const d=t();['pmDashboardAnchor','pmPlannerStart','pmReportsAnchor'].forEach(id=>{const e=$(id);if(e)e.value=d;});try{if(window.pmV99GlobalState)window.pmV99GlobalState.anchor=d;}catch(_){ }try{const p=$('pmReportsPeriod');if(p)p.value=String(window.pmV99GlobalState?.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'));}catch(_){ }}
+ const oldShow=window.showTab;if(typeof oldShow==='function')window.showTab=function(){pin();const r=oldShow.apply(this,arguments);setTimeout(pin,0);return r;};
+ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>{pin();setTimeout(pin,80);setTimeout(pin,350)});else{pin();setTimeout(pin,80)}
 })();
 </script>
-
 </body></html>
