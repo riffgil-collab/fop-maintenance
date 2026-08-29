@@ -11229,4 +11229,32 @@ button[onclick*="cancelSingleOccurrence"],
 })();
 </script>
 
+
+<style id="fop-no-anchor-ui-fixed">
+#pmDashboardAnchor,#pmPlannerStart,#pmReportsAnchor,#pmV130ReportsAnchor{display:none!important}
+</style>
+<script id="fop-no-anchor-fixed-script">
+(function(){
+  const $=id=>document.getElementById(id);
+  const todayIso=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
+  function hideField(id){const el=$(id);if(!el)return;const f=el.closest('.field');if(f)f.style.display='none';else el.style.display='none';}
+  function dashPeriod(){try{return String(window.pmV99GlobalState?.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'));}catch(_){return 'week';}}
+  function pin(){
+    const d=todayIso();
+    ['pmDashboardAnchor','pmPlannerStart','pmReportsAnchor','pmV130ReportsAnchor'].forEach(id=>{const el=$(id);if(el)el.value=d;});
+    try{if(window.pmV99GlobalState)window.pmV99GlobalState.anchor=d;}catch(_){ }
+    try{const p=$('pmReportsPeriod');if(p)p.value=dashPeriod();}catch(_){ }
+    return d;
+  }
+  function apply(){['pmDashboardAnchor','pmPlannerStart','pmReportsAnchor','pmV130ReportsAnchor'].forEach(hideField);pin();}
+  function wrap(name){const prev=window[name];if(typeof prev!=='function')return;window[name]=function(){pin();return prev.apply(this,arguments);};try{eval(name+'=window["'+name+'"]')}catch(_){ }}
+  wrap('renderDashboard');wrap('renderPlanner');wrap('renderReports');
+  window.syncPlanningAnchorFromDashboard=function(){pin();try{window.renderDashboard?.()}catch(_){ }};
+  window.syncDashboardAnchorFromPlanning=function(){pin();try{window.renderPlanner?.()}catch(_){ }};
+  const oldShow=window.showTab;if(typeof oldShow==='function')window.showTab=function(){pin();const r=oldShow.apply(this,arguments);setTimeout(apply,0);return r;};
+  function boot(){apply();setTimeout(apply,100);setTimeout(apply,500);}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+})();
+</script>
+
 </body></html>
