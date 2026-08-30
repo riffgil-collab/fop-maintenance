@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260830-v148-operational-machine-filter-fix"/>
+<meta name="fop-build" content="20260830-v152-history-two-weeks"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -712,7 +712,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 </div>
 <div id="pmReportFilterIndicator" style="font-size:12px;font-weight:800;color:#475569;margin:4px 0 10px">מציג: כל המקצועות</div>
 <div class="pm-execution-actions" id="pmExecutionActions"><button type="button" class="secondary-btn" onclick="return printMaintenanceExecution()">🖨️ הדפס רשימת ביצוע</button><button type="button" class="export-btn" onclick="return pdfMaintenanceExecution()">📄 PDF רשימת ביצוע</button><label class="pm-exec-print-checklist-option"><input id="pmExecutionPrintChecklistDetails" type="checkbox" checked/> כלול פירוט פעולות בטיפולים מרוכזים</label></div>
-<label class="pm-report-mode" id="pmReportIncludeUnplannedLabel"><input id="pmReportIncludeUnplanned" type="checkbox" onchange="renderReport()"/> הצג גם טיפולי PM פתוחים שלא שובצו לתוכנית העבודה</label>
+<div class="pm-report-mode" id="pmReportIncludeUnplannedLabel"><strong>מוצגות רק עבודות ששובצו לביצוע בתוכנית העבודה.</strong></div>
 <div class="panel-box" id="pmWOReportPanel" style="margin:12px 0"><h3>עבודות WO פתוחות לביצוע</h3><div class="pm-plan-note">WO פתוחות מוצגות כאן גם אם טרם שובצו לתאריך, כדי שניתן יהיה לדווח עליהן ביצוע.</div><div id="pmWOReportList"></div></div>
 <div class="report-summary">
 <div class="report-chip" id="repOpen">0 משימות פתוחות</div>
@@ -1299,6 +1299,23 @@ const STORE_TASKS='fop_pm_tasks_v2', STORE_HISTORY='fop_pm_history_v2';
 let tasks=[], history=[];
 let pmReporterProfiles=new Map();
 
+// V149 — canonical machine names. Legacy aliases are normalized at the data boundary
+// so Dashboard / Planning / Execution / Reports / History all build filters from one name.
+function pmCanonicalMachineName(value){
+  const raw=String(value??'').trim().replace(/\s+/g,' ');
+  const aliases={
+    'FRONIUS 2006 תפר אורך':'תפר אורך קו ראשי 2500',
+    'CLOOS תפר אורך':'תפר אורך קו משני 1500',
+    'תפר הקפי פרוניוס':'תפר הקפי קו ראשי 2500',
+    'תפר הקפי קו ראשי FRONIUS FCW-P':'תפר הקפי קו ראשי 2500',
+    'CNC TRUMPF 500 מנקבת':'מנקבת CNC-Trumpf 500',
+    'תא ריטוך ניפלים קו משני 1500':'תא ריתוך ניפלים קו משני 1500',
+    'תא ריטוך ניפלים קו ראשי 2500':'תא ריתוך ניפלים קו ראשי 2500'
+  };
+  return aliases[raw]||raw;
+}
+
+
 function pmLocalDateFromStamp(stamp){
   if(!stamp)return '';
   const d=new Date(stamp);
@@ -1331,7 +1348,7 @@ function normalizeHistoryRow(h){
     reportedBy,
     reportedByRaw,
     department:h.department??task.department??'',
-    machine:h.machine??task.machine??'',
+    machine:pmCanonicalMachineName(h.machine??task.machine??''),
     task:h.task??task.task??'',
     frequency:h.frequency??task.frequency??'',
     performer:h.performer??task.performer??'',
@@ -2045,6 +2062,7 @@ function printMaintenanceChecklist(){const items=maintenanceChecklistItems();if(
 function normalize(t){
   return {
     ...t,
+    machine:pmCanonicalMachineName(t.machine),
     lastDone:t.lastDone??t.last_done??null,
     nextDue:t.nextDue??t.next_due??null,
     taskType:t.taskType??t.task_type??null,
@@ -4661,7 +4679,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 let pmWorkOrders=[];
 let pmWorkOrdersReady=false;
 let pmCompletionIsWO=false;
-function normWO(r){return {id:r.id,department:r.department||'',machine:r.machine||'',description:r.description||'',trade:r.trade||'מכונאי',priority:r.priority||'רגילה',dueDate:r.due_date||'',plannedDate:r.planned_date||'',duration:Number(r.duration||0),assignee:r.assigned_to||'',notes:r.notes||'',status:r.status||'Open',createdAt:r.created_at||'',createdBy:r.created_by||'',completedDate:r.completed_date||'',completedBy:r.completed_by||'',completionNotes:r.completion_notes||'',photo1Path:r.photo_1_path||'',photo2Path:r.photo_2_path||''};}
+function normWO(r){return {id:r.id,department:r.department||'',machine:pmCanonicalMachineName(r.machine||''),description:r.description||'',trade:r.trade||'מכונאי',priority:r.priority||'רגילה',dueDate:r.due_date||'',plannedDate:r.planned_date||'',duration:Number(r.duration||0),assignee:r.assigned_to||'',notes:r.notes||'',status:r.status||'Open',createdAt:r.created_at||'',createdBy:r.created_by||'',completedDate:r.completed_date||'',completedBy:r.completed_by||'',completionNotes:r.completion_notes||'',photo1Path:r.photo_1_path||'',photo2Path:r.photo_2_path||''};}
 async function loadWorkOrders(){
   const r=await supabaseClient.from('pm_work_orders').select('*').order('created_at',{ascending:false});
   if(r.error){pmWorkOrdersReady=false;console.warn('pm_work_orders:',r.error.message);return false;}
@@ -4670,12 +4688,17 @@ async function loadWorkOrders(){
 const _reloadCloudDataV13=reloadCloudData;reloadCloudData=async function(){const ok=await _reloadCloudDataV13();await loadWorkOrders();return ok};
 const _loadCloudDataV13=loadCloudData;loadCloudData=async function(){const ok=await _loadCloudDataV13();await loadWorkOrders();return ok};
 function fillWODepartments(){
-  const sel=document.getElementById('pmWODepartment');if(!sel)return;const current=sel.value;const vals=departments();
+  const sel=document.getElementById('pmWODepartment');if(!sel)return;const current=sel.value;
+  // WO creation must use the operational machine master only: a department is selectable
+  // only when it has at least one ACTIVE task. Historical/inactive task rows must not resurrect it.
+  const vals=[...new Set(tasks.filter(t=>t&&t.active!==false).map(t=>t.department).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
   sel.innerHTML='<option value="">בחר מחלקה</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(vals.includes(current))sel.value=current;
 }
 function fillWOMachines(){
   const sel=document.getElementById('pmWOMachine');if(!sel)return;const dep=document.getElementById('pmWODepartment')?.value||'';const current=sel.value;
-  const vals=[...new Set(tasks.filter(t=>!dep||t.department===dep).map(t=>t.machine).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
+  // V150: expose only machines that still have at least one ACTIVE task in the selected department.
+  // This prevents merged/decommissioned legacy machine names from appearing in the New WO dialog.
+  const vals=[...new Set(tasks.filter(t=>t&&t.active!==false&&(!dep||t.department===dep)).map(t=>pmCanonicalMachineName(t.machine)).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'he'));
   sel.innerHTML='<option value="">בחר מכונה</option>'+vals.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');if(vals.includes(current))sel.value=current;
 }
 function toggleWOEquipmentMode(){const free=document.getElementById('pmWOEquipmentMode')?.value==='free';const db=document.getElementById('pmWOEquipmentDatabaseField'),fr=document.getElementById('pmWOEquipmentFreeField');if(db)db.style.display=free?'none':'';if(fr)fr.style.display=free?'':'none';}
@@ -10294,7 +10317,7 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
   function historyStart(){const a=rawExecutionRows();return a.length?a.reduce((m,r)=>!m||r.date<m?r.date:m,''):tday();}
   function historyBounds(){
     const end=tday(),startAll=historyStart();if(H.period==='all')return {start:startAll,end};
-    const d=new Date(end+'T12:00:00');if(H.period==='month')d.setMonth(d.getMonth()-1);else if(H.period==='half')d.setMonth(d.getMonth()-6);else d.setFullYear(d.getFullYear()-1);
+    const d=new Date(end+'T12:00:00');if(H.period==='fortnight')d.setDate(d.getDate()-13);else if(H.period==='month')d.setMonth(d.getMonth()-1);else if(H.period==='half')d.setMonth(d.getMonth()-6);else d.setFullYear(d.getFullYear()-1);
     const start=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;return {start:start<startAll?startAll:start,end};
   }
   function ensureHistoryUI(){
@@ -10309,7 +10332,7 @@ window.FOP_PLANNER_UI_BUILD="20260828-v113-postpone-report-parity";
       $('pmHistoryFrom')?.closest('.field')?.classList.add('pm-v122-date-hidden');$('pmHistoryTo')?.closest('.field')?.classList.add('pm-v122-date-hidden');
     }
     if(!$('pmHistoryV122Periods')){
-      const p=document.createElement('div');p.id='pmHistoryV122Periods';p.className='pm-v122-history-periods';p.innerHTML='<button type="button" data-hp="all"></button><button type="button" data-hp="month">חודש</button><button type="button" data-hp="half">חצי שנה</button><button type="button" data-hp="year">שנה</button>';filters?.insertAdjacentElement('beforebegin',p);
+      const p=document.createElement('div');p.id='pmHistoryV122Periods';p.className='pm-v122-history-periods';p.innerHTML='<button type="button" data-hp="all"></button><button type="button" data-hp="fortnight">שבועיים</button><button type="button" data-hp="month">חודש</button><button type="button" data-hp="half">חצי שנה</button><button type="button" data-hp="year">שנה</button>';filters?.insertAdjacentElement('beforebegin',p);
       p.addEventListener('click',ev=>{const b=ev.target.closest('button[data-hp]');if(!b)return;H.period=b.dataset.hp||'all';renderHistoryV122();});
     }
     if(!$('pmHistoryV122Summary')){
@@ -11418,4 +11441,71 @@ button[onclick*="cancelSingleOccurrence"],
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
 </script>
+
+<script id="fop-v151-scheduled-only-execution">
+/* V151 — hard execution gate.
+   Business rule: Maintenance Execution contains only work explicitly scheduled for execution.
+   Applies to PM and WO. UI filtering is backed by DB enforcement. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const plannedStates=new Set(['planned','מתוכנן','מתוכננת']);
+  const closedStates=new Set(['completed','done','בוצע','cancelled','canceled','בוטל','בוטלה']);
+  const iso=v=>String(v??'').slice(0,10);
+  const planRows=()=>Array.isArray(window.pmWorkPlan)?window.pmWorkPlan:(typeof pmWorkPlan!=='undefined'&&Array.isArray(pmWorkPlan)?pmWorkPlan:[]);
+  const woRows=()=>Array.isArray(window.pmWorkOrders)?window.pmWorkOrders:(typeof pmWorkOrders!=='undefined'&&Array.isArray(pmWorkOrders)?pmWorkOrders:[]);
+  const pTask=p=>String(p?.taskId??p?.task_id??'');
+  const pDate=p=>iso(p?.plannedDate??p?.planned_date);
+  const pStatus=p=>norm(p?.status);
+  const pDue=p=>{const m=String(p?.notes||'').match(/PM_DUE:(\d{4}-\d{2}-\d{2})/);return m?m[1]:'';};
+  function assignedPlan(p){return !!p&&plannedStates.has(pStatus(p))&&!closedStates.has(pStatus(p))&&!!pDate(p);}
+  function currentAssignedPlan(taskId,due='',workPlanId=''){
+    let a=planRows().filter(p=>pTask(p)===String(taskId)&&assignedPlan(p));
+    if(workPlanId)a=a.filter(p=>String(p.id)===String(workPlanId));
+    if(due){const d=iso(due),exact=a.filter(p=>!pDue(p)||pDue(p)===d);if(exact.length)a=exact;}
+    return a.sort((x,y)=>String(y.updatedAt??y.updated_at??y.createdAt??y.created_at??'').localeCompare(String(x.updatedAt??x.updated_at??x.createdAt??x.created_at??'')))[0]||null;
+  }
+  function rowTaskId(r){return String(r?.task?.id??r?.id??r?.item?.t?.id??'');}
+  function rowDue(r){return iso(r?.due??r?.item?.due??r?.task?.nextDue??r?.task?.next_due);}
+
+  function enforceScheduledOnlyUI(){
+    const cb=$('pmReportIncludeUnplanned');if(cb){cb.checked=false;cb.disabled=true;cb.style.display='none';}
+    const note=$('pmReportIncludeUnplannedLabel');if(note){note.innerHTML='<strong>מוצגות רק עבודות ששובצו לביצוע בתוכנית העבודה.</strong>';note.style.display='';}
+  }
+
+  const previousExecutionRows=window.pmV98ExecutionRows;
+  window.pmV98ExecutionRows=function(){
+    const x=typeof previousExecutionRows==='function'?previousExecutionRows():{pm:[],wo:[]};
+    const pm=(x.pm||[]).map(r=>{const p=currentAssignedPlan(rowTaskId(r),rowDue(r),r?.plan?.id||'');return p?{...r,plan:p,isAssigned:true,assignmentDate:pDate(p),effectiveDate:pDate(p),date:pDate(p)}:null;}).filter(Boolean);
+    const wo=(x.wo||[]).filter(w=>{const status=norm(w?.status);return !closedStates.has(status)&&!!iso(w?.plannedDate??w?.planned_date);});
+    window.pmV151ExecutionAudit={pm:pm.length,wo:wo.length,rejectedPM:(x.pm||[]).length-pm.length,rejectedWO:(x.wo||[]).length-wo.length,scheduledOnly:true};
+    return {...x,pm,wo};
+  };
+
+  const previousOpenPM=window.pmOpenCompletionModal;
+  function guardedOpenPM(id,workPlanId='',occurrenceDue=''){
+    const t=(typeof tasks!=='undefined'&&Array.isArray(tasks))?tasks.find(x=>String(x.id)===String(id)):null;
+    const due=iso(occurrenceDue||t?.nextDue||t?.next_due),p=currentAssignedPlan(id,due,workPlanId);
+    if(!p){const msg='לא ניתן לדווח ביצוע לפני שהמשימה שובצה בתוכנית העבודה.';try{statusLine(msg,'error')}catch(_){}try{window.pmToast?.(msg,'error')}catch(_){}return false;}
+    return typeof previousOpenPM==='function'?previousOpenPM(id,p.id,due):false;
+  }
+  window.pmOpenCompletionModal=guardedOpenPM;try{pmOpenCompletionModal=guardedOpenPM}catch(_){}
+  window.completeTask=function(id,workPlanId='',occurrenceDue=''){return guardedOpenPM(id,workPlanId,occurrenceDue);};try{completeTask=window.completeTask}catch(_){}
+
+  const previousOpenWO=window.pmOpenWOCompletion;
+  function guardedOpenWO(id){
+    const w=woRows().find(x=>String(x.id)===String(id));
+    if(!w||!iso(w.plannedDate??w.planned_date)){const msg='לא ניתן לדווח ביצוע WO לפני שהעבודה שובצה בתכנון העבודה.';try{statusLine(msg,'error')}catch(_){}try{window.pmToast?.(msg,'error')}catch(_){}return false;}
+    return typeof previousOpenWO==='function'?previousOpenWO(id):false;
+  }
+  window.pmOpenWOCompletion=guardedOpenWO;try{pmOpenWOCompletion=guardedOpenWO}catch(_){}
+
+  const previousRender=window.renderReport;
+  window.renderReport=function(){enforceScheduledOnlyUI();const r=typeof previousRender==='function'?previousRender.apply(this,arguments):undefined;enforceScheduledOnlyUI();return r;};try{renderReport=window.renderReport}catch(_){}
+
+  function boot(){enforceScheduledOnlyUI();try{window.renderReport?.()}catch(e){console.warn('V151 execution render',e)}}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
 </body></html>
