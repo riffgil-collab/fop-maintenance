@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260830-v147-history-wo-machine-filter"/>
+<meta name="fop-build" content="20260830-v148-operational-machine-filter-fix"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -8302,8 +8302,13 @@ window.pmHistoryParityAudit=function(){
   function allWOs(){return (typeof pmWorkOrders!=='undefined'&&Array.isArray(pmWorkOrders))?pmWorkOrders:[]}
   function tradeOf(t){return String(t?.trade||((typeof maintenanceTrade==='function')?maintenanceTrade(t):'')||'').trim()||'מכונאי'}
   function physical(t){return !!t&&t.active!==false&&String(t.performer||'').trim()==='טכנאי אחזקה'&&norm(t.taskType??t.task_type)==='maintenance'}
-  function departments(){return [...new Set([...allTasks().filter(physical).map(t=>t.department),...allWOs().map(w=>w.department)].filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'))}
-  function machines(dep){return [...new Set([...allTasks().filter(physical).filter(t=>!dep||t.department===dep).map(t=>t.machine),...allWOs().filter(w=>!dep||w.department===dep).map(w=>w.machine)].filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'))}
+  function woIsOperationallyOpen(w){
+    const st=norm(w?.status);
+    return !['completed','done','cancelled','canceled','בוצע','בוטל'].includes(st);
+  }
+  function openWOs(){return allWOs().filter(woIsOperationallyOpen)}
+  function departments(){return [...new Set([...allTasks().filter(physical).map(t=>t.department),...openWOs().map(w=>w.department)].filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'))}
+  function machines(dep){return [...new Set([...allTasks().filter(physical).filter(t=>!dep||t.department===dep).map(t=>t.machine),...openWOs().filter(w=>!dep||w.department===dep).map(w=>w.machine)].filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'))}
   function globalBar(){
     let bar=$('pmV99GlobalFilter'); if(bar)return bar;
     bar=document.createElement('div');bar.id='pmV99GlobalFilter';bar.innerHTML=`<div class="pm-v99-title"><strong>סינון אחיד לכל המערכת</strong><small>אותו חתך בדשבורד, תכנון, דיווח טיפול ודוחות</small></div>
