@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260829-v143-wo-due-by-simplified"/>
+<meta name="fop-build" content="20260830-v144-auth-jwt-skew-fix"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -1112,19 +1112,36 @@ function normalizePMRole(raw){
 
 function pmCan(cap){return !!(PM_ROLES[pmCurrentRole]||PM_ROLES.viewer)[cap]}
 
+const pmAuthSleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function pmIsJwtIssuedInFutureError(err){
+  const msg=String(err?.message||err||'').toLowerCase();
+  return msg.includes('jwt issued at future') || msg.includes('jwt issued in the future') || msg.includes('issued at future');
+}
 async function loadCurrentPMProfile(user){
-  const [{data:profile,error:profileError},{data:access,error:accessError}]=await Promise.all([
-    supabaseClient.from('profiles').select('*').eq('id',user.id).maybeSingle(),
-    supabaseClient.from('app_access').select('role,is_active').eq('user_id',user.id).eq('app','maintenance').maybeSingle()
-  ]);
-  if(profileError) throw profileError;
-  if(accessError) throw accessError;
-  if(!profile) throw new Error('לא נמצא פרופיל משתמש ב-FOP.');
-  if(profile.is_active===false) throw new Error('המשתמש אינו פעיל ב-FOP.');
-  if(!access || access.is_active===false) throw new Error('אין למשתמש הרשאה לאפליקציית האחזקה.');
-  pmCurrentProfile=profile;
-  pmCurrentRole=normalizePMRole(access.role);
-  return profile;
+  // A freshly issued Supabase JWT can very occasionally reach PostgREST a fraction
+  // of a second before the verifier clock catches up. Retry only that transient case.
+  let lastTransientError=null;
+  for(let attempt=0;attempt<4;attempt++){
+    if(attempt>0) await pmAuthSleep(650*attempt);
+    const [{data:profile,error:profileError},{data:access,error:accessError}]=await Promise.all([
+      supabaseClient.from('profiles').select('*').eq('id',user.id).maybeSingle(),
+      supabaseClient.from('app_access').select('role,is_active').eq('user_id',user.id).eq('app','maintenance').maybeSingle()
+    ]);
+    const authError=profileError||accessError;
+    if(authError && pmIsJwtIssuedInFutureError(authError) && attempt<3){
+      lastTransientError=authError;
+      continue;
+    }
+    if(profileError) throw profileError;
+    if(accessError) throw accessError;
+    if(!profile) throw new Error('לא נמצא פרופיל משתמש ב-FOP.');
+    if(profile.is_active===false) throw new Error('המשתמש אינו פעיל ב-FOP.');
+    if(!access || access.is_active===false) throw new Error('אין למשתמש הרשאה לאפליקציית האחזקה.');
+    pmCurrentProfile=profile;
+    pmCurrentRole=normalizePMRole(access.role);
+    return profile;
+  }
+  throw lastTransientError||new Error('שגיאת אימות זמנית.');
 }
 
 function applyPMPermissions(){
@@ -1232,7 +1249,7 @@ document.addEventListener('DOMContentLoaded',()=>{
           status.textContent='הכניסה נכשלה: '+error.message;
         }else{
           status.textContent='';
-          pmShowApp(data.user);
+          await pmShowApp(data.user);
         }
       }catch(err){
         status.textContent='הכניסה נכשלה: '+(err?.message||'שגיאה לא ידועה');
@@ -1249,15 +1266,18 @@ document.addEventListener('DOMContentLoaded',()=>{
     });
   }
 
-  supabaseClient.auth.onAuthStateChange((event,session)=>{
-    if(session?.user) pmShowApp(session.user);
-    else if(event==='SIGNED_OUT') pmShowLogin();
+  // signInWithPassword is the single owner of the SIGNED_IN transition above.
+  // Do not call pmShowApp again from SIGNED_IN: that used to launch two concurrent
+  // profile queries with the same brand-new JWT and amplified the clock-skew race.
+  supabaseClient.auth.onAuthStateChange((event,_session)=>{
+    if(event==='SIGNED_OUT') pmShowLogin();
   });
 
   (async()=>{
     try{
       const {data}=await supabaseClient.auth.getSession();
-      data?.session?.user ? pmShowApp(data.session.user) : pmShowLogin();
+      if(data?.session?.user) await pmShowApp(data.session.user);
+      else pmShowLogin();
     }catch(_e){
       pmShowLogin();
     }
