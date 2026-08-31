@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260830-v153-gui-sales-polish-dashboard"/>
+<meta name="fop-build" content="20260831-v158-completed-kpi-report-drilldown"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -714,7 +714,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div class="pm-execution-scope"><strong>רשימת עבודה פעילה</strong><small>כל השיבוצים הפתוחים מוצגים ללא צורך בבחירת תאריך. תאריך הביצוע נקבע אוטומטית בעת הדיווח.</small></div>
 <div class="field"><label>מחלקה</label><select id="pmReportDepartment" onchange="fillReportMachines();renderReport()"></select></div>
 <div class="field"><label>מכונה</label><select id="pmReportMachine" onchange="renderReport()"><option value="">מכונות</option></select></div>
-<div class="field"><label>סוג עבודה</label><select id="pmReportWorkType" onchange="renderReport()"><option value="">הכול — PM + WO</option><option value="PM">PM — אחזקה מונעת</option><option value="WO">WO — עבודה לא מתוכננת</option></select></div>
+<div class="field"><label>סוג עבודה</label><select id="pmReportWorkType" onchange="renderReport()"><option value="">הכל</option><option value="PM">PM — אחזקה מונעת</option><option value="WO">WO — עבודה לא מתוכננת</option></select></div>
 <div class="field"><label>מקצוע</label><select id="pmReportTrade" onchange="renderReport()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
 </div>
 <div id="pmReportFilterIndicator" style="font-size:12px;font-weight:800;color:#475569;margin:4px 0 10px">מציג: כל המקצועות</div>
@@ -12095,6 +12095,42 @@ window.pmV156WOAutoLoad={build:'20260831-v156',input:'dailyHoursOnly',formula:'d
   window.renderPlanner=function(){const r=typeof previous==='function'?previous.apply(this,arguments):undefined;try{renderDemandCapacity()}catch(e){console.warn('V157 demand/capacity',e)}return r};try{renderPlanner=window.renderPlanner}catch(_){ }
   function boot(){try{renderDemandCapacity()}catch(e){console.warn('V157 boot',e)}window.pmV157DemandCapacity={build:'20260831-v157',woFormula:'dailyHours × overlapDaysExcludingSaturday',capacityFormula:'trade headcount × hoursPerDay × workdays',thresholds:{green:'<=60',yellow:'>60..80',red:'>80'}}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
+
+<script id="fop-v158-completed-kpi-report-drilldown">
+/* V158 — Dashboard "Completed" KPI must always drill into Reports filtered to Completed.
+   Several legacy showTab wrappers still default Reports to Open; this final navigation guard
+   re-applies the intended status to both the legacy and V130 local Reports controls after tab activation. */
+(function(){
+  const $=id=>document.getElementById(id);
+  function setCompletedStatus(){
+    const legacy=$('pmReportsStatus');
+    if(legacy && legacy.querySelector('option[value="completed"]')) legacy.value='completed';
+    const local=$('pmV130ReportsStatus');
+    if(local && local.querySelector('option[value="completed"]')) local.value='completed';
+  }
+  function renderCompleted(){
+    setCompletedStatus();
+    try{ if(typeof window.renderReports==='function') window.renderReports(); }catch(e){ console.warn('V158 completed report render',e); }
+  }
+  window.pmV99OpenCompletedReport=function(){
+    setCompletedStatus();
+    try{ if(typeof window.showTab==='function') window.showTab('reports'); }catch(e){ console.warn('V158 reports navigation',e); }
+    renderCompleted();
+    setTimeout(renderCompleted,100);
+    setTimeout(renderCompleted,220);
+    return false;
+  };
+  window.pmV158Audit=function(){
+    return {
+      build:'20260831-v158-completed-kpi-report-drilldown',
+      legacyStatus:$('pmReportsStatus')?.value||'',
+      localStatus:$('pmV130ReportsStatus')?.value||'',
+      completedKpiHandler:typeof window.pmV99OpenCompletedReport==='function'
+    };
+  };
 })();
 </script>
 
