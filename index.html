@@ -663,14 +663,21 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="pm-plan-stat"><strong id="pmPlanDone">0%</strong><span>ביצוע מול תוכנית</span></div>
   </div>
 
-  <div class="pm-workload-box">
-    <h3>עומס עבודה לפי הסינון</h3>
-    <div class="pm-workload-note">השעות מחושבות מהמשימות הפתוחות בתקופה ובסינון שנבחר. משימה שבוטלה, הושלמה או הועברה לתקופה אחרת אינה נכללת בעומס הנדרש של התקופה.</div>
-    <div class="pm-workload-grid">
-      <div class="pm-workload-stat total"><strong id="pmWorkRequiredHours">0.0</strong><span>שעות עבודה נדרשות</span></div>
-      <div class="pm-workload-stat"><strong id="pmWorkTechnicianHours">0.0</strong><span>שעות טכנאי אחזקה</span></div>
-      <div class="pm-workload-stat"><strong id="pmWorkScheduledHours">0.0</strong><span>שעות שכבר שובצו</span></div>
-      <div class="pm-workload-stat"><strong id="pmWorkUnplannedHours">0.0</strong><span>שעות שנותרו לתכנון</span></div>
+  <div class="pm-workload-box pm-v157-demand-capacity">
+    <div class="pm-v157-demand-head">
+      <div><h3>ביקוש מול קיבולת</h3><small>תמונת עומס של כל העבודה הפתוחה בטווח שנבחר</small></div>
+      <span class="pm-v157-live-badge">מתעדכן לפי הסינון</span>
+    </div>
+    <div class="pm-workload-note">PM מחושב לפי משך הטיפול. WO מחושב לפי שעות העבודה ליום × ימי החפיפה בתקופה, ללא שבת. WO פתוחה באיחור ממשיכה להיחשב כעומס פתוח עד להשלמה או עדכון יעד.</div>
+    <div class="pm-workload-grid pm-v157-main-grid">
+      <div class="pm-workload-stat total"><strong id="pmWorkRequiredHours">0.0</strong><span>שעות עבודה נדרשות</span><small>Demand · PM + WO פתוחים</small></div>
+      <div class="pm-workload-stat pm-v157-capacity-card"><strong id="pmWorkAvailableHours">0.0</strong><span>שעות זמינות</span><small id="pmWorkAvailableDetail">Capacity</small></div>
+      <div class="pm-workload-stat pm-v157-utilization-card tone-green" id="pmWorkUtilizationCard"><div class="pm-v157-util-top"><strong id="pmWorkUtilizationPct">0%</strong><b id="pmWorkUtilizationState">תקין</b></div><span>ניצולת קיבולת</span><div class="pm-v157-progress"><i id="pmWorkUtilizationBar"></i></div><small id="pmWorkUtilizationDetail">Demand ÷ Capacity</small></div>
+      <div class="pm-workload-stat"><strong id="pmWorkUnplannedHours">0.0</strong><span>שעות שטרם שובצו</span><small>מתוך הביקוש הפתוח</small></div>
+    </div>
+    <div class="pm-v157-trade-grid" id="pmWorkTradeBreakdown">
+      <div class="pm-v157-trade-card" id="pmWorkMechanicCard"><div class="pm-v157-trade-top"><strong>מכונאים</strong><span id="pmWorkMechanicPct">0%</span></div><div class="pm-v157-trade-hours"><b id="pmWorkMechanicDemand">0.0</b> / <b id="pmWorkMechanicCapacity">0.0</b> שעות</div><div class="pm-v157-trade-progress"><i id="pmWorkMechanicBar"></i></div><small>ביקוש / קיבולת</small></div>
+      <div class="pm-v157-trade-card" id="pmWorkElectricianCard"><div class="pm-v157-trade-top"><strong>חשמלאים</strong><span id="pmWorkElectricianPct">0%</span></div><div class="pm-v157-trade-hours"><b id="pmWorkElectricianDemand">0.0</b> / <b id="pmWorkElectricianCapacity">0.0</b> שעות</div><div class="pm-v157-trade-progress"><i id="pmWorkElectricianBar"></i></div><small>ביקוש / קיבולת</small></div>
     </div>
   </div>
 
@@ -11961,6 +11968,132 @@ window.pmV156WOAutoLoad={build:'20260831-v156',input:'dailyHoursOnly',formula:'d
 
   const observer=new MutationObserver(()=>{if(admin()&&$('pmHistory')?.classList.contains('active'))injectDeleteButtons()});
   function boot(){const list=$('pmHistoryList');if(list)observer.observe(list,{childList:true,subtree:true});injectDeleteButtons();window.pmV155WODeleteAudit={build:'20260831-v155-wo-hard-delete',adminOnly:true,hardDeleteTable:'pm_work_orders',storageCleanup:true,allScreensRefresh:true};}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
+
+
+<style id="fop-v157-demand-capacity-style">
+/* V157 — Planner Demand vs Capacity KPI. */
+#pmPlanner .pm-v157-demand-capacity{border:1px solid #cbd9e8!important;background:linear-gradient(180deg,#ffffff 0%,#f7fbff 100%)!important;box-shadow:0 10px 28px rgba(20,52,86,.09)!important;padding:16px!important}
+#pmPlanner .pm-v157-demand-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:8px}
+#pmPlanner .pm-v157-demand-head h3{margin:0;color:var(--navy2);font-size:18px}
+#pmPlanner .pm-v157-demand-head small{display:block;margin-top:3px;color:#66778e;font-size:10px;font-weight:800}
+#pmPlanner .pm-v157-live-badge{padding:6px 9px;border-radius:999px;background:#eef5fb;border:1px solid #d5e2ef;color:#42617f;font-size:9px;font-weight:950;white-space:nowrap}
+#pmPlanner .pm-v157-main-grid{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:10px!important}
+#pmPlanner .pm-v157-main-grid .pm-workload-stat{position:relative;overflow:hidden;min-height:112px;padding:13px!important;border-radius:14px!important;background:#fff!important;border:1px solid #dce6f0!important}
+#pmPlanner .pm-v157-main-grid .pm-workload-stat strong{font-size:26px!important;line-height:1.1;color:var(--navy2)}
+#pmPlanner .pm-v157-main-grid .pm-workload-stat span{font-size:10px;font-weight:950;color:#40516d}
+#pmPlanner .pm-v157-main-grid .pm-workload-stat small{display:block;margin-top:6px;color:#7a899d;font-size:8px;font-weight:800;line-height:1.35}
+#pmPlanner .pm-v157-capacity-card{background:linear-gradient(180deg,#fbfdff,#f3f8fd)!important}
+#pmPlanner .pm-v157-utilization-card{border-width:1.5px!important;transition:border-color .25s ease,background .25s ease,box-shadow .25s ease}
+#pmPlanner .pm-v157-utilization-card.tone-green{border-color:#a9d8bd!important;background:#f3fbf6!important}
+#pmPlanner .pm-v157-utilization-card.tone-yellow{border-color:#efd38d!important;background:#fffaf0!important}
+#pmPlanner .pm-v157-utilization-card.tone-red{border-color:#e8a1a7!important;background:#fff4f5!important;box-shadow:0 7px 20px rgba(176,36,47,.08)!important}
+#pmPlanner .pm-v157-util-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+#pmPlanner .pm-v157-util-top b{font-size:9px;border-radius:999px;padding:4px 7px;background:rgba(255,255,255,.78);border:1px solid currentColor;color:#4a6a58;white-space:nowrap}
+#pmPlanner .tone-yellow .pm-v157-util-top b{color:#8b671b}
+#pmPlanner .tone-red .pm-v157-util-top b{color:#ad2632}
+#pmPlanner .pm-v157-progress,#pmPlanner .pm-v157-trade-progress{height:8px;border-radius:999px;background:#e9eff5;overflow:hidden;margin-top:9px;direction:ltr}
+#pmPlanner .pm-v157-progress i,#pmPlanner .pm-v157-trade-progress i{display:block;height:100%;width:0;border-radius:999px;background:#2e9d63;transition:width .35s ease,background .25s ease}
+#pmPlanner .tone-yellow .pm-v157-progress i{background:#d2a22f}
+#pmPlanner .tone-red .pm-v157-progress i{background:#c93442}
+#pmPlanner .pm-v157-trade-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:11px}
+#pmPlanner .pm-v157-trade-card{border:1px solid #dce6f0;border-radius:13px;background:#fff;padding:11px 12px;transition:opacity .2s ease,border-color .2s ease,background .2s ease}
+#pmPlanner .pm-v157-trade-card.is-filtered-out{opacity:.38}
+#pmPlanner .pm-v157-trade-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+#pmPlanner .pm-v157-trade-top strong{font-size:11px;color:#314b69}
+#pmPlanner .pm-v157-trade-top span{font-size:16px;font-weight:950;color:var(--navy2)}
+#pmPlanner .pm-v157-trade-hours{margin-top:3px;font-size:10px;color:#65758b;font-weight:800}
+#pmPlanner .pm-v157-trade-hours b{color:#334d68}
+#pmPlanner .pm-v157-trade-card small{font-size:8px;color:#8190a2;font-weight:800}
+#pmPlanner .pm-v157-trade-card.tone-yellow{border-color:#efd38d;background:#fffaf0}
+#pmPlanner .pm-v157-trade-card.tone-red{border-color:#e8a1a7;background:#fff4f5}
+#pmPlanner .pm-v157-trade-card.tone-yellow .pm-v157-trade-progress i{background:#d2a22f}
+#pmPlanner .pm-v157-trade-card.tone-red .pm-v157-trade-progress i{background:#c93442}
+@media(max-width:780px){#pmPlanner .pm-v157-main-grid{grid-template-columns:1fr 1fr!important}#pmPlanner .pm-v157-trade-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:520px){#pmPlanner .pm-v157-main-grid{grid-template-columns:1fr 1fr!important}#pmPlanner .pm-v157-trade-grid{grid-template-columns:1fr}#pmPlanner .pm-v157-demand-head{align-items:flex-start}#pmPlanner .pm-v157-live-badge{white-space:normal;text-align:center}}
+</style>
+<script id="fop-v157-demand-capacity">
+/* V157 — Demand vs Capacity contract.
+   Demand = open PM + open WO in the selected planning period.
+   PM contribution = task duration once for the current occurrence when its next_due is due by period end.
+   WO contribution = daily work hours × overlap calendar days in the selected period, excluding Saturday.
+   An overdue open WO remains open demand and carries daily hours forward until completion or a new target date.
+   Capacity = configured mechanics/electricians × hours per employee/day × planning workdays (Saturday excluded).
+   Utilization colors: <=60 green, >60..80 yellow, >80 red. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const iso=v=>{const m=String(v??'').match(/\d{4}-\d{2}-\d{2}/);return m?m[0]:''};
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const closed=new Set(['completed','done','cancelled','canceled','בוצע','בוטל','בוטלה']);
+  const tday=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
+  const fmt=n=>(Number(n||0)).toFixed(1);
+  const clamp=n=>Math.max(0,Math.min(100,Number(n||0)));
+  function add(d,n){const x=new Date(iso(d)+'T12:00:00');x.setDate(x.getDate()+n);return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`}
+  function maxDate(a,b){return !a?b:!b?a:(a>b?a:b)}
+  function minDate(a,b){return !a?b:!b?a:(a<b?a:b)}
+  function workDays(start,end){if(!start||!end||end<start)return 0;let n=0,d=new Date(start+'T12:00:00'),last=new Date(end+'T12:00:00'),guard=0;while(d<=last&&guard++<3700){if(d.getDay()!==6)n++;d.setDate(d.getDate()+1)}return n}
+  function bounds(){
+    try{if(typeof planningBounds==='function'){const b=planningBounds();if(b?.start&&b?.end)return {start:iso(b.start),end:iso(b.end),label:b.label||''}}}catch(_){ }
+    const a=iso($('pmPlannerStart')?.value)||tday(),p=(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',d=new Date(a+'T12:00:00');
+    if(p==='month'){const s=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`,e=new Date(d.getFullYear(),d.getMonth()+1,0,12);return {start:s,end:`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,'0')}-${String(e.getDate()).padStart(2,'0')}`}}
+    if(p==='half'){const sm=d.getMonth()<6?0:6,s=`${d.getFullYear()}-${String(sm+1).padStart(2,'0')}-01`,e=new Date(d.getFullYear(),sm+6,0,12);return {start:s,end:`${e.getFullYear()}-${String(e.getMonth()+1).padStart(2,'0')}-${String(e.getDate()).padStart(2,'0')}`}}
+    if(p==='year')return {start:`${d.getFullYear()}-01-01`,end:`${d.getFullYear()}-12-31`};
+    return {start:a,end:add(a,p==='day'?0:6)};
+  }
+  function filters(){return {department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:$('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||'',workType:$('pmPlannerWorkType')?.value||'',period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week'}}
+  function tradeOfPM(r){try{return String(r?.trade||r?.task?.trade||(typeof maintenanceTrade==='function'?maintenanceTrade(r?.task):'')||'').trim()}catch(_){return String(r?.trade||r?.task?.trade||'').trim()}}
+  function pmDemand(b,f){
+    if(f.workType==='WO')return [];
+    const op=window.pmV109Operational;
+    if(op&&typeof op.getPM==='function'){
+      let open=[],upcoming=[];
+      try{open=op.getPM({period:f.period,anchor:b.start,department:f.department,machine:f.machine,trade:f.trade,workType:'PM',status:'open'})||[]}catch(_){ }
+      try{upcoming=op.getPM({period:f.period,anchor:b.start,department:f.department,machine:f.machine,trade:f.trade,workType:'PM',status:'upcoming'})||[]}catch(_){ }
+      const map=new Map();for(const r of [...open,...upcoming]){const due=iso(r?.due||r?.task?.nextDue||r?.task?.next_due);if(!due||due>b.end)continue;map.set(`${r?.id??r?.task?.id}|${due}`,r)}
+      return [...map.values()].map(r=>({kind:'PM',trade:tradeOfPM(r),minutes:Math.max(0,Number((r?.duration??r?.task?.duration) || 0)),assigned:!!r?.isAssigned||['planned','מתוכנן','מתוכננת'].includes(norm(r?.plan?.status)),row:r}));
+    }
+    const rows=[];for(const t of (Array.isArray(window.tasks)?window.tasks:(typeof tasks!=='undefined'&&Array.isArray(tasks)?tasks:[]))){if(!t||t.active===false)continue;const type=norm(t.taskType??t.task_type);if(type!=='maintenance'||String(t.performer||'').trim()!=='טכנאי אחזקה')continue;if(f.department&&t.department!==f.department)continue;if(f.machine&&t.machine!==f.machine)continue;const tr=String((typeof maintenanceTrade==='function'?maintenanceTrade(t):t.trade)||'').trim();if(f.trade&&tr!==f.trade)continue;const due=iso(t.nextDue??t.next_due);if(!due||due>b.end)continue;rows.push({kind:'PM',trade:tr,minutes:Math.max(0,Number(t.duration||0)),assigned:false,row:t})}return rows;
+  }
+  function noteMeta(notes,key){const m=String(notes||'').match(new RegExp('\\['+key+':([^\\]]+)\\]'));return m?String(m[1]||'').trim():''}
+  function woOpenDate(w){return iso(w?.openDate??w?.open_date??noteMeta(w?.rawNotes??w?.notes,'WO_OPEN_DATE')??w?.createdAt??w?.created_at)||iso(w?.createdAt??w?.created_at)||iso(w?.dueDate??w?.due_date)}
+  function woDue(w){return iso(w?.currentDue??w?.dueDate??w?.due_date)}
+  function woDaily(w){const d=Number(w?.dailyHours??w?.daily_hours??noteMeta(w?.rawNotes??w?.notes,'WO_DAILY_HOURS'));if(Number.isFinite(d)&&d>0)return d;const open=woOpenDate(w),due=woDue(w),days=workDays(open,due),mins=Number(w?.duration||0);return days>0&&mins>0?(mins/60/days):0}
+  function woDemand(b,f){
+    if(f.workType==='PM')return [];
+    const src=Array.isArray(typeof pmWorkOrders!=='undefined'?pmWorkOrders:null)?pmWorkOrders:[];
+    const now=tday(),out=[];
+    for(const w of src){const st=norm(w?.status);if(closed.has(st))continue;if(f.department&&String(w.department||'')!==f.department)continue;if(f.machine&&String(w.machine||'')!==f.machine)continue;const tr=String(w.trade||'מכונאי').trim();if(f.trade&&tr!==f.trade)continue;const open=woOpenDate(w),due=woDue(w),daily=woDaily(w);if(!open||open>b.end||!(daily>0))continue;
+      let s=maxDate(open,b.start),e=minDate(due||b.end,b.end),carried=false;
+      // Once an open WO passes its current target, it is still unresolved demand. Keep its daily requirement in the selected period until completion/rescheduling.
+      if(due&&due<now){e=b.end;carried=true}
+      if(e<s)continue;const days=workDays(s,e);if(!days)continue;out.push({kind:'WO',trade:tr,minutes:daily*days*60,assigned:!!iso(w?.plannedDate??w?.planned_date),dailyHours:daily,days,carried,row:w});
+    }
+    return out;
+  }
+  function capacity(b,f){const days=workDays(b.start,b.end),mech=Math.max(0,Number($('pmInitMechanics')?.value||0)),elec=Math.max(0,Number($('pmInitElectricians')?.value||0)),hpd=Math.max(0,Number($('pmPlanHoursPerDay')?.value||0)),mechanic=mech*hpd*days,electrician=elec*hpd*days;let total=mechanic+electrician;if(f.trade==='מכונאי')total=mechanic;else if(f.trade==='חשמלאי')total=electrician;return {days,mech,elec,hpd,mechanic,electrician,total}}
+  function tone(p){return p>80?'red':p>60?'yellow':'green'}
+  function setTone(card,p){if(!card)return;card.classList.remove('tone-green','tone-yellow','tone-red');card.classList.add('tone-'+tone(p))}
+  function setTrade(card,pctEl,barEl,demandEl,capEl,demand,cap,filteredOut){const p=cap?Math.round(demand/cap*100):(demand>0?999:0);if(pctEl)pctEl.textContent=cap?`${p}%`:(demand>0?'אין קיבולת':'0%');if(barEl)barEl.style.width=clamp(p)+'%';if(demandEl)demandEl.textContent=fmt(demand);if(capEl)capEl.textContent=fmt(cap);setTone(card,p);card?.classList.toggle('is-filtered-out',!!filteredOut);return p}
+  function renderDemandCapacity(){
+    const b=bounds(),f=filters(),pm=pmDemand(b,f),wo=woDemand(b,f),jobs=[...pm,...wo],cap=capacity(b,f),required=jobs.reduce((a,r)=>a+Number(r.minutes||0),0)/60,unassigned=jobs.filter(r=>!r.assigned).reduce((a,r)=>a+Number(r.minutes||0),0)/60,scheduled=Math.max(0,required-unassigned),util=cap.total?Math.round(required/cap.total*100):(required>0?999:0);
+    const mechDemand=jobs.filter(r=>r.trade==='מכונאי').reduce((a,r)=>a+Number(r.minutes||0),0)/60,elecDemand=jobs.filter(r=>r.trade==='חשמלאי').reduce((a,r)=>a+Number(r.minutes||0),0)/60;
+    if($('pmWorkRequiredHours'))$('pmWorkRequiredHours').textContent=fmt(required);if($('pmWorkAvailableHours'))$('pmWorkAvailableHours').textContent=fmt(cap.total);if($('pmWorkUnplannedHours'))$('pmWorkUnplannedHours').textContent=fmt(unassigned);
+    if($('pmWorkAvailableDetail'))$('pmWorkAvailableDetail').textContent=f.trade?`${cap.days} ימים · ${f.trade}`:`${cap.days} ימים · מכונאים + חשמלאים`;
+    const uc=$('pmWorkUtilizationCard');setTone(uc,util);if($('pmWorkUtilizationPct'))$('pmWorkUtilizationPct').textContent=cap.total?`${util}%`:(required>0?'אין קיבולת':'0%');if($('pmWorkUtilizationBar'))$('pmWorkUtilizationBar').style.width=clamp(util)+'%';if($('pmWorkUtilizationState'))$('pmWorkUtilizationState').textContent=util>100?'עומס יתר':util>80?'גבוה':util>60?'בינוני':'תקין';if($('pmWorkUtilizationDetail'))$('pmWorkUtilizationDetail').textContent=cap.total?`${fmt(required)} מתוך ${fmt(cap.total)} שעות`:'יש להגדיר קיבולת צוות';
+    setTrade($('pmWorkMechanicCard'),$('pmWorkMechanicPct'),$('pmWorkMechanicBar'),$('pmWorkMechanicDemand'),$('pmWorkMechanicCapacity'),mechDemand,cap.mechanic,f.trade==='חשמלאי');
+    setTrade($('pmWorkElectricianCard'),$('pmWorkElectricianPct'),$('pmWorkElectricianBar'),$('pmWorkElectricianDemand'),$('pmWorkElectricianCapacity'),elecDemand,cap.electrician,f.trade==='מכונאי');
+    // Keep the planner summary aligned with the same open-work source, including WO.
+    if($('pmPlanRequired'))$('pmPlanRequired').textContent=String(jobs.length);if($('pmPlanScheduled'))$('pmPlanScheduled').textContent=String(jobs.filter(r=>r.assigned).length);if($('pmPlanCoverage'))$('pmPlanCoverage').textContent=(jobs.length?Math.round(jobs.filter(r=>r.assigned).length/jobs.length*100):100)+'%';if($('pmPlanHours'))$('pmPlanHours').textContent=fmt(scheduled);
+    const ct=$('pmPlanCapacityText');if(ct)ct.textContent=`${cap.days} ימי עבודה ללא שבת · מכונאים: ${fmt(cap.mechanic)} ש׳ (${cap.mech} × ${cap.hpd} ש׳/יום) · חשמלאים: ${fmt(cap.electrician)} ש׳ (${cap.elec} × ${cap.hpd} ש׳/יום).`;
+    window.pmV157DemandCapacityAudit={bounds:b,filters:f,requiredHours:Number(fmt(required)),availableHours:Number(fmt(cap.total)),utilization:util,unassignedHours:Number(fmt(unassigned)),scheduledHours:Number(fmt(scheduled)),pmJobs:pm.length,woJobs:wo.length,woPeriodHours:Number(fmt(wo.reduce((a,r)=>a+Number(r.minutes||0),0)/60)),mechanic:{demand:Number(fmt(mechDemand)),capacity:Number(fmt(cap.mechanic))},electrician:{demand:Number(fmt(elecDemand)),capacity:Number(fmt(cap.electrician))}};
+  }
+  window.pmV157RenderDemandCapacity=renderDemandCapacity;
+  const previous=window.renderPlanner;
+  window.renderPlanner=function(){const r=typeof previous==='function'?previous.apply(this,arguments):undefined;try{renderDemandCapacity()}catch(e){console.warn('V157 demand/capacity',e)}return r};try{renderPlanner=window.renderPlanner}catch(_){ }
+  function boot(){try{renderDemandCapacity()}catch(e){console.warn('V157 boot',e)}window.pmV157DemandCapacity={build:'20260831-v157',woFormula:'dailyHours × overlapDaysExcludingSaturday',capacityFormula:'trade headcount × hoursPerDay × workdays',thresholds:{green:'<=60',yellow:'>60..80',red:'>80'}}}
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
 })();
 </script>
