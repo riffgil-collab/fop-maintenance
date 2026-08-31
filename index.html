@@ -650,7 +650,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="field"><label>מחלקה</label><select id="pmPlannerDepartment" onchange="fillPlanningMachines();pmPlanPage=0;renderPlanner()"></select></div>
     <div class="field"><label>מכונה</label><select id="pmPlannerMachine" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המכונות</option></select></div>
     <div class="field"><label>מקצוע</label><select id="pmPlannerTrade" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל המקצועות</option><option value="מכונאי">מכונאי</option><option value="חשמלאי">חשמלאי</option></select></div>
-    <div class="field"><label>סוג עבודה</label><select id="pmPlannerWorkType" onchange="renderUnplannedPlanner()"><option value="">הכול</option><option value="PM">PM מחזורי</option><option value="WO">לא מתוכנן</option></select></div>
+    <div class="field"><label>סוג עבודה</label><select id="pmPlannerWorkType" onchange="renderUnplannedPlanner()"><option value="">הכול</option><option value="PM">PM מחזורי</option><option value="WO">WO</option></select></div>
     <button type="button" class="btn pm-planner-wo-btn" onclick="openUnplannedModal()"><span class="pm-wo-plus">＋</span><span><strong>עבודה לא מתוכננת</strong><small>פתיחת WO חדש</small></span></button>
     <div class="field pm-planner-status-field"><label>סטטוס</label><select id="pmPlannerStatus" onchange="pmPlanPage=0;renderPlanner()"><option value="">כל הסטטוסים</option><option value="waiting">טרם שובצה</option><option value="planned">שובצה לביצוע</option><option value="postponed">נדחתה</option><option value="overdue">באיחור</option><option value="upcoming">ייפתחו בתקופה</option><option value="completed">בוצעה</option></select></div>
   </div>
@@ -1056,8 +1056,8 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
     <div class="field"><label>עדיפות</label><select id="pmWOPriority"><option>רגילה</option><option>דחופה</option><option>משביתה</option></select></div>
     <div class="field"><label>תאריך פתיחה</label><input id="pmWOOpenDate" type="date" onchange="pmV154SyncWOWindow()"/></div>
     <div class="field"><label>תאריך יעד / סגירה</label><input id="pmWODueDate" type="date" onchange="pmV154SyncWOWindow()"/></div>
-    <div class="field"><label>שעות עבודה ליום</label><input id="pmWODailyHours" type="number" min="0" max="24" step="0.5" value="0" oninput="pmV154UpdateWOLoadPreview()"/></div>
-    <div class="field"><label>משך משוער כולל (דקות)</label><input id="pmWODuration" type="number" min="0" step="5" value="30"/></div>
+    <div class="field"><label>שעות עבודה ליום</label><input id="pmWODailyHours" type="number" min="0.5" max="24" step="0.5" value="" placeholder="לדוגמה 2" oninput="pmV154UpdateWOLoadPreview()"/></div>
+    <input id="pmWODuration" type="hidden" value="0"/>
     <div class="field"><label>שיבוץ לעובד</label><input id="pmWOAssignee" type="text"/></div>
     <div class="field pm-v154-schedule-toggle"><label style="display:flex;gap:8px;align-items:center"><input id="pmWOScheduleNow" type="checkbox" checked onchange="pmV154ToggleWOSchedule()"> שבץ לביצוע כבר עכשיו</label></div>
     <div class="field" id="pmWOPlannedDateField"><label>תאריך שיבוץ</label><input id="pmWOPlannedDate" type="date"/></div>
@@ -11641,7 +11641,7 @@ button[onclick*="cancelSingleOccurrence"],
    2) Execution/scheduling window is opening date..current target date.
    3) New WO is scheduled by default via checkbox; unchecked means open/unassigned.
    4) Postponement changes the current target but original target is immutable for lateness.
-   5) Daily work hours are converted to total workload across workdays in the original window.
+   5) Daily work hours are converted automatically to total workload across calendar days in the opening-to-target window, excluding Saturdays.
    6) No DB schema migration is required: V154 metadata lives in pm_work_orders.notes while user notes stay clean in the UI. */
 (function(){
   const $=id=>document.getElementById(id);
@@ -11663,11 +11663,10 @@ button[onclick*="cancelSingleOccurrence"],
   function isPostponed(w){const cur=iso(w?.dueDate??w?.due_date),orig=originalDueOf(w);return !!orig&&!!cur&&cur!==orig}
   function workDays(start,end){
     if(!start||!end||end<start)return 0;
-    try{if(typeof planningWorkDays==='function')return planningWorkDays(start,end)}catch(_){ }
     let n=0,d=new Date(start+'T12:00:00'),last=new Date(end+'T12:00:00'),guard=0;
     while(d<=last&&guard++<3700){if(d.getDay()!==6)n++;d.setDate(d.getDate()+1)}return n;
   }
-  function totalMinutes(open,due,daily,fallback){const h=Number(daily||0);if(h>0){const d=Math.max(1,workDays(open,due));return Math.round(h*d*60)}return Math.max(0,Number(fallback||0))}
+  function totalMinutes(open,due,daily){const h=Number(daily||0),days=workDays(open,due);return h>0&&days>0?Math.round(h*days*60):0}
   function actor(){return pmCurrentProfile?.full_name||pmCurrentUser?.email||'משתמש'}
   function withMeta(userNotes,{openDate,originalDue,dailyHours,scheduledAtOpen,extraMarker=''}){
     const bits=[`[WO_OPEN_DATE:${openDate}]`,`[WO_ORIGINAL_DUE:${originalDue}]`,`[WO_DAILY_HOURS:${Number(dailyHours||0)}]`,`[WO_SCHEDULED_AT_OPEN:${scheduledAtOpen?'1':'0'}]`];
@@ -11686,12 +11685,13 @@ button[onclick*="cancelSingleOccurrence"],
   try{normWO=window.normWO}catch(_){ }
 
   window.pmV154UpdateWOLoadPreview=function(){
-    const o=iso($('pmWOOpenDate')?.value),d=iso($('pmWODueDate')?.value),h=Number($('pmWODailyHours')?.value||0),fallback=Number($('pmWODuration')?.value||0),box=$('pmWOLoadPreview');
+    const o=iso($('pmWOOpenDate')?.value),d=iso($('pmWODueDate')?.value),h=Number($('pmWODailyHours')?.value||0),box=$('pmWOLoadPreview'),dur=$('pmWODuration');
     if(!box)return;
-    if(!o||!d||d<o){box.textContent='יש לבחור חלון תאריכים תקין';return}
-    const days=Math.max(1,workDays(o,d)),mins=totalMinutes(o,d,h,fallback),hours=(mins/60).toFixed(1),dur=$('pmWODuration');
-    if(dur){if(h>0){dur.value=String(mins);dur.readOnly=true;dur.title='מחושב אוטומטית לפי שעות ליום וחלון התאריכים';}else{dur.readOnly=false;dur.removeAttribute('title');}}
-    box.textContent=h>0?`${days} ימי עבודה × ${h} ש׳ = ${hours} ש׳ עומס כולל`:`${hours} ש׳ עומס כולל`;
+    if(!o||!d||d<o){if(dur)dur.value='0';box.textContent='יש לבחור חלון תאריכים תקין';return}
+    const days=workDays(o,d),mins=totalMinutes(o,d,h),hours=(mins/60).toFixed(1);
+    if(dur)dur.value=String(mins);
+    if(!(h>0)){box.textContent=`${days} ימים קלנדריים ללא שבת · הזן שעות עבודה ליום`;return}
+    box.textContent=`${days} ימים קלנדריים ללא שבת × ${h} ש׳ = ${hours} ש׳ עומס כולל`;
   };
   window.pmV154SyncWOWindow=function(){
     const o=$('pmWOOpenDate'),d=$('pmWODueDate'),p=$('pmWOPlannedDate');if(!o||!d)return;
@@ -11710,7 +11710,7 @@ button[onclick*="cancelSingleOccurrence"],
   const legacyOpen=window.openUnplannedModal;
   window.openUnplannedModal=function(){
     const r=typeof legacyOpen==='function'?legacyOpen.apply(this,arguments):undefined;
-    const d=tday();if($('pmWOOpenDate'))$('pmWOOpenDate').value=d;if($('pmWODueDate'))$('pmWODueDate').value=d;if($('pmWOScheduleNow'))$('pmWOScheduleNow').checked=true;if($('pmWOPlannedDate'))$('pmWOPlannedDate').value=d;if($('pmWODailyHours'))$('pmWODailyHours').value='0';
+    const d=tday();if($('pmWOOpenDate'))$('pmWOOpenDate').value=d;if($('pmWODueDate'))$('pmWODueDate').value=d;if($('pmWOScheduleNow'))$('pmWOScheduleNow').checked=true;if($('pmWOPlannedDate'))$('pmWOPlannedDate').value=d;if($('pmWODailyHours'))$('pmWODailyHours').value='';
     window.pmV154ToggleWOSchedule();window.pmV154UpdateWOLoadPreview();return r;
   };try{openUnplannedModal=window.openUnplannedModal}catch(_){ }
 
@@ -11721,7 +11721,8 @@ button[onclick*="cancelSingleOccurrence"],
     if(!dep||!machine||!description||!openDate||!due){if(st){st.textContent='יש לבחור מחלקה ומכונה / תשתית ולמלא תיאור, תאריך פתיחה ותאריך יעד.';st.className='pm-modal-status error'}return}
     if(due<openDate){if(st){st.textContent='תאריך היעד לא יכול להיות מוקדם מתאריך הפתיחה.';st.className='pm-modal-status error'}return}
     if(scheduleNow&&(!planned||planned<openDate||planned>due)){if(st){st.textContent='תאריך השיבוץ חייב להיות בתוך חלון הביצוע — מתאריך הפתיחה ועד תאריך היעד.';st.className='pm-modal-status error'}return}
-    if(dailyHours>24){if(st){st.textContent='שעות עבודה ליום חייבות להיות בין 0 ל-24.';st.className='pm-modal-status error'}return}
+    if(!(dailyHours>0)||dailyHours>24){if(st){st.textContent='יש להזין שעות עבודה ליום, בערך גדול מ-0 ועד 24 שעות.';st.className='pm-modal-status error'}return}
+    if(workDays(openDate,due)===0){if(st){st.textContent='בטווח שנבחר אין ימים לחישוב עומס לאחר החרגת שבת.';st.className='pm-modal-status error'}return}
 
     const makePM=$('pmWOAddRecurring')?.checked===true;let pmDef=null;
     if(makePM){
@@ -11731,7 +11732,7 @@ button[onclick*="cancelSingleOccurrence"],
       let msg='פעולה זו תפתח WO ובמקביל תיצור משימת PM מחזורית חדשה במאגר.\n\n'+`PM: ${pmDef.task}\nתדירות: ${pmDef.frequency}\nמועד ראשון: ${pmDef.firstDue}\nמקצוע: ${pmDef.trade}\n\nהאם אתה בטוח?`;if(similar)msg='⚠️ קיימת כבר משימת PM פעילה עם אותו תיאור לאותה מכונה.\n\n'+msg;if(!confirm(msg))return;
     }
 
-    const mins=totalMinutes(openDate,due,dailyHours,Number($('pmWODuration')?.value||0));
+    const mins=totalMinutes(openDate,due,dailyHours);
     const notes=withMeta(String($('pmWONotes')?.value||'').trim(),{openDate,originalDue:due,dailyHours,scheduledAtOpen:scheduleNow});
     const payload={department:dep,machine,description,trade:$('pmWOTrade')?.value||'מכונאי',priority:$('pmWOPriority')?.value||'רגילה',due_date:due,planned_date:scheduleNow?planned:null,duration:mins,assigned_to:scheduleNow?(String($('pmWOAssignee')?.value||'').trim()||null):null,notes,status:scheduleNow?'Planned':'Open',created_by:actor()};
     if(st){st.textContent='שומר…';st.className='pm-modal-status'}
@@ -11768,7 +11769,8 @@ button[onclick*="cancelSingleOccurrence"],
     const reason=prompt('סיבת הדחייה (רשות):','')||'';
     const stamp=new Date().toISOString(),marker=`[WO_POSTPONE|${current}|${next}|${String(reason).replace(/[\]|\r|\n]/g,' ')}|${String(actor()).replace(/[\]|\r|\n]/g,' ')}|${stamp}]`;
     let raw=rawNotes(w);if(!metaValue(raw,'WO_ORIGINAL_DUE'))raw=withMeta(cleanNotes(raw),{openDate:openDateOf(w)||iso(w.createdAt)||orig,originalDue:orig,dailyHours:dailyHoursOf(w),scheduledAtOpen:!!iso(w.plannedDate)});raw=appendMarker(raw,marker);
-    const payload={due_date:next,notes:raw};
+    const hoursPerDay=dailyHoursOf(w),recalculatedDuration=hoursPerDay>0?totalMinutes(openDateOf(w)||orig,next,hoursPerDay):Number(w.duration||0);
+    const payload={due_date:next,notes:raw,duration:recalculatedDuration};
     const r=await supabaseClient.from('pm_work_orders').update(payload).eq('id',id);if(r.error)return statusLine('דחיית WO נכשלה: '+r.error.message,'error');
     await loadWorkOrders();statusLine(`היעד נדחה ל-${typeof fDate==='function'?fDate(next):next}. האיחור ימשיך להימדד מהיעד המקורי ${typeof fDate==='function'?fDate(orig):orig}.`,'success');
   };
@@ -11837,10 +11839,15 @@ button[onclick*="cancelSingleOccurrence"],
     // Re-normalize rows already fetched before V154 executed, then refresh all consumers.
     try{if(Array.isArray(pmWorkOrders))pmWorkOrders=pmWorkOrders.map(w=>window.normWO({id:w.id,department:w.department,machine:w.machine,description:w.description,trade:w.trade,priority:w.priority,due_date:w.dueDate??w.due_date,planned_date:w.plannedDate??w.planned_date,duration:w.duration,assigned_to:w.assignee??w.assigned_to,notes:w.rawNotes??w.notes,status:w.status,created_at:w.createdAt??w.created_at,created_by:w.createdBy??w.created_by,completed_date:w.completedDate??w.completed_date,completed_by:w.completedBy??w.completed_by,completion_notes:w.completionNotes??w.completion_notes,photo_1_path:w.photo1Path??w.photo_1_path,photo_2_path:w.photo2Path??w.photo_2_path}))}catch(e){console.warn('V154 renormalize',e)}
     refresh();
-    window.pmV154WOAudit={build:'20260831-v154-wo-window-original-due-daily-load',defaultSchedule:true,executionGate:'V151-compatible',metadataInNotes:true,openCount:(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>!closed.has(norm(w.status))).length};
+    window.pmV154WOAudit={build:'20260831-v156-wo-daily-hours-auto-load-exclude-saturday',defaultSchedule:true,executionGate:'V151-compatible',metadataInNotes:true,openCount:(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>!closed.has(norm(w.status))).length};
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
 })();
+</script>
+
+
+<script id="fop-v156-wo-daily-hours-marker">
+window.pmV156WOAutoLoad={build:'20260831-v156',input:'dailyHoursOnly',formula:'dailyHours * calendarDaysExcludingSaturday'};
 </script>
 
 <style id="fop-v155-wo-hard-delete-style">
