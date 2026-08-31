@@ -11843,4 +11843,119 @@ button[onclick*="cancelSingleOccurrence"],
 })();
 </script>
 
+<style id="fop-v155-wo-hard-delete-style">
+/* V155 — Admin-only permanent WO deletion from Execution History. */
+.pm-v155-delete-wo{background:#fff1f2!important;border:1px solid #f1b8bd!important;color:#a31320!important;font-weight:950!important}
+.pm-v155-delete-wo:disabled{opacity:.55!important;cursor:not-allowed!important}
+</style>
+<script id="fop-v155-wo-hard-delete">
+/* V155 — Permanent WO deletion contract, 2026-08-31.
+   - Admin only.
+   - Deletes the pm_work_orders row itself (not a logical status change).
+   - Removes linked completion photos from maintenance-photos storage.
+   - Removes WO_SOURCE provenance tokens from separately-created recurring PM definitions,
+     while preserving the PM definition itself.
+   - Reloads every consumer so the deleted WO disappears from every screen/report. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const escH=v=>typeof esc==='function'?esc(v):String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const admin=()=>String(typeof pmCurrentRole!=='undefined'?pmCurrentRole:'').toLowerCase()==='admin';
+  const woRows=()=>Array.isArray(typeof pmWorkOrders!=='undefined'?pmWorkOrders:null)?pmWorkOrders:[];
+  function toast(msg,type='success'){
+    try{return statusLine(msg,type)}catch(_){ }
+    try{return window.pmToast?.(msg,type)}catch(_){ }
+  }
+  function linkedTasksForWO(id){
+    const token=`[WO_SOURCE:${id}]`;
+    return (Array.isArray(typeof tasks!=='undefined'?tasks:null)?tasks:[]).filter(t=>String(t?.notes||'').includes(token));
+  }
+  async function removeWOProvenance(id){
+    const token=`[WO_SOURCE:${id}]`,linked=linkedTasksForWO(id),errors=[];
+    for(const t of linked){
+      const cleaned=String(t.notes||'').split(token).join('').replace(/\s{2,}/g,' ').trim();
+      const r=await supabaseClient.from('pm_tasks').update({notes:cleaned||null}).eq('id',t.id);
+      if(r.error)errors.push(r.error.message||String(r.error));
+    }
+    return errors;
+  }
+  function refreshEverywhere(){
+    const fns=['renderHistory','renderDashboard','renderPlanner','renderReports','renderReport','renderUnplannedEverywhere','renderUnplannedPlanner'];
+    for(const n of fns)try{if(typeof window[n]==='function')window[n]()}catch(e){console.warn('V155 refresh '+n,e)}
+    try{if(typeof fillReportMachines==='function')fillReportMachines()}catch(_){ }
+  }
+
+  window.pmDeleteWorkOrderPermanently=async function(id){
+    if(!admin())return toast('מחיקת WO לצמיתות זמינה ל-Admin בלבד.','error');
+    const w=woRows().find(x=>String(x?.id??'')===String(id));
+    if(!w)return toast('ה-WO לא נמצאה. ייתכן שכבר נמחקה.','error');
+    const machine=String(w.machine||'');
+    const description=String(w.description||'');
+    const ok=confirm(`למחוק את ה-WO לצמיתות?\n\n${machine}${description?' — '+description:''}\n\nהפעולה תמחק את ה-WO מכל המערכת, כולל יומן הביצועים, הדוחות והתמונות. לא ניתן לשחזר אותה.`);
+    if(!ok)return false;
+
+    const paths=[w.photo1Path??w.photo_1_path??'',w.photo2Path??w.photo_2_path??''].filter(Boolean);
+    try{
+      // The WO row is the authoritative record for both active and completed WO.
+      const del=await supabaseClient.from('pm_work_orders').delete().eq('id',id).select('id');
+      if(del.error)throw del.error;
+
+      // Verify the row is really gone. This also catches a silent RLS no-op.
+      const verify=await supabaseClient.from('pm_work_orders').select('id').eq('id',id).limit(1);
+      if(verify.error)throw verify.error;
+      if(Array.isArray(verify.data)&&verify.data.length)throw new Error('המחיקה לא אושרה על ידי בסיס הנתונים.');
+
+      // Remove it from the in-memory source immediately, before cloud reload finishes.
+      try{pmWorkOrders=woRows().filter(x=>String(x?.id??'')!==String(id))}catch(_){ }
+      refreshEverywhere();
+
+      const cleanupWarnings=[];
+      if(paths.length){
+        try{const rr=await supabaseClient.storage.from('maintenance-photos').remove(paths);if(rr.error)cleanupWarnings.push('ניקוי תמונות: '+rr.error.message)}catch(e){cleanupWarnings.push('ניקוי תמונות: '+(e?.message||e))}
+      }
+      try{cleanupWarnings.push(...await removeWOProvenance(id))}catch(e){cleanupWarnings.push('ניקוי קישור PM: '+(e?.message||e))}
+
+      try{if(typeof reloadCloudData==='function')await reloadCloudData();else if(typeof loadWorkOrders==='function')await loadWorkOrders()}catch(e){console.warn('V155 reload after WO delete',e)}
+      refreshEverywhere();
+      injectDeleteButtons();
+
+      if(cleanupWarnings.length){
+        console.warn('V155 WO deleted with cleanup warnings',cleanupWarnings);
+        toast('ה-WO נמחקה מכל מסכי המערכת. נדרש ניקוי משני של קובץ/קישור אחד ברקע.','success');
+      }else toast('ה-WO נמחקה לצמיתות מכל המערכת.','success');
+      window.pmV155LastDelete={id:String(id),deletedAt:new Date().toISOString(),photos:paths.length,cleanupWarnings};
+      return true;
+    }catch(e){
+      console.error('V155 permanent WO delete',e);
+      toast('מחיקת ה-WO נכשלה: '+(e?.message||e),'error');
+      return false;
+    }
+  };
+
+  function extractWOId(btn){
+    const s=String(btn?.getAttribute?.('onclick')||'');
+    const m=s.match(/openHistoryEdit\(\s*['"]WO['"]\s*,\s*['"]([^'"]+)['"]\s*\)/i);
+    return m?m[1]:'';
+  }
+  function injectDeleteButtons(){
+    if(!admin())return;
+    document.querySelectorAll('#pmHistoryList .history-row').forEach(row=>{
+      const actions=row.querySelector('.pm-history-actions');if(!actions||actions.querySelector('.pm-v155-delete-wo'))return;
+      const edit=[...actions.querySelectorAll('button')].find(b=>extractWOId(b));if(!edit)return;
+      const id=extractWOId(edit);if(!id)return;
+      const b=document.createElement('button');b.type='button';b.className='secondary-btn pm-v155-delete-wo';b.textContent='🗑 מחק WO';b.addEventListener('click',()=>window.pmDeleteWorkOrderPermanently(id));actions.appendChild(b);
+    });
+  }
+  window.pmV155InjectWODeleteButtons=injectDeleteButtons;
+
+  // V155 is loaded last, so this wrapper survives all older History render patches.
+  const previousRenderHistory=window.renderHistory;
+  window.renderHistory=function(){const r=typeof previousRenderHistory==='function'?previousRenderHistory.apply(this,arguments):undefined;setTimeout(injectDeleteButtons,0);return r};
+  try{renderHistory=window.renderHistory}catch(_){ }
+
+  const observer=new MutationObserver(()=>{if(admin()&&$('pmHistory')?.classList.contains('active'))injectDeleteButtons()});
+  function boot(){const list=$('pmHistoryList');if(list)observer.observe(list,{childList:true,subtree:true});injectDeleteButtons();window.pmV155WODeleteAudit={build:'20260831-v155-wo-hard-delete',adminOnly:true,hardDeleteTable:'pm_work_orders',storageCleanup:true,allScreensRefresh:true};}
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,0));else setTimeout(boot,0);
+})();
+</script>
+
 </body></html>
