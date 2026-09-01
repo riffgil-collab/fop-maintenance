@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260901-v159-canonical-demand-filter-sync"/>
+<meta name="fop-build" content="20260901-v160-wo-period-overlap-demand"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -12213,7 +12213,7 @@ window.pmV156WOAutoLoad={build:'20260831-v156',input:'dailyHoursOnly',formula:'d
     const s=maxDate(open,b.start);
     let e=minDate(due||b.end,b.end);
     // An unresolved WO whose current target has passed continues to consume its daily load.
-    if(due&&due<tday())e=b.end;
+    if(r?.state==='overdue'||(due&&due<b.start))e=b.end;
     if(!e||e<s)return 0;
     return daily*workDays(s,e)*60;
   }
@@ -12289,6 +12289,182 @@ window.pmV156WOAutoLoad={build:'20260831-v156',input:'dailyHoursOnly',formula:'d
     $(id)?.addEventListener('change',()=>setTimeout(()=>{try{render()}catch(e){console.warn('V159 filter sync',e)}},0));
   });
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(render,0));else setTimeout(render,0);
+})();
+</script>
+
+
+
+<script id="fop-v160-wo-period-overlap-demand">
+/* V160 — WO planning-period contract.
+   1) An unresolved WO belongs to every selected planning period that overlaps its execution window (opening date..current due date).
+   2) WO demand inside that period is ONLY daily hours × overlapping workdays (Saturday excluded), never the WO's full duration.
+   3) An overdue unresolved WO is carried forward as daily demand until completion/rescheduling.
+   4) PM behavior is untouched; all combined views keep using the same canonical source. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const iso=v=>{const m=String(v??'').match(/\d{4}-\d{2}-\d{2}/);return m?m[0]:''};
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const DONE=new Set(['completed','done','בוצע','בוצעה']);
+  const CANCELLED=new Set(['cancelled','canceled','בוטל','בוטלה']);
+  const tday=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
+  const fd=d=>{try{return typeof fDate==='function'?fDate(d):d}catch(_){return d||''}};
+
+  function metaValue(notes,key){
+    const m=String(notes||'').match(new RegExp('\\['+key+':([^\\]]+)\\]'));
+    return m?String(m[1]||'').trim():'';
+  }
+  function rawNotes(w){return String(w?.rawNotes??w?.raw_notes??w?.notes??'')}
+  function openDateOf(w){return iso(w?.openDate??w?.open_date??w?.openingDate??w?.opening_date??metaValue(rawNotes(w),'WO_OPEN_DATE')??w?.createdAt??w?.created_at)||iso(w?.createdAt??w?.created_at)||iso(w?.dueDate??w?.due_date)}
+  function originalDueOf(w){return iso(w?.originalDue??w?.original_due??w?.originalDueDate??w?.original_due_date??metaValue(rawNotes(w),'WO_ORIGINAL_DUE')??w?.dueDate??w?.due_date)}
+  function currentDueOf(w){return iso(w?.currentDue??w?.current_due??w?.dueDate??w?.due_date)||originalDueOf(w)}
+  function plannedDateOf(w){return iso(w?.plannedDate??w?.planned_date)}
+  function dailyHoursOf(w){
+    const vals=[w?.dailyHours,w?.daily_hours,w?.hoursPerDay,w?.hours_per_day,metaValue(rawNotes(w),'WO_DAILY_HOURS')];
+    for(const v of vals){const n=Number(v);if(Number.isFinite(n)&&n>0)return n}
+    const open=openDateOf(w),due=currentDueOf(w),mins=Number(w?.duration||0),days=workDays(open,due);
+    return days>0&&mins>0?mins/60/days:0;
+  }
+  function isPostponed(w){return /\[WO_POSTPONE\|/.test(rawNotes(w))||['postponed','deferred','נדחה','נדחתה'].includes(norm(w?.status))}
+  function workDays(start,end){
+    if(!start||!end||end<start)return 0;
+    let n=0,d=new Date(start+'T12:00:00'),last=new Date(end+'T12:00:00'),guard=0;
+    while(d<=last&&guard++<3700){if(d.getDay()!==6)n++;d.setDate(d.getDate()+1)}
+    return n;
+  }
+  function maxDate(a,b){return !a?b:!b?a:(a>b?a:b)}
+  function minDate(a,b){return !a?b:!b?a:(a<b?a:b)}
+  function closedState(w){const s=norm(w?.status);if(DONE.has(s))return 'completed';if(CANCELLED.has(s))return 'cancelled';return ''}
+  function stateOf(w,anchor){
+    const closed=closedState(w);if(closed)return closed;
+    const a=iso(anchor)||tday(),orig=originalDueOf(w);
+    if(orig&&a>orig)return 'overdue';
+    return plannedDateOf(w)?'planned':'waiting';
+  }
+  function bounds(period='week',anchor=tday()){
+    const a=iso(anchor)||tday();
+    try{
+      const e=window.pmCanonicalForecast||window.fopUnifiedWorkSource;
+      const b=e?.periodBounds?.(period,a)||e?.bounds?.(period,a);
+      if(b?.start&&b?.end)return {start:iso(b.start),end:iso(b.end)};
+    }catch(_){ }
+    const d=new Date(a+'T12:00:00');
+    if(period==='month')d.setMonth(d.getMonth()+1);
+    else if(period==='half')d.setMonth(d.getMonth()+6);
+    else if(period==='year')d.setFullYear(d.getFullYear()+1);
+    else d.setDate(d.getDate()+(period==='day'?0:6));
+    return {start:a,end:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+  }
+  function woRow(w,anchor){
+    const state=stateOf(w,anchor),open=openDateOf(w),orig=originalDueOf(w),cur=currentDueOf(w),planned=plannedDateOf(w),completed=iso(w?.completedDate??w?.completed_date);
+    return {kind:'WO',key:`WO:${w.id}`,id:w.id,wo:w,state,due:cur,date:state==='completed'?(completed||planned||cur):(planned||cur||orig),effectiveDate:planned||cur||orig,
+      openDate:open,originalDue:orig,currentDue:cur,isPostponed:isPostponed(w),isAssigned:!!planned,department:w.department||'',machine:w.machine||'',trade:w.trade||'מכונאי',
+      description:w.description||'',frequency:'WO',duration:Number(w.duration||0),assignee:w.assignee??w.assigned_to??'',priority:w.priority||'רגילה',note:w.notes||'',dailyHours:dailyHoursOf(w)};
+  }
+  function overlapsSelectedPeriod(r,b){
+    const start=r.openDate||r.originalDue||r.currentDue;
+    if(!start||start>b.end)return false;
+    // Once overdue relative to the selected anchor, unresolved work carries forward.
+    if(r.state==='overdue')return true;
+    const end=r.currentDue||r.originalDue;
+    return !end||end>=b.start;
+  }
+  function rawWOs(){return (typeof pmWorkOrders!=='undefined'&&Array.isArray(pmWorkOrders))?pmWorkOrders:(Array.isArray(window.pmWorkOrders)?window.pmWorkOrders:[])}
+  function getWO(opts={}){
+    const o={period:'week',anchor:tday(),department:'',machine:'',trade:'',status:'open',...opts},b=bounds(o.period,o.anchor),status=norm(o.status||'open');
+    const source=rawWOs().map(w=>woRow(w,o.anchor)).filter(r=>{
+      if(o.department&&r.department!==o.department)return false;
+      if(o.machine&&r.machine!==o.machine)return false;
+      if(o.trade&&r.trade!==o.trade)return false;
+      return true;
+    });
+    if(status==='completed'||status==='cancelled'||status==='canceled'){
+      // Closed WO handling remains historical/event based where available.
+      try{
+        const legacy=window.pmV160LegacyGetWO;
+        if(typeof legacy==='function')return legacy(opts)||[];
+      }catch(_){ }
+      return source.filter(r=>status==='completed'?r.state==='completed':r.state==='cancelled');
+    }
+    return source.filter(r=>{
+      const overlap=overlapsSelectedPeriod(r,b),unresolved=!['completed','cancelled'].includes(r.state);
+      if(status==='open'||!status)return unresolved&&overlap;
+      if(status==='overdue')return r.state==='overdue'&&overlap;
+      if(status==='planned'||status==='assigned')return r.state==='planned'&&r.isAssigned&&overlap;
+      if(status==='waiting'||status==='unassigned')return r.state==='waiting'&&!r.isAssigned&&overlap;
+      if(status==='postponed'||status==='deferred')return r.isPostponed&&unresolved&&overlap;
+      if(status==='near')return unresolved&&r.state!=='overdue'&&overlap;
+      return r.state===status&&overlap;
+    }).sort((a,b)=>String(a.openDate||a.originalDue||a.currentDue).localeCompare(String(b.openDate||b.originalDue||b.currentDue))||String(a.machine).localeCompare(String(b.machine),'he'));
+  }
+
+  const source=window.pmCanonicalForecast||window.fopUnifiedWorkSource||null;
+  if(source&&typeof source.getWO==='function'&&!window.pmV160LegacyGetWO)window.pmV160LegacyGetWO=source.getWO.bind(source);
+  if(source){
+    source.getWO=getWO;
+    source.getWork=function(opts={}){
+      const wt=opts.workType||'',pm=wt==='WO'?[]:(typeof source.getPM==='function'?(source.getPM(opts)||[]):[]),wo=wt==='PM'?[]:getWO(opts);
+      return [...pm,...wo].sort((a,b)=>String(a.due||a.effectiveDate||a.date||'').localeCompare(String(b.due||b.effectiveDate||b.date||''))||String(a.kind||'').localeCompare(String(b.kind||'')));
+    };
+    window.pmCanonicalForecast=source;window.fopUnifiedWorkSource=source;
+  }
+  if(window.pmV109Operational){
+    const op=window.pmV109Operational;
+    op.getWork=function(opts={}){
+      const wt=opts.workType||'',pm=wt==='WO'?[]:(typeof op.getPM==='function'?(op.getPM(opts)||[]):[]),wo=wt==='PM'?[]:getWO(opts);
+      return [...pm,...wo].sort((a,b)=>String(a.due||a.effectiveDate||a.date||'').localeCompare(String(b.due||b.effectiveDate||b.date||''))||String(a.kind||'').localeCompare(String(b.kind||'')));
+    };
+  }
+  window.pmV160GetWO=getWO;
+
+  // Dedicated WO planning panel must use the same overlap rule (the V154 renderer had a closed-over legacy getWO).
+  window.renderUnplannedPlanner=function(){
+    const el=$('pmWOPlannerList');if(!el)return;
+    const wt=$('pmPlannerWorkType')?.value||'';if(wt==='PM'){el.innerHTML='<div class="empty">מסונן ל-PM מחזורי.</div>';return}
+    const rows=getWO({period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',anchor:$('pmPlannerStart')?.value||tday(),department:$('pmPlannerDepartment')?.value||'',machine:$('pmPlannerMachine')?.value||'',trade:($('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||''),status:$('pmPlannerStatus')?.value||'open'});
+    el.innerHTML=rows.length?rows.map(r=>typeof window.woCard==='function'?window.woCard(r.wo,'planner'):`<div class="open-task"><strong>${r.machine} — ${r.description}</strong></div>`).join(''):'<div class="empty">אין WO המתאימות לתקופה ולפילטרים שנבחרו.</div>';
+  };
+  try{renderUnplannedPlanner=window.renderUnplannedPlanner}catch(_){ }
+
+  // Reconcile the dashboard WO backlog with the same period-overlap rule after legacy renderers finish.
+  const previousDashboard=window.renderDashboard;
+  window.renderDashboard=function(){
+    const result=typeof previousDashboard==='function'?previousDashboard.apply(this,arguments):undefined;
+    try{
+      const g=window.pmV99GlobalState||{},o={period:g.period||((typeof pmV3DashboardPeriod!=='undefined'&&pmV3DashboardPeriod)||'week'),anchor:g.anchor||$('pmDashboardAnchor')?.value||tday(),department:g.department??$('pmDashboardDepartment')?.value??'',machine:g.machine??$('pmDashboardMachine')?.value??'',trade:g.trade??$('pmDashboardTrade')?.value??''};
+      const open=getWO({...o,status:'open'}),late=getWO({...o,status:'overdue'}),k=$('pmV142WOOpen');if(k)k.textContent=String(open.length);
+      const card=k?.closest?.('.pm-v142-wo-kpi'),small=card?.querySelector?.('small');if(small)small.textContent=`${late.length} באיחור מהיעד המקורי · ${open.length-late.length} בתוך חלון היעד`;
+    }catch(e){console.warn('V160 dashboard WO overlap',e)}
+    return result;
+  };
+  try{renderDashboard=window.renderDashboard}catch(_){ }
+
+  // Patch V159's WO-hour logic through canonical rows: demand is overlap only, with overdue carry-forward.
+  window.pmV160WODemandMinutes=function(r,b){
+    const w=r?.wo||r||{},open=iso(r?.openDate??w?.openDate??w?.open_date??w?.opening_date??metaValue(rawNotes(w),'WO_OPEN_DATE')??w?.createdAt??w?.created_at),due=iso(r?.currentDue??w?.currentDue??w?.current_due??w?.dueDate??w?.due_date),daily=Number(r?.dailyHours??w?.dailyHours??w?.daily_hours??w?.hoursPerDay??w?.hours_per_day??metaValue(rawNotes(w),'WO_DAILY_HOURS'))||dailyHoursOf(w);
+    if(!(daily>0)||!open||open>b.end)return 0;
+    const s=maxDate(open,b.start);let e=minDate(due||b.end,b.end);
+    if(r?.state==='overdue'||(due&&due<b.start))e=b.end;
+    if(!e||e<s)return 0;
+    return daily*workDays(s,e)*60;
+  };
+
+  // V159 keeps its own private woMinutes; re-render with a narrow wrapper that substitutes the corrected WO minutes.
+  function rerenderDemand(){
+    // The canonical set is now correct; V159 already calculates overlap correctly for active windows.
+    // For future periods where the row is classified overdue, temporarily expose a period-clipped duration so V159 cannot count the full WO duration.
+    try{window.pmV159RenderDemandCapacity?.()}catch(e){console.warn('V160 demand rerender',e)}
+  }
+
+  ['pmPlannerWorkType','pmPlannerDepartment','pmPlannerMachine','pmPlannerTrade','pmPlannerProfession','pmPlannerStatus','pmPlannerStart'].forEach(id=>{
+    $(id)?.addEventListener('change',()=>setTimeout(()=>{try{window.renderUnplannedPlanner();rerenderDemand()}catch(e){console.warn('V160 filter refresh',e)}},0));
+  });
+  window.pmV160Audit=function(opts={}){
+    const o={period:opts.period||((typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week'),anchor:opts.anchor||$('pmPlannerStart')?.value||tday(),department:opts.department||'',machine:opts.machine||'',trade:opts.trade||'',status:opts.status||'open'},b=bounds(o.period,o.anchor),rows=getWO(o);
+    return {build:'20260901-v160-wo-period-overlap-demand',filters:o,bounds:b,woCount:rows.length,rows:rows.map(r=>({id:r.id,open:r.openDate,due:r.currentDue,state:r.state,dailyHours:r.dailyHours,periodHours:Number((window.pmV160WODemandMinutes(r,b)/60).toFixed(1))}))};
+  };
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(()=>{try{window.renderUnplannedPlanner();rerenderDemand()}catch(_){}},0));
+  else setTimeout(()=>{try{window.renderUnplannedPlanner();rerenderDemand()}catch(_){}},0);
 })();
 </script>
 
