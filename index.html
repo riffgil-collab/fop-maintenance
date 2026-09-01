@@ -443,10 +443,11 @@ body.pm-report-printing.pm-print-checklists .pm-report-checklist-detail{display:
 .pm-lang-switch.pm-login-lang{position:static;display:flex;justify-content:center;width:max-content;margin:0 auto 14px;direction:ltr;background:#fff;padding:5px;border-radius:12px;box-shadow:0 2px 12px #0002;border:1px solid #ddd;z-index:auto}
 #pmAuthOverlay[style*="display: none"] .pm-login-lang,#pmAuthOverlay[style*="display:none"] .pm-login-lang{display:none!important}
 </style>
-<style id="fop-qa-release-polish">html{scroll-behavior:smooth}body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}button,input,select,textarea{-webkit-tap-highlight-color:transparent}button{touch-action:manipulation}.card,.panel-box,.pm-v3-health,.pm-workload-box{box-shadow:0 10px 30px rgba(12,38,78,.07)}input:focus,select:focus,textarea:focus{outline:none!important;border-color:#8fb8ef!important;box-shadow:0 0 0 4px rgba(22,109,213,.10)!important}button:active{transform:translateY(1px)}@media(max-width:680px){button,.btn,input,select{min-height:44px}.pm-plan-row{gap:10px!important}.pm-plan-main strong{line-height:1.35}.pm-plan-main small{line-height:1.45}.task-card,.open-task{overflow-wrap:anywhere}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}</style>
 
 
-<style id="maintenance-consolidated-style">
+
+<style id="maintenance-ui-style">html{scroll-behavior:smooth}body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}button,input,select,textarea{-webkit-tap-highlight-color:transparent}button{touch-action:manipulation}.card,.panel-box,.pm-v3-health,.pm-workload-box{box-shadow:0 10px 30px rgba(12,38,78,.07)}input:focus,select:focus,textarea:focus{outline:none!important;border-color:#8fb8ef!important;box-shadow:0 0 0 4px rgba(22,109,213,.10)!important}button:active{transform:translateY(1px)}@media(max-width:680px){button,.btn,input,select{min-height:44px}.pm-plan-row{gap:10px!important}.pm-plan-main strong{line-height:1.35}.pm-plan-main small{line-height:1.45}.task-card,.open-task{overflow-wrap:anywhere}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
 .tm-toolbar{display:grid;grid-template-columns:repeat(6,minmax(130px,1fr));gap:10px;background:#fff;border:1px solid #e7e7e7;border-radius:16px;padding:14px;margin-bottom:12px}
 .tm-search{grid-column:span 1}
 .tm-filter-indicator{display:flex;justify-content:space-between;gap:10px;align-items:center;background:#f8fafc;border:1px solid #dbe4ef;border-radius:13px;padding:10px 13px;margin:10px 0;color:#475467}
@@ -834,9 +835,55 @@ body.pm-v130-reports #pmV99GlobalFilter{display:none!important}
 #pmPlanner .pm-v157-trade-card.tone-red .pm-v157-trade-progress i{background:#c93442}
 @media(max-width:780px){#pmPlanner .pm-v157-main-grid{grid-template-columns:1fr 1fr!important}#pmPlanner .pm-v157-trade-grid{grid-template-columns:1fr 1fr}}
 @media(max-width:520px){#pmPlanner .pm-v157-main-grid{grid-template-columns:1fr 1fr!important}#pmPlanner .pm-v157-trade-grid{grid-template-columns:1fr}#pmPlanner .pm-v157-demand-head{align-items:flex-start}#pmPlanner .pm-v157-live-badge{white-space:normal;text-align:center}}
+
+/* ===== Unified maintenance UI components ===== */
+.pm-work-card{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:start;border:1px solid #dbe5ef;border-radius:18px;background:#fff;padding:14px 15px;margin:10px 0;box-shadow:0 6px 18px rgba(16,40,76,.055);position:relative;overflow:hidden}
+.pm-work-card.has-select{grid-template-columns:30px minmax(0,1fr) auto}
+.pm-work-card:before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background:#315f8f}
+.pm-work-card[data-work-type="WO"]:before{background:#c58724}
+.pm-work-card.state-overdue{border-color:#eab0b6;background:#fffafb}
+.pm-work-card.state-overdue:before{background:#c93442}
+.pm-work-card.state-postponed{border-color:#ead39a;background:#fffdf8}
+.pm-work-card.state-postponed:before{background:#c58724}
+.pm-work-card.state-upcoming{opacity:.82;background:#f8fbff}
+.pm-work-select{display:flex;align-items:flex-start;justify-content:center;padding-top:3px}.pm-work-select input{width:19px;height:19px;accent-color:#173765}
+.pm-work-card-main{min-width:0}.pm-work-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.pm-work-title{display:flex;align-items:center;gap:8px;min-width:0}.pm-work-title strong{font-size:15px;color:var(--navy2);line-height:1.35;overflow-wrap:anywhere}
+.pm-work-type{display:inline-flex;align-items:center;justify-content:center;min-width:35px;height:24px;padding:0 8px;border-radius:999px;background:#eaf3ff;color:#255b93;border:1px solid #cfe0f1;font-size:9px;font-weight:950;letter-spacing:.2px;flex:0 0 auto}.pm-work-type.wo{background:#fff6e6;color:#8a5a10;border-color:#efd7a7}
+.pm-work-status{display:inline-flex;align-items:center;white-space:nowrap;border-radius:999px;padding:6px 9px;font-size:9px;font-weight:950;background:#edf2f7;color:#4e6075;border:1px solid #dbe4ed}.pm-work-status.planned{background:#eaf3ff;color:#285f98;border-color:#c6dcf2}.pm-work-status.waiting{background:#f2f4f7;color:#59697c}.pm-work-status.overdue{background:#fff0f2;color:#ad2632;border-color:#efc2c7}.pm-work-status.postponed{background:#fff5df;color:#885a0f;border-color:#efd7a7}.pm-work-status.upcoming{background:#eef4fa;color:#536f8d}
+.pm-work-description{margin-top:8px;color:#233b58;font-size:13px;font-weight:850;line-height:1.45}.pm-work-meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}.pm-work-meta span{display:inline-flex;align-items:center;min-height:25px;padding:4px 8px;border-radius:999px;background:#f6f8fb;border:1px solid #e5ebf2;color:#5f7086;font-size:9px;font-weight:850}
+.pm-work-window{margin-top:9px;padding:8px 10px;border-radius:10px;background:#f8fafc;border:1px solid #e5ebf2;color:#536b86;font-size:10px;font-weight:800;line-height:1.45}.state-overdue .pm-work-window{background:#fff5f6;border-color:#f0c7cb;color:#9f2c37}.state-postponed .pm-work-window{background:#fff9ed;border-color:#edd8aa;color:#805a18}
+.pm-work-actions{display:flex;align-items:center;justify-content:flex-end;gap:7px;flex-wrap:wrap;min-width:135px}.pm-work-card .pm-checklist-toggle{margin-top:9px}.pm-work-card .pm-checklist-box{margin-top:7px}
+.pm-action-btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:38px;border:1px solid #d7e1eb;border-radius:11px;padding:8px 11px;background:#fff;color:#405671;font-size:10px;font-weight:900;line-height:1;white-space:nowrap;cursor:pointer;box-sizing:border-box;transition:background .16s ease,border-color .16s ease,transform .08s ease,box-shadow .16s ease}.pm-action-btn:hover{box-shadow:0 4px 12px rgba(18,48,84,.08)}.pm-action-btn:active{transform:translateY(1px)}.pm-action-btn svg{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}.pm-action-btn:disabled{opacity:.5;cursor:not-allowed;box-shadow:none}
+.pm-action-schedule{background:#edf5ff;border-color:#bfd7f1;color:#155c9f}.pm-action-unassign{background:#f6f8fa;border-color:#d9e1e8;color:#536579}.pm-action-postpone{background:#fff6e7;border-color:#ead09a;color:#865a13}.pm-action-complete,.pm-action-save{background:#edf9f2;border-color:#acd8bd;color:#197244}.pm-action-edit{background:#eef4fb;border-color:#c8d8e9;color:#315f8f}.pm-action-delete{background:#fff1f2;border-color:#efb8be;color:#a7212c}.pm-action-restore{background:#f0f4f8;border-color:#cfd9e4;color:#405b78}.pm-action-photo{background:#f7f9fb;border-color:#dfe6ee;color:#536b86}.pm-action-add{background:#173765;border-color:#173765;color:#fff}.pm-action-neutral{background:#f7f9fb;color:#536579}.pm-action-cancel{background:#fff;color:#6b7788}
+.pm-modal-actions .pm-action-btn,.tm-actions .pm-action-btn,.tm-editor-actions .pm-action-btn,.pm-plan-actions .pm-action-btn{min-height:42px}
+.pm-history-actions .pm-action-btn,.pm-history-photos .pm-action-btn{min-height:34px;padding:7px 9px}
+#pmPlannerDetail,#pmWOPlannerList,#pmOpenTasks,#pmWOReportList{display:grid;gap:0}
+@media(max-width:720px){.pm-work-card,.pm-work-card.has-select{grid-template-columns:minmax(0,1fr)}.pm-work-card.has-select{padding-inline-start:46px}.pm-work-select{position:absolute;inset-inline-start:14px;top:16px}.pm-work-card-head{gap:7px}.pm-work-title strong{font-size:14px}.pm-work-status{font-size:8px;padding:5px 7px}.pm-work-actions{grid-column:1/-1;min-width:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%;margin-top:2px}.pm-work-actions .pm-action-btn:only-child{grid-column:1/-1}.pm-work-actions .pm-action-btn{width:100%;min-height:42px}.pm-work-meta span{font-size:8px}.pm-work-window{font-size:9px}.pm-history-actions{display:grid!important;grid-template-columns:1fr 1fr}.pm-history-actions .pm-action-btn{width:100%}}
+@media(max-width:440px){.pm-work-card{padding:13px 12px}.pm-work-card.has-select{padding-inline-start:43px}.pm-work-actions{grid-template-columns:1fr 1fr}.pm-action-btn{padding:8px 9px}.pm-action-btn svg{width:15px;height:15px}}
+
+
+/* Unified filter surfaces */
+#pmDashboard .pm-v3-filterbar,#pmPlanner .pm-planner-filterbar,#pmReport>.toolbar,#pmReports .pm-report-filter-grid,#pmHistory .history-filters{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:10px;align-items:end;padding:13px;border:1px solid #dce6f0;border-radius:16px;background:#f9fbfd;margin-bottom:12px;box-sizing:border-box}
+#pmDashboard .pm-v3-filterbar .field,#pmPlanner .pm-planner-filterbar .field,#pmReport>.toolbar .field,#pmReports .pm-report-filter-grid .field,#pmHistory .history-filters .field{min-width:0;margin:0}
+#pmDashboard .pm-v3-filterbar label,#pmPlanner .pm-planner-filterbar label,#pmReport>.toolbar label,#pmReports .pm-report-filter-grid label,#pmHistory .history-filters label{display:block;margin:0 0 6px;color:#435975;font-size:10px;font-weight:900}
+#pmDashboard .pm-v3-filterbar select,#pmPlanner .pm-planner-filterbar select,#pmReport>.toolbar select,#pmReports .pm-report-filter-grid select,#pmHistory .history-filters select,#pmHistory .history-filters input{width:100%;height:44px;box-sizing:border-box;border:1px solid #d2deea;border-radius:12px;background:#fff;color:#203b5d;padding:0 10px;font:inherit;font-size:12px;font-weight:850}
+#pmReport>.toolbar .pm-execution-scope{grid-column:1/-1;margin:0 0 2px;padding:10px 12px;border-radius:12px;background:#eef5fb;border:1px solid #d5e2ef}
+#pmPlanner .pm-planner-filterbar .pm-planner-wo-btn{height:44px;align-self:end}
+@media(max-width:620px){#pmDashboard .pm-v3-filterbar,#pmPlanner .pm-planner-filterbar,#pmReport>.toolbar,#pmReports .pm-report-filter-grid,#pmHistory .history-filters{grid-template-columns:1fr 1fr;padding:11px;gap:9px}#pmReport>.toolbar .pm-execution-scope{grid-column:1/-1}#pmHistory .history-filters .field:last-child{grid-column:1/-1}}
+
+
+/* Navigation consistency: every non-dashboard screen has a clear return path. */
+.pm-context-back-row{display:flex;align-items:center;justify-content:flex-start;margin:0 0 12px}
+.pm-context-back{display:inline-flex;align-items:center;gap:8px;min-height:42px;border:1px solid #d5e0ed;border-radius:12px;background:#fff;color:#203858;padding:9px 13px;font-weight:900;font-size:12px;box-shadow:0 4px 14px rgba(12,38,78,.05)}
+.pm-context-back:hover{background:#f7faff;border-color:#bfcfe2}.pm-context-back svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.pm-context-back small{color:#7a8ba3;font-size:9px;font-weight:800}
+.pm-modal-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0 0 10px}.pm-modal-head h3{margin:0!important}
+.pm-modal-close{width:40px;height:40px;min-width:40px;border:1px solid #d8e2ee;border-radius:12px;background:#f8fafc;color:#334a68;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.pm-modal-close svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round}
+@media(max-width:680px){.pm-context-back{width:100%;justify-content:flex-start}.pm-context-back-row{margin-bottom:10px}}
 </style></head>
 <!--
-FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
+FOP MAINTENANCE CONSOLIDATED RELEASE MANIFEST
 - PM / WO lifecycle separation verified.
 - WO -> PM keeps independently selected first PM due date.
 - PM task kind metadata normalized with legacy compatibility.
@@ -981,6 +1028,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 </div>
 </section>
 <section class="pm-panel" id="pmPlanner">
+<div class="pm-context-back-row"><button type="button" class="pm-context-back" onclick="return pmGoBack()" aria-label="חזרה למסך הקודם"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span>חזרה למסך הקודם</span></button></div>
 <div class="section-title"><h3>תכנון עבודה</h3><small id="pmPlanRangeLabel">—</small></div>
 <div class="pm-plan-note">בחר משימות פתוחות ולחץ “שבץ לביצוע”. חלון 7 הימים מתחיל במועד ה-PM ולא מתאפס בעת השיבוץ.</div>
 
@@ -1029,9 +1077,9 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <input id="pmPlanDate" type="hidden"/>
 <input id="pmPlanPriority" type="hidden" value="בינונית"/>
 <input id="pmPlanAssignee" type="hidden" value=""/>
-<button class="secondary-btn pm-select-all-btn" onclick="toggleAllPlanRows(true)" type="button">✓ בחר הכל המוצג</button>
-<button class="btn pm-schedule-btn" onclick="saveSelectedPlanning()" type="button">שבץ לביצוע</button>
-<button class="secondary-btn pm-unplan-btn" onclick="unplanSelected()" type="button">הסר שיבוץ</button>
+<button class="secondary-btn pm-action-btn pm-action-neutral pm-select-all-btn" onclick="toggleAllPlanRows(true)" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 2.5 2.5L16 9"/></svg><span>בחר הכל המוצג</span></button>
+<button class="btn pm-action-btn pm-action-schedule pm-schedule-btn" onclick="saveSelectedPlanning()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="m9 15 2 2 4-4"/></svg><span>שבץ לביצוע</span></button>
+<button class="secondary-btn pm-action-btn pm-action-unassign pm-unplan-btn" onclick="unplanSelected()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="m9 14 6 6M15 14l-6 6"/></svg><span>הסר שיבוץ</span></button>
 </div>
 <div class="pm-plan-note" id="pmPlanSelectionInfo">לא נבחרו משימות.</div>
 <div class="pm-plan-list" id="pmPlannerDetail"></div>
@@ -1043,6 +1091,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div class="panel-box pm-wo-planner-panel" style="margin-top:16px"><div class="pm-wo-planner-head"><div><h3>עבודות לא מתוכננות</h3><small>WO · עבודה חד־פעמית</small></div><span class="pm-wo-badge">WO</span></div><div class="pm-plan-note">עבודות חד־פעמיות שהתגלו בבדיקה או בתקלה. הן משתלבות בעומס ובתכנון אך אינן יוצרות מחזור עתידי.</div><div id="pmWOPlannerList"></div></div>
 </section>
 <section class="pm-panel" id="pmReport">
+<div class="pm-context-back-row"><button type="button" class="pm-context-back" onclick="return pmGoBack()" aria-label="חזרה למסך הקודם"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span>חזרה למסך הקודם</span></button></div>
 <div id="pmTechnicianScopeNote" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;margin-bottom:10px;font-size:12px;color:#475569">מכונאים וחשמלאים רואים את כלל טיפולי האחזקה ויכולים לדווח ביצוע, הערה ועד שתי תמונות.</div>
 <div class="toolbar">
 <input id="pmReportDate" type="hidden"/>
@@ -1069,6 +1118,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div class="open-list" id="pmOpenTasks"></div>
 </section>
 <section class="pm-panel" id="pmOperatorChecks">
+<div class="pm-context-back-row"><button type="button" class="pm-context-back" onclick="return pmGoBack()" aria-label="חזרה למסך הקודם"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span>חזרה למסך הקודם</span></button></div>
 <div class="section-title"><h3>בדיקות מפעיל</h3><small>צ׳ק ליסטים להדפסה — אינם חלק מתכנון האחזקה</small></div><div class="muted" id="pmOperatorCount" style="margin-bottom:10px"></div>
 <div class="toolbar">
 <div class="field"><label>מחלקה</label><select id="pmOperatorDepartment" onchange="fillOperatorMachines();renderOperatorChecks()"><option value="">כל המחלקות</option></select></div>
@@ -1082,6 +1132,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div id="pmOperatorChecksList"></div>
 </section>
 <section class="pm-panel" id="pmMaintenanceChecks">
+<div class="pm-context-back-row"><button type="button" class="pm-context-back" onclick="return pmGoBack()" aria-label="חזרה למסך הקודם"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span>חזרה למסך הקודם</span></button></div>
 <div class="section-title"><h3>בדיקות אחזקה</h3><small>צ׳ק ליסטים להדפסה לאנשי האחזקה — אינם חלק מהתכנון, הדשבורד או המעקב המחזורי</small></div><div class="muted" id="pmMaintenanceCheckCount" style="margin-bottom:10px"></div>
 <div class="toolbar">
 <div class="field"><label>מחלקה</label><select id="pmMaintenanceCheckDepartment" onchange="fillMaintenanceCheckMachines();renderMaintenanceChecks()"><option value="">כל המחלקות</option></select></div>
@@ -1096,6 +1147,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div id="pmMaintenanceChecksList"></div>
 </section>
 <section class="pm-panel" id="pmReports">
+<div class="pm-context-back-row"><button type="button" class="pm-context-back" onclick="return pmGoBack()" aria-label="חזרה למסך הקודם"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span>חזרה למסך הקודם</span></button></div>
 <div class="pm-report-hero">
 <div>
 <div class="pm-v3-eyebrow">REPORTS</div>
@@ -1187,6 +1239,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 </div>
 </section>
 <section class="pm-panel" id="pmHistory">
+<div class="pm-context-back-row"><button type="button" class="pm-context-back" onclick="return pmGoBack()" aria-label="חזרה למסך הקודם"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span>חזרה למסך הקודם</span></button></div>
 <div class="section-title"><h3>יומן ביצועים</h3><small>טיפולים שבוצעו — הערות, תמונות ושחזור לתוכנית</small></div>
 <div class="pm-v122-history-summary" id="pmHistorySummary"><div class="pm-v122-history-kpi"><span>ביצועים בתקופה</span><strong id="pmHistoryCount">0</strong><small id="pmHistoryCountDetail">PM 0 · WO 0</small></div><div class="pm-v122-history-kpi"><span>שעות מכונאי</span><strong id="pmHistoryMech">0.0</strong><small>לפי משכי הטיפול הרשומים</small></div><div class="pm-v122-history-kpi"><span>שעות חשמלאי</span><strong id="pmHistoryElec">0.0</strong><small>לפי משכי הטיפול הרשומים</small></div></div><div class="pm-v122-history-periods" id="pmHistoryPeriods"><button class="active" data-history-period="all" onclick="setHistoryPeriod('all')" type="button">מתחילת התיעוד</button><button data-history-period="fortnight" onclick="setHistoryPeriod('fortnight')" type="button">שבועיים</button><button data-history-period="month" onclick="setHistoryPeriod('month')" type="button">חודש</button><button data-history-period="half" onclick="setHistoryPeriod('half')" type="button">חצי שנה</button><button data-history-period="year" onclick="setHistoryPeriod('year')" type="button">שנה</button></div><div class="pm-v122-history-note" id="pmHistoryNote"><strong>יומן ביצועים הוא היסטורי ועצמאי מהדשבורד.</strong> הוא כולל רק PM ו-WO שבוצעו בפועל.</div><div class="history-filters">
 <div class="field"><label>מחלקה</label><select id="pmHistoryDepartment" onchange="fillHistoryMachines();renderHistory()"></select></div>
@@ -1203,6 +1256,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div id="pmHistoryList"></div>
 </section>
 <section class="pm-panel" id="pmEditTasks">
+<div class="pm-context-back-row"><button type="button" class="pm-context-back" onclick="return pmGoBack()" aria-label="חזרה למסך הקודם"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span>חזרה למסך הקודם</span></button></div>
 <div class="section-title">
 <h3>ניהול משימות</h3>
 <small>מאגר מרכזי אחד — חיפוש, עריכה והוספת משימות</small>
@@ -1230,9 +1284,9 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div><strong id="tmCountOperator">0</strong><span>בדיקות מפעיל</span></div>
 </div>
 <div class="tm-actions">
-<button class="btn" onclick="tmOpenNew()" type="button">+ הוספת משימה חדשה</button>
-<button class="secondary-btn" onclick="tmClearFilters()" type="button">ניקוי סינון</button>
-<button class="back" onclick="resetData()" type="button">↻ טעינה מחדש מהענן</button>
+<button class="btn pm-action-btn pm-action-add" onclick="tmOpenNew()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>הוספת משימה חדשה</span></button>
+<button class="secondary-btn pm-action-btn pm-action-neutral" onclick="tmClearFilters()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg><span>ניקוי סינון</span></button>
+<button class="back pm-action-btn pm-action-neutral" onclick="resetData()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 1 0 1 5"/><path d="M20 4v7h-7"/></svg><span>טעינה מחדש מהענן</span></button>
 </div>
 <div class="tm-layout">
 <div class="tm-list-panel">
@@ -1279,15 +1333,16 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 </div>
 <div class="tm-logic-note" id="tmLogicNote"></div>
 <div class="tm-editor-actions">
-<button class="btn" onclick="tmSave()" type="button">שמירה</button>
-<button class="secondary-btn" id="tmDuplicateBtn" onclick="tmDuplicate()" type="button">שכפול</button>
-<button class="back" id="tmCancelBtn" onclick="tmCloseEditor()" type="button">ביטול</button>
+<button class="btn pm-action-btn pm-action-save" onclick="tmSave()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h12l4 4v14H3V3Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/></svg><span>שמירה</span></button>
+<button class="secondary-btn pm-action-btn pm-action-neutral" id="tmDuplicateBtn" onclick="tmDuplicate()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>שכפול</span></button>
+<button class="back pm-action-btn pm-action-cancel" id="tmCancelBtn" onclick="tmCloseEditor()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg><span>ביטול</span></button>
 </div>
 </div>
 </div>
 </div>
 </section>
 <section class="pm-panel" id="pmInitialization">
+<div class="pm-context-back-row"><button type="button" class="pm-context-back" onclick="return pmGoBack()" aria-label="חזרה למסך הקודם"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span>חזרה למסך הקודם</span></button></div>
 <div class="section-title"><h3>אתחול מערכת</h3><small>Admin בלבד</small></div>
 <div class="panel-box">
 <div id="pmInitStatus" style="font-weight:800;margin-bottom:8px"><div style="margin-top:8px;font-size:11px;line-height:1.5;color:#52647c;font-weight:700">אתחול חל רק על טיפולי PM פיזיים: הוא בונה מחדש את מועדי ה‑PM ומנקה את תוכנית העבודה הפעילה. בדיקות מפעיל, בדיקות אחזקה והיסטוריית ביצוע אינן משתנות.</div>🔴 Status: Not Initialized</div>
@@ -1310,6 +1365,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 </div>
 </section>
 <section class="pm-panel" id="pmUsers">
+<div class="pm-context-back-row"><button type="button" class="pm-context-back" onclick="return pmGoBack()" aria-label="חזרה למסך הקודם"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg><span>חזרה למסך הקודם</span></button></div>
 <div class="section-title"><h3>משתמשי אחזקה</h3><small>Admin בלבד</small></div>
 <div class="note">החשבון נשמר ב-FOP המשותף, אך במסך זה מנוהלת <b>רק הגישה לאפליקציית האחזקה</b>. הסרה מאחזקה אינה מוחקת את המשתמש ואינה משפיעה על אפליקציית התפעול.</div>
 <div class="user-admin-toolbar">
@@ -1322,22 +1378,22 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 </div></div>
 <div class="pm-modal-backdrop pm-exception-modal" id="pmPostponeModal" onclick="if(event.target===this)closePostponeModal()">
 <div aria-labelledby="pmPostponeTitle" aria-modal="true" class="pm-modal-card" role="dialog">
-<h3 id="pmPostponeTitle">דחיית טיפול</h3>
+<div class="pm-modal-head"><h3 id="pmPostponeTitle">דחיית טיפול</h3><button type="button" class="pm-modal-close" onclick="closePostponeModal()" aria-label="סגור"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
 <p id="pmPostponeTaskText"></p>
 <div class="pm-v108-postpone-note">דחייה = שבוע אחד אוטומטי. נדרשת רק סיבה.</div>
 <input id="pmPostponeDate" type="hidden"/>
 <label for="pmPostponeReason">סיבת הדחייה</label>
 <textarea id="pmPostponeReason" placeholder="יש להזין סיבה לדחיית הטיפול"></textarea>
 <div class="pm-modal-actions">
-<button class="cancel" onclick="closePostponeModal()" type="button">ביטול</button>
-<button class="create" id="pmPostponeSaveButton" onclick="savePostpone()" type="button">דחה בשבוע</button>
+<button class="cancel pm-action-btn pm-action-cancel" onclick="closePostponeModal()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg><span>ביטול</span></button>
+<button class="create pm-action-btn pm-action-postpone" id="pmPostponeSaveButton" onclick="savePostpone()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/></svg><span>דחה בשבוע</span></button>
 </div>
 <div class="pm-modal-status" id="pmPostponeStatus"></div>
 </div>
 </div>
 <div class="pm-modal-backdrop" id="pmCompleteModal" onclick="if(event.target===this)closeCompleteModal()">
 <div aria-modal="true" class="pm-modal-card" role="dialog">
-<h3>דיווח ביצוע טיפול</h3><p id="pmCompleteTaskText"></p>
+<div class="pm-modal-head"><h3>דיווח ביצוע טיפול</h3><button type="button" class="pm-modal-close" onclick="closeCompleteModal()" aria-label="סגור"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div><p id="pmCompleteTaskText"></p>
 <div class="pm-checklist-box pm-completion-checklist" hidden="" id="pmCompletionChecklist"></div>
 <label for="pmCompletionNotes">הערות על הטיפול (לא חובה)</label>
 <textarea id="pmCompletionNotes" placeholder="מה בוצע, ממצאים, המלצה להמשך..." rows="4" style="width:100%;box-sizing:border-box"></textarea>
@@ -1346,7 +1402,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div class="pm-photo-box"><b>תמונה 2</b><input accept="image/*" capture="environment" id="pmPhoto2" onchange="previewCompletionPhoto(2)" type="file"/><img class="pm-photo-preview" id="pmPhotoPreview2"/></div>
 </div>
 <small>עד שתי תמונות. האפליקציה מקטינה ודוחסת אותן לפני ההעלאה.</small>
-<div class="pm-modal-actions"><button class="cancel" onclick="closeCompleteModal()" type="button">ביטול</button><button class="create" id="pmCompleteSaveButton" onclick="saveCompletionWithDocumentation()" type="button">✓ שמור טיפול</button></div>
+<div class="pm-modal-actions"><button class="cancel pm-action-btn pm-action-cancel" onclick="closeCompleteModal()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg><span>ביטול</span></button><button class="create pm-action-btn pm-action-complete" id="pmCompleteSaveButton" onclick="saveCompletionWithDocumentation()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></svg><span>שמור טיפול</span></button></div>
 <div class="pm-modal-status" id="pmCompleteStatus"></div>
 </div></div>
 <!--
@@ -1366,7 +1422,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
   ============================================================
 -->
 <div class="pm-modal-backdrop" id="pmUnplannedModal" onclick="if(event.target===this)closeUnplannedModal()"><div class="pm-modal-card">
-<div class="pm-modal-head"><h3>פתיחת פקודת עבודה (WO)</h3><button onclick="closeUnplannedModal()" type="button">✕</button></div>
+<div class="pm-modal-head"><h3>פתיחת פקודת עבודה (WO)</h3><button class="pm-modal-close" onclick="closeUnplannedModal()" type="button" aria-label="סגור"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
 <div class="toolbar">
 <div class="field"><label>מחלקה</label><select id="pmWODepartment" onchange="fillWOMachines()"></select></div>
 <div class="field"><label>מקור מכונה / תשתית</label><select id="pmWOEquipmentMode" onchange="toggleWOEquipmentMode()"><option value="database">בחירה מהמאגר</option><option value="free">מכונה / תשתית אחרת</option></select></div>
@@ -1398,7 +1454,7 @@ FOP MAINTENANCE V45 FINAL AUDIT MANIFEST
 <div style="width:100%;font-size:11px;color:var(--muted)">לאחר היצירה ניתן לערוך, להשבית ולהפעיל מחדש את ה-PM דרך ניהול משימות. משימות אינן נמחקות מהמאגר.</div>
 </div>
 <div class="pm-modal-status" id="pmWOStatus"></div>
-<div class="pm-modal-actions"><button class="secondary-btn" onclick="closeUnplannedModal()" type="button">ביטול</button><button class="btn" onclick="saveUnplannedWorkOrder()" type="button">פתח WO</button></div>
+<div class="pm-modal-actions"><button class="secondary-btn pm-action-btn pm-action-cancel" onclick="closeUnplannedModal()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg><span>ביטול</span></button><button class="btn pm-action-btn pm-action-add" onclick="saveUnplannedWorkOrder()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>פתח WO</span></button></div>
 </div></div>
 <script>
 
@@ -3201,7 +3257,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 
 <div class="pm-modal-backdrop" id="pmHistoryEditModal" onclick="if(event.target===this)closeHistoryEdit()">
 <div aria-modal="true" class="pm-modal-card" role="dialog">
-<div class="pm-modal-head"><h3>עריכת תיעוד טיפול</h3><button onclick="closeHistoryEdit()" type="button">✕</button></div>
+<div class="pm-modal-head"><h3>עריכת תיעוד טיפול</h3><button class="pm-modal-close" onclick="closeHistoryEdit()" type="button" aria-label="סגור"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
 <p id="pmHistoryEditTaskText"></p>
 <label for="pmHistoryEditNotes">הערות על הטיפול</label>
 <textarea id="pmHistoryEditNotes" placeholder="מה בוצע, ממצאים, המלצה להמשך..." rows="4" style="width:100%;box-sizing:border-box"></textarea>
@@ -3210,7 +3266,7 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 <div class="pm-photo-box"><b>תמונה 2</b><div class="pm-history-photos" id="pmHistoryExisting2"></div><input accept="image/*" capture="environment" id="pmHistoryPhoto2" onchange="previewHistoryEditPhoto(2)" type="file"/><img class="pm-photo-preview" id="pmHistoryPreview2"/></div>
 </div>
 <small>בחירת תמונה חדשה מחליפה את התמונה הקיימת באותו מקום. אם אין תמונה — היא תתווסף.</small>
-<div class="pm-modal-actions"><button class="cancel" onclick="closeHistoryEdit()" type="button">ביטול</button><button class="create" id="pmHistoryEditSave" onclick="saveHistoryEdit()" type="button">שמור שינויים</button></div>
+<div class="pm-modal-actions"><button class="cancel pm-action-btn pm-action-cancel" onclick="closeHistoryEdit()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg><span>ביטול</span></button><button class="create pm-action-btn pm-action-save" id="pmHistoryEditSave" onclick="saveHistoryEdit()" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h12l4 4v14H3V3Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/></svg><span>שמור שינויים</span></button></div>
 <div class="pm-modal-status" id="pmHistoryEditStatus"></div>
 </div>
 </div>
@@ -3845,7 +3901,7 @@ async function saveHistoryEdit(){
       const actions=row.querySelector('.pm-history-actions');if(!actions||actions.querySelector('.pm-wo-delete'))return;
       const edit=[...actions.querySelectorAll('button')].find(b=>extractWOId(b));if(!edit)return;
       const id=extractWOId(edit);if(!id)return;
-      const b=document.createElement('button');b.type='button';b.className='secondary-btn pm-wo-delete';b.textContent='🗑 מחק WO';b.addEventListener('click',()=>window.pmDeleteWorkOrderPermanently(id));actions.appendChild(b);
+      const b=document.createElement('button');b.type='button';b.className='pm-action-btn pm-action-delete pm-wo-delete';b.innerHTML=pmUiIcon('delete')+'<span>מחק WO</span>';b.addEventListener('click',()=>window.pmDeleteWorkOrderPermanently(id));actions.appendChild(b);
     });
   }
   window.pmInjectWODeleteButtons=injectDeleteButtons;
@@ -3937,9 +3993,32 @@ window.updatePlanSelectionInfo=function(){const n=window.selectedPlanKeys().leng
 window.toggleAllPlanRows=function(on=true){document.querySelectorAll('#pmPlannerDetail .pm-plan-check:not(:disabled)').forEach(x=>x.checked=!!on);window.updatePlanSelectionInfo();};
 window.changePlanPage=function(delta){try{pmPlanPage=Math.max(0,(pmPlanPage||0)+Number(delta||0))}catch(_){}renderPlanner();};
 window.filteredPlanningItems=function(){return getPM({...plannerOpts(),workType:'PM'}).filter(r=>r.due<=tday()).map(r=>r.item);};
+
+/* ---------- Unified work-card / action UI ---------- */
+const PM_UI_ICON_PATHS={
+  plus:'<path d="M12 5v14M5 12h14"/>',
+  schedule:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="m9 15 2 2 4-4"/>',
+  unassign:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/><path d="m9 14 6 6M15 14l-6 6"/>',
+  postpone:'<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 7v5l3 2"/>',
+  complete:'<circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/>',
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4Z"/>',
+  delete:'<path d="M3 6h18"/><path d="M8 6V4h8v2M19 6l-1 15H6L5 6"/><path d="M10 11v6M14 11v6"/>',
+  restore:'<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/>',
+  save:'<path d="M5 3h12l4 4v14H3V3Z"/><path d="M7 3v6h10V3M7 21v-8h10v8"/>',
+  copy:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>',
+  refresh:'<path d="M20 11a8 8 0 1 0 1 5"/><path d="M20 4v7h-7"/>',
+  clear:'<path d="m5 5 14 14M19 5 5 19"/>',
+  photo:'<path d="M4 7h3l2-3h6l2 3h3v13H4Z"/><circle cx="12" cy="13" r="4"/>',
+  close:'<path d="m6 6 12 12M18 6 6 18"/>'
+};
+function pmUiIcon(name){return `<svg class="pm-action-icon" viewBox="0 0 24 24" aria-hidden="true">${PM_UI_ICON_PATHS[name]||''}</svg>`;}
+function pmActionButton(kind,label,onclick,icon=kind,extra=''){return `<button type="button" class="pm-action-btn pm-action-${kind}${extra?' '+extra:''}" onclick="${onclick}">${pmUiIcon(icon)}<span>${escH(label)}</span></button>`;}
+function pmWorkStatusLabel(state){return state==='overdue'?'באיחור':state==='planned'?'שובצה לביצוע':state==='waiting'?'טרם שובצה':state==='postponed'?'נדחתה':state==='upcoming'?'טרם נפתחה':state==='completed'?'בוצעה':state||'';}
+function pmWorkCardHtml({type='PM',state='',machine='',description='',meta=[],windowText='',actions='',selectHtml='',extraHtml=''}){const t=String(type||'PM').toUpperCase(),status=pmWorkStatusLabel(state);return `<article class="pm-work-card${selectHtml?' has-select':''} state-${escH(state||'waiting')}" data-work-type="${escH(t)}">${selectHtml?`<div class="pm-work-select">${selectHtml}</div>`:''}<div class="pm-work-card-main"><div class="pm-work-card-head"><div class="pm-work-title"><span class="pm-work-type ${t==='WO'?'wo':'pm'}">${escH(t)}</span><strong>${escH(machine)}</strong></div><span class="pm-work-status ${escH(state||'waiting')}">${escH(status)}</span></div><div class="pm-work-description">${escH(description)}</div><div class="pm-work-meta">${meta.filter(Boolean).map(x=>`<span>${escH(x)}</span>`).join('')}</div>${windowText?`<div class="pm-work-window">${escH(windowText)}</div>`:''}${extraHtml||''}</div>${actions?`<div class="pm-work-actions">${actions}</div>`:''}</article>`;}
+
 function pmStateLabel(r){return r.state==='overdue'?'באיחור':r.state==='planned'?'שובצה לביצוע':r.state==='waiting'?'טרם שובצה':r.state==='postponed'?'נדחתה':'טרם נפתחה'}
 function pmBadge(r){return r.state==='overdue'?'risk':r.state==='planned'?'planned':r.state==='postponed'?'postponed':'open'}
-function pmRowHtml(r){const future=r.due>tday(),assigned=r.isAssigned,canManage=typeof pmCan==='function'&&pmCan('manageExceptions'),selectable=!future&&['waiting','planned','overdue'].includes(r.state),canPostpone=canManage&&!future&&!assigned,windowText=future?(r.state==='postponed'?`נדחתה · תיפתח ב-${fd(r.due)}`:`תיפתח ב-${fd(r.due)}`):r.state==='overdue'?`באיחור · חלון הביצוע הסתיים ב-${fd(pmDeadline(r.due))} · ${assigned?'שובצה '+fd(r.assignmentDate):'טרם שובצה'}`:r.state==='planned'?`שובצה ${fd(r.assignmentDate)} · חלון הביצוע עד ${fd(pmDeadline(r.due))}`:`חלון ביצוע ${fd(r.due)}–${fd(pmDeadline(r.due))} · טרם שובצה`,cls=future?'pm-v109-upcoming':r.state==='overdue'?'pm-v109-overdue':r.state==='planned'?'planned':'';return `<div class="pm-plan-row ${cls}"><input class="pm-plan-check" type="checkbox" value="${escH(planKey(r))}" ${selectable?'':'disabled'} onchange="updatePlanSelectionInfo()"><div class="pm-plan-main"><strong>${escH(r.machine)} — ${escH(r.description)}</strong><small>${escH(r.department)} · <strong>מקצוע: ${escH(r.trade||'—')}</strong> · תדירות: ${escH(r.frequency||'—')} · ${Number(r.duration||0)} דק׳</small><span class="pm-v109-window ${escH(r.state)}">${escH(windowText)}</span>${r.task&&typeof pmChecklistToggleHtml==='function'?pmChecklistToggleHtml(r.task):''}<div class="pm-v110-card-footer"><span class="pm-v110-status ${escH(r.state)}">${escH(pmStateLabel(r))}</span>${canPostpone?`<button type="button" class="pm-v110-defer" onclick="event.stopPropagation();return openPostponeModal('${escH(r.task.id)}')">דחה בשבוע</button>`:''}</div></div><div class="pm-plan-meta pm-plan-hide-mobile">${escH(r.frequency||'')}</div><div class="pm-plan-meta">${escH(fd(r.due))}</div><span class="pm-plan-badge ${pmBadge(r)}">${escH(pmStateLabel(r))}</span></div>`;}
+function pmRowHtml(r){const future=r.due>tday(),assigned=r.isAssigned,canManage=typeof pmCan==='function'&&pmCan('manageExceptions'),selectable=!future&&['waiting','planned','overdue'].includes(r.state),canPostpone=canManage&&!future&&!assigned,windowText=future?(r.state==='postponed'?`נדחתה · תיפתח ב-${fd(r.due)}`:`תיפתח ב-${fd(r.due)}`):r.state==='overdue'?`חלון הביצוע הסתיים ב-${fd(pmDeadline(r.due))} · ${assigned?'שובצה '+fd(r.assignmentDate):'טרם שובצה'}`:r.state==='planned'?`שובצה ${fd(r.assignmentDate)} · חלון הביצוע עד ${fd(pmDeadline(r.due))}`:`חלון ביצוע ${fd(r.due)}–${fd(pmDeadline(r.due))} · טרם שובצה`,selectHtml=`<input class="pm-plan-check" type="checkbox" value="${escH(planKey(r))}" ${selectable?'':'disabled'} onchange="updatePlanSelectionInfo()">`,actions=canPostpone?pmActionButton('postpone','דחה בשבוע',`event.stopPropagation();return openPostponeModal('${escH(r.task.id)}')`,'postpone'):'',extra=r.task&&typeof pmChecklistToggleHtml==='function'?pmChecklistToggleHtml(r.task):'';return pmWorkCardHtml({type:'PM',state:r.state,machine:r.machine,description:r.description,meta:[r.department,`מקצוע: ${r.trade||'—'}`,`תדירות: ${r.frequency||'—'}`,`${Number(r.duration||0)} דק׳`],windowText,actions,selectHtml,extraHtml:extra});}
 
 function woMinutesInPeriod(r,b){const daily=Number(r.dailyHours||0),open=r.openDate,due=r.currentDue;if(!(daily>0)||!open||open>b.end)return 0;const s=maxDate(open,b.start);let e=minDate(due||b.end,b.end);if(r.state==='overdue'||(due&&due<b.start))e=b.end;if(!e||e<s)return 0;return daily*workDays(s,e)*60;}
 function renderWorkload(rows,o){const b=periodBounds('week',tday()),jobs=rows.map(r=>({r,trade:r.trade||'',minutes:r.kind==='WO'?woMinutesInPeriod(r,b):Math.max(0,Number(r.duration||0)),assigned:!!r.isAssigned})),required=jobs.reduce((a,j)=>a+j.minutes,0)/60,unassigned=jobs.filter(j=>!j.assigned).reduce((a,j)=>a+j.minutes,0)/60,scheduled=jobs.filter(j=>j.assigned).reduce((a,j)=>a+j.minutes,0)/60,days=workDays(b.start,b.end),mech=Math.max(0,Number($('pmInitMechanics')?.value||0)),elec=Math.max(0,Number($('pmInitElectricians')?.value||0)),hpd=Math.max(0,Number($('pmPlanHoursPerDay')?.value||0)),mc=mech*hpd*days,ec=elec*hpd*days,total=o.trade==='מכונאי'?mc:o.trade==='חשמלאי'?ec:mc+ec,util=total?Math.round(scheduled/total*100):(scheduled>0?999:0),mechScheduled=jobs.filter(j=>j.assigned&&j.trade==='מכונאי').reduce((a,j)=>a+j.minutes,0)/60,elecScheduled=jobs.filter(j=>j.assigned&&j.trade==='חשמלאי').reduce((a,j)=>a+j.minutes,0)/60;const fmt=x=>Number(x||0).toFixed(1),clamp=x=>Math.max(0,Math.min(100,x)),tone=p=>p>80?'red':p>60?'yellow':'green';setText('pmWorkRequiredHours',fmt(required));setText('pmWorkScheduledHours',fmt(scheduled));setText('pmWorkAvailableHours',fmt(total));setText('pmWorkUnplannedHours',fmt(unassigned));if($('pmWorkAvailableDetail'))$('pmWorkAvailableDetail').textContent=o.trade?`${days} ימים · ${o.trade}`:`${days} ימים · מכונאים + חשמלאים`;const card=$('pmWorkUtilizationCard');if(card){card.classList.remove('tone-green','tone-yellow','tone-red');card.classList.add('tone-'+tone(util))}setText('pmWorkUtilizationPct',total?util+'%':scheduled?'אין קיבולת':'0%');if($('pmWorkUtilizationBar'))$('pmWorkUtilizationBar').style.width=clamp(util)+'%';setText('pmWorkUtilizationState',util>100?'עומס יתר':util>80?'גבוה':util>60?'בינוני':'תקין');setText('pmWorkUtilizationDetail',total?`${fmt(scheduled)} מתוך ${fmt(total)} שעות שובצו`:'יש להגדיר קיבולת צוות');function tradeCard(prefix,demand,cap,hidden){const pct=cap?Math.round(demand/cap*100):(demand?999:0),c=$(`pmWork${prefix}Card`);if(c){c.classList.remove('tone-green','tone-yellow','tone-red');c.classList.add('tone-'+tone(pct));c.classList.toggle('is-filtered-out',hidden)}setText(`pmWork${prefix}Pct`,cap?pct+'%':demand?'אין קיבולת':'0%');setText(`pmWork${prefix}Demand`,fmt(demand));setText(`pmWork${prefix}Capacity`,fmt(cap));if($(`pmWork${prefix}Bar`))$(`pmWork${prefix}Bar`).style.width=clamp(pct)+'%';}tradeCard('Mechanic',mechScheduled,mc,o.trade==='חשמלאי');tradeCard('Electrician',elecScheduled,ec,o.trade==='מכונאי');setText('pmPlanHours',fmt(scheduled));const ct=$('pmPlanCapacityText');if(ct)ct.textContent=`${days} ימי עבודה ללא שבת · מכונאים: ${fmt(mc)} ש׳ (${mech} × ${hpd} ש׳/יום) · חשמלאים: ${fmt(ec)} ש׳ (${elec} × ${hpd} ש׳/יום).`;return {required,unassigned,scheduled,capacity:total,util};}
@@ -3971,13 +4050,13 @@ window.saveUnplannedWorkOrder=async function(){if(!pmCan('manageExceptions'))ret
 window.planWO=async function(id){if(!pmCan('manageExceptions'))return false;const w=allWOs().find(x=>String(x.id)===String(id));if(!w)return false;if(woOpenDate(w)>tday())return statusLine('ה-WO עדיין לא נפתחה ולכן לא ניתן לשבץ אותה.','error'),false;if(woPlannedDate(w))return statusLine('ה-WO כבר משובצת.','error'),false;const assignee=String(window.prompt('שיבוץ לעובד:',w.assignee||'')??'').trim();const q=await supabaseClient.from('pm_work_orders').update({planned_date:tday(),assigned_to:assignee||null,status:'Planned'}).eq('id',id);if(q.error)return statusLine('שיבוץ WO נכשל: '+q.error.message,'error'),false;await reloadCloudData();statusLine('ה-WO שובצה לביצוע.','success');return false;};
 window.unplanWO=async function(id){if(!pmCan('manageExceptions'))return false;const q=await supabaseClient.from('pm_work_orders').update({planned_date:null,assigned_to:null,status:'Open'}).eq('id',id);if(q.error)return statusLine('הסרת שיבוץ WO נכשלה: '+q.error.message,'error'),false;await reloadCloudData();statusLine('שיבוץ ה-WO הוסר. העבודה נשארה פתוחה.','success');return false;};
 window.postponeWO=async function(id){if(!pmCan('manageExceptions'))return false;const w=allWOs().find(x=>String(x.id)===String(id));if(!w)return false;if(woPlannedDate(w))return statusLine('כדי לדחות WO משובצת יש להסיר קודם את השיבוץ.','error'),false;if(woOpenDate(w)>tday())return statusLine('ה-WO עדיין לא נפתחה ולכן לא ניתן לדחות אותה.','error'),false;const reason=String(window.prompt('סיבת הדחייה בשבוע:','')||'').trim();if(!reason)return false;const oldDue=woCurrentDue(w),newDue=addDate(oldDue,7);if(typeof pmConfirm==='function'&&!await pmConfirm(`לדחות את ה-WO בשבוע?\n${fd(oldDue)} ← ${fd(newDue)}\n\nסיבה: ${reason}`))return false;const stamp=new Date().toISOString(),daily=woDailyHours(w),duration=Math.round(daily*workDays(woOpenDate(w),newDue)*60);const q=await supabaseClient.from('pm_work_orders').update({due_date:newDue,planned_date:null,assigned_to:null,status:'Open',duration,postponed_reason:reason,postponed_at:stamp,postponed_by:actor()}).eq('id',id);if(q.error)return statusLine('דחיית WO נכשלה: '+q.error.message,'error'),false;const ev=await supabaseClient.from('pm_postponement_events').insert({work_type:'WO',work_order_id:w.id,old_due:oldDue,new_due:newDue,reason,actor:actor(),created_at:stamp});if(ev.error)return statusLine('ה-WO נדחתה אך Audit הדחייה נכשל: '+ev.error.message,'error'),false;await reloadCloudData();statusLine(`ה-WO נדחתה בשבוע ל-${fd(newDue)}. האיחור ממשיך להימדד מהיעד המקורי ${fd(woOriginalDue(w))}.`,'success');return false;};
-function woCard(w,mode='planner'){const r=woRow(w,tday()),future=r.openDate>tday(),canManage=pmCan('manageExceptions'),over=r.state==='overdue',scheduled=r.isAssigned,windowText=future?`ייפתח ב-${fd(r.openDate)}`:`חלון ביצוע: ${fd(r.openDate)}–${fd(r.currentDue)}${over?` · באיחור מהיעד המקורי ${fd(r.originalDue)}`:''}`,actions=mode==='planner'&&canManage&&!future?(scheduled?`<button class="secondary-btn" onclick="return unplanWO('${escH(w.id)}')">הסר שיבוץ</button>`:`<button class="pm-postpone" onclick="return planWO('${escH(w.id)}')">שבץ לביצוע</button><button class="pm-postpone" onclick="return postponeWO('${escH(w.id)}')">דחה בשבוע</button>`):mode==='report'?`<button class="complete" onclick="return pmOpenWOCompletion('${escH(w.id)}')">✓ דיווח ביצוע</button>`:'';return `<div class="open-task ${over?'overdue':''} ${future?'pm-v109-upcoming':''}"><div class="open-task-top"><div><h4>${escH(w.machine)} <span class="badge">WO</span></h4><div class="desc">${escH(w.description)}</div><div class="meta">מחלקה: ${escH(w.department)}<br>מקצוע: ${escH(w.trade)}<br>עדיפות: ${escH(w.priority)}<br>${escH(windowText)}${scheduled?`<br>שובץ: ${fd(r.assignmentDate||w.plannedDate)}`:''}${r.dailyHours?`<br>${r.dailyHours} שעות/יום`:''}${w.notes?`<br><b>הערה:</b> ${escH(w.notes)}`:''}</div></div><div class="pm-task-actions">${actions}</div></div></div>`;}
+function woCard(w,mode='planner'){const r=woRow(w,tday()),future=r.openDate>tday(),canManage=pmCan('manageExceptions'),over=r.state==='overdue',scheduled=r.isAssigned,windowText=future?`ייפתח ב-${fd(r.openDate)}`:`חלון ביצוע ${fd(r.openDate)}–${fd(r.currentDue)}${over?` · איחור נמדד מהיעד המקורי ${fd(r.originalDue)}`:''}${scheduled?` · שובצה ${fd(r.assignmentDate||w.plannedDate)}`:''}`,actions=mode==='planner'&&canManage&&!future?(scheduled?pmActionButton('unassign','הסר שיבוץ',`return unplanWO('${escH(w.id)}')`,'unassign'):pmActionButton('schedule','שבץ לביצוע',`return planWO('${escH(w.id)}')`,'schedule')+pmActionButton('postpone','דחה בשבוע',`return postponeWO('${escH(w.id)}')`,'postpone')):mode==='report'?pmActionButton('complete','דווח ביצוע',`return pmOpenWOCompletion('${escH(w.id)}')`,'complete'):'',durationMeta=r.dailyHours?`${Number(r.dailyHours).toFixed(1)} שעות/יום`:(w.duration?`${Number(w.duration)} דק׳`:''),notes=w.notes?`<div class="pm-work-window"><b>הערה:</b> ${escH(w.notes)}</div>`:'';return pmWorkCardHtml({type:'WO',state:r.state,machine:w.machine,description:w.description,meta:[w.department,`מקצוע: ${w.trade}`,`עדיפות: ${w.priority}`,durationMeta],windowText,actions,extraHtml:notes});}
 window.woCard=woCard;
 window.renderUnplannedPlanner=function(){const el=$('pmWOPlannerList');if(!el)return;const o=plannerOpts();if(o.workType==='PM'){el.innerHTML='<div class="empty">מסונן ל-PM מחזורי.</div>';return}const rows=getWO(o);el.innerHTML=rows.length?rows.map(r=>woCard(r.wo,'planner')).join(''):'<div class="empty">אין WO המתאימות לחלון ולפילטרים שנבחרו.</div>';};
 
 /* ---------- Execution: scheduled only ---------- */
 function executionRows(){const dep=$('pmReportDepartment')?.value||'',machine=$('pmReportMachine')?.value||'',trade=$('pmReportTrade')?.value||'',wt=$('pmReportWorkType')?.value||'',o={period:'week',anchor:tday(),department:dep,machine,trade,status:'planned'},pm=wt==='WO'?[]:getPM({...o,workType:'PM'}),wo=wt==='PM'?[]:getWO({...o,workType:'WO'}).filter(r=>r.isAssigned);return {pm,wo};}
-function pmExecutionCard(r){const late=r.state==='overdue';return `<div class="open-task ${late?'overdue':''}"><div class="open-task-top"><div><h4>${escH(r.machine)}</h4><div class="desc">${escH(r.description)}</div><div class="meta">מחלקה: ${escH(r.department)}<br>מקצוע: ${escH(r.trade)}<br>תדירות: ${escH(r.frequency)}<br>מועד PM: ${fd(r.due)}<br>שובץ: ${fd(r.assignmentDate)}${r.duration?`<br>משך: ${r.duration} דקות`:''}</div>${r.task&&typeof pmChecklistToggleHtml==='function'?pmChecklistToggleHtml(r.task):''}</div><div class="pm-task-actions"><button class="complete" onclick="return pmOpenCompletionModal('${escH(r.task.id)}','${escH(r.plan?.id||'')}','${escH(r.due)}')">✓ דיווח ביצוע</button></div></div></div>`;}
+function pmExecutionCard(r){const state=r.state==='overdue'?'overdue':'planned',windowText=`מועד PM ${fd(r.due)} · שובצה ${fd(r.assignmentDate)} · חלון ביצוע עד ${fd(r.executionDeadline||pmDeadline(r.due))}`,actions=pmActionButton('complete','דווח ביצוע',`return pmOpenCompletionModal('${escH(r.task.id)}','${escH(r.plan?.id||'')}','${escH(r.due)}')`,'complete'),extra=r.task&&typeof pmChecklistToggleHtml==='function'?pmChecklistToggleHtml(r.task):'';return pmWorkCardHtml({type:'PM',state,machine:r.machine,description:r.description,meta:[r.department,`מקצוע: ${r.trade}`,`תדירות: ${r.frequency}`,r.duration?`${r.duration} דק׳`:''],windowText,actions,extraHtml:extra});}
 window.renderReport=function(){const x=executionRows();setText('repOpen',`${x.pm.length+x.wo.length} משימות פתוחות`);setText('repLate',`${[...x.pm,...x.wo].filter(r=>r.state==='overdue').length} באיחור`);setText('repToday',`${x.pm.length+x.wo.length} משובצות לביצוע`);if($('pmOpenTasks'))$('pmOpenTasks').innerHTML=x.pm.length?x.pm.map(pmExecutionCard).join(''):'<div class="empty">אין טיפולי PM ששובצו לביצוע.</div>';if($('pmWOReportList'))$('pmWOReportList').innerHTML=x.wo.length?x.wo.map(r=>woCard(r.wo,'report')).join(''):'<div class="empty">אין WO ששובצו לביצוע.</div>';if($('pmReportFilterIndicator'))$('pmReportFilterIndicator').textContent=`מציג: ${$('pmReportTrade')?.value||'כל המקצועות'} · עבודות ששובצו בלבד`;const total=x.pm.length+x.wo.length;const doneToday=0;if($('pmProgressFill'))$('pmProgressFill').style.width='0%';setText('pmProgressText',`${doneToday} מתוך ${total} בוצעו`);};
 window.pmOpenWOCompletion=function(id){const w=allWOs().find(x=>String(x.id)===String(id));if(!w||!woPlannedDate(w))return statusLine('ניתן לדווח ביצוע רק ל-WO ששובצה לביצוע.','error'),false;window.pmCompletionIsWO=true;try{pmCompletionIsWO=true}catch(_){};pmCompletionTaskId=id;pmCompletionWorkPlanId='';pmCompletionOccurrenceDue='';pmCompletionReportDate=tday();setText('pmCompleteTaskText',`WO · ${w.machine} — ${w.description}`);if($('pmCompletionNotes'))$('pmCompletionNotes').value='';if($('pmCompletionChecklist')){$('pmCompletionChecklist').hidden=true;$('pmCompletionChecklist').innerHTML=''};for(const n of [1,2]){const inp=$('pmPhoto'+n),img=$('pmPhotoPreview'+n);if(inp)inp.value='';if(img){img.removeAttribute('src');img.style.display='none'}}$('pmCompleteModal')?.classList.add('open');document.body.style.overflow='hidden';return false;};
 window.closeCompleteModal=function(){window.pmCompletionIsWO=false;try{pmCompletionIsWO=false}catch(_){};const modal=$('pmCompleteModal');if(modal)modal.classList.remove('open');document.body.style.overflow='';try{pmCompletionTaskId=null;pmCompletionWorkPlanId='';pmCompletionOccurrenceDue='';pmCompletionReportDate=''}catch(_){};};
@@ -4033,7 +4112,7 @@ function historyStart(){const a=historyRaw();return a.length?a.reduce((m,r)=>!m|
 function historyBounds(){const end=tday(),allStart=historyStart();if(historyPeriod==='all')return {start:allStart,end};const d=new Date(end+'T12:00:00');if(historyPeriod==='fortnight')d.setDate(d.getDate()-13);else if(historyPeriod==='month')d.setMonth(d.getMonth()-1);else if(historyPeriod==='half')d.setMonth(d.getMonth()-6);else d.setFullYear(d.getFullYear()-1);const s=fmtDateObj(d);return {start:s<allStart?allStart:s,end};}
 window.fillHistoryMachines=function(){const sel=$('pmHistoryMachine');if(!sel)return;const dep=$('pmHistoryDepartment')?.value||'',raw=historyRaw(),cur=sel.value,ms=[...new Set(raw.filter(r=>!dep||r.department===dep).map(r=>r.machine).filter(Boolean))].sort((a,b)=>String(a).localeCompare(String(b),'he'));sel.innerHTML='<option value="">כל המכונות</option>'+ms.map(x=>`<option value="${escH(x)}">${escH(x)}</option>`).join('');if(ms.includes(cur))sel.value=cur;};
 function historyFiltered(){const b=historyBounds(),dep=$('pmHistoryDepartment')?.value||'',machine=$('pmHistoryMachine')?.value||'',trade=$('pmHistoryTrade')?.value||'',wt=$('pmHistoryWorkType')?.value||'',q=String($('pmHistorySearch')?.value||'').trim().toLowerCase(),activeIds=new Set((tasks||[]).filter(t=>t.active!==false).map(t=>String(t.id)));return historyRaw().filter(r=>(r.source!=='PM'||!r.taskId||activeIds.has(String(r.taskId)))&&r.date>=b.start&&r.date<=b.end&&(!dep||r.department===dep)&&(!machine||r.machine===machine)&&(!trade||r.trade===trade)&&(!wt||r.source===wt)&&(!q||`${r.machine} ${r.task} ${r.department} ${r.trade} ${r.reportedBy} ${r.completionNotes}`.toLowerCase().includes(q)));}
-function historyRow(r){const reporter=r.reportedBy?`<div class="history-user"><small>דווח על ידי</small><strong>${escH(r.reportedBy)}</strong></div>`:'',notes=r.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${escH(r.completionNotes)}</div>`:'',photos=(r.photo1Path||r.photo2Path)?`<div class="pm-history-photos">${r.photo1Path?`<button type="button" onclick="openMaintenancePhoto('${escH(r.photo1Path)}')">📷 תמונה 1</button>`:''}${r.photo2Path?`<button type="button" onclick="openMaintenancePhoto('${escH(r.photo2Path)}')">📷 תמונה 2</button>`:''}</div>`:'',edit=pmCan('manageExceptions')&&typeof openHistoryEdit==='function'?`<button class="secondary-btn" type="button" onclick="openHistoryEdit('${escH(r.source)}','${escH(String(r.id))}')">✏️ עריכת תיעוד</button>`:'',undo=pmCan('manageExceptions')&&r.source==='PM'?`<button class="pm-undo" type="button" onclick="undoCompletion('${escH(String(r.id))}','${escH(String(r.taskId))}','${escH(r.date)}')">↩ החזר לתוכנית</button>`:'';return `<div class="history-row"><div><strong>${fd(r.date)}</strong><span class="pm-history-event completed">${r.source} בוצע</span></div><div><strong>${escH(r.machine)}</strong><small>${escH(r.task)}</small><small>${escH(r.department)} · <strong>מקצוע: ${escH(r.trade||'—')}</strong> · ${r.source==='WO'?'עדיפות':'תדירות'}: ${escH(r.frequency||'—')} · ${Number(r.duration||0)} דק׳</small>${notes}${photos}</div>${reporter}${edit||undo?`<div class="pm-history-actions">${edit}${undo}</div>`:''}</div>`;}
+function historyRow(r){const reporter=r.reportedBy?`<div class="history-user"><small>דווח על ידי</small><strong>${escH(r.reportedBy)}</strong></div>`:'',notes=r.completionNotes?`<div class="pm-history-notes"><b>הערות:</b> ${escH(r.completionNotes)}</div>`:'',photos=(r.photo1Path||r.photo2Path)?`<div class="pm-history-photos">${r.photo1Path?pmActionButton('photo','תמונה 1',`openMaintenancePhoto('${escH(r.photo1Path)}')`,'photo'):''}${r.photo2Path?pmActionButton('photo','תמונה 2',`openMaintenancePhoto('${escH(r.photo2Path)}')`,'photo'):''}</div>`:'',edit=pmCan('manageExceptions')&&typeof openHistoryEdit==='function'?pmActionButton('edit','עריכת תיעוד',`openHistoryEdit('${escH(r.source)}','${escH(String(r.id))}')`,'edit'):'',undo=pmCan('manageExceptions')&&r.source==='PM'?pmActionButton('restore','החזר לתוכנית',`undoCompletion('${escH(String(r.id))}','${escH(String(r.taskId))}','${escH(r.date)}')`,'restore'):'';return `<div class="history-row"><div><strong>${fd(r.date)}</strong><span class="pm-history-event completed">${r.source} בוצע</span></div><div><strong>${escH(r.machine)}</strong><small>${escH(r.task)}</small><small>${escH(r.department)} · <strong>מקצוע: ${escH(r.trade||'—')}</strong> · ${r.source==='WO'?'עדיפות':'תדירות'}: ${escH(r.frequency||'—')} · ${Number(r.duration||0)} דק׳</small>${notes}${photos}</div>${reporter}${edit||undo?`<div class="pm-history-actions">${edit}${undo}</div>`:''}</div>`;}
 window.renderHistory=function(){const rows=historyFiltered(),b=historyBounds(),pm=rows.filter(r=>r.source==='PM').length,wo=rows.filter(r=>r.source==='WO').length,mech=rows.filter(r=>r.trade==='מכונאי').reduce((a,r)=>a+Number(r.duration||0),0),elec=rows.filter(r=>r.trade==='חשמלאי').reduce((a,r)=>a+Number(r.duration||0),0);setText('pmHistoryCount',rows.length);setText('pmHistoryCountDetail',`PM ${pm} · WO ${wo}`);setText('pmHistoryMech',(mech/60).toFixed(1));setText('pmHistoryElec',(elec/60).toFixed(1));if($('pmHistoryNote'))$('pmHistoryNote').innerHTML=`<strong>יומן ביצועים הוא היסטורי ועצמאי מהדשבורד.</strong> תקופה מוצגת: ${fd(b.start)} – ${fd(b.end)}.`;const first=document.querySelector('#pmHistoryPeriods [data-history-period="all"]');if(first)first.textContent=`מתחילת התיעוד — ${fd(historyStart())}`;if($('pmHistoryList'))$('pmHistoryList').innerHTML=rows.length?rows.slice(0,500).map(historyRow).join(''):'<div class="empty">לא נמצאו ביצועים בתקופה ובסינון שנבחרו.</div>';try{pmInjectWODeleteButtons?.()}catch(_){};};
 window.pmHistoryUnifiedRows=historyFiltered;window.pmExecutionHistoryRows=historyFiltered;window.exportHistoryCSV=function(){const rows=historyFiltered(),data=[['תאריך','סוג עבודה','מחלקה','מכונה','משימה','תדירות / עדיפות','מקצוע','משך (דקות)','דווח על ידי','הערות'],...rows.map(r=>[r.date,r.source,r.department,r.machine,r.task,r.frequency,r.trade,r.duration,r.reportedBy||'',r.completionNotes||''])],csv='\ufeff'+data.map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\n'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'}),a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='maintenance_execution_history.csv';document.body.appendChild(a);a.click();const u=a.href;a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);};
 
@@ -4043,8 +4122,25 @@ window.printMaintenanceExecution=()=>printExecution('print');window.pdfMaintenan
 window.pdfHistoryReport=function(){const rows=historyFiltered();if(!rows.length)return pmToast?.('אין ביצועים להפקת PDF','error');const w=window.open('','_blank');if(!w)return false;w.document.write(`<!doctype html><html dir="rtl"><meta charset="utf-8"><title>יומן ביצועים</title><style>body{font-family:Arial;padding:20px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:6px;text-align:right;font-size:11px}</style><body><h2>יומן ביצועי אחזקה</h2><table><thead><tr><th>תאריך</th><th>סוג</th><th>מחלקה</th><th>מכונה</th><th>משימה</th><th>מקצוע</th><th>דקות</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${fd(r.date)}</td><td>${r.source}</td><td>${escH(r.department)}</td><td>${escH(r.machine)}</td><td>${escH(r.task)}</td><td>${escH(r.trade)}</td><td>${r.duration||0}</td></tr>`).join('')}</tbody></table></body></html>`);w.document.close();return false;};
 
 /* ---------- Single deterministic tab controller ---------- */
-window.showTab=function(name){
+const PM_TAB_LABELS={dashboard:'דשבורד',planner:'תכנון עבודה',report:'דיווח טיפול',reports:'דוחות',history:'יומן ביצועים',operatorChecks:'בדיקות מפעיל',maintenanceChecks:'בדיקות אחזקה',editTasks:'ניהול משימות',initialization:'אתחול מערכת',users:'ניהול משתמשים'};
+window.pmNavigationStack=Array.isArray(window.pmNavigationStack)?window.pmNavigationStack:[];
+window.pmCurrentMaintenanceTab=window.pmCurrentMaintenanceTab||'dashboard';
+function pmActiveTab(){return document.querySelector('.pm-tab.active')?.dataset?.pm||window.pmCurrentMaintenanceTab||'dashboard'}
+function pmCanOpenTab(key){const cfg=(typeof PM_ROLES!=='undefined'?(PM_ROLES[pmCurrentRole]||PM_ROLES.viewer):null);return !cfg||cfg.tabs.includes(key)}
+window.pmGoBack=function(){
+  const current=pmActiveTab();let target='';
+  while(window.pmNavigationStack.length){const candidate=window.pmNavigationStack.pop();if(candidate&&candidate!==current&&pmCanOpenTab(candidate)){target=candidate;break}}
+  if(!target)target='dashboard';
+  window.showTab(target,{fromBack:true});
+  return false;
+};
+function pmCloseTopModal(){const open=[...document.querySelectorAll('.pm-modal-backdrop.open')].pop();if(!open)return false;const closers={pmPostponeModal:'closePostponeModal',pmCompleteModal:'closeCompleteModal',pmUnplannedModal:'closeUnplannedModal',pmHistoryEditModal:'closeHistoryEdit'};const fn=window[closers[open.id]];if(typeof fn==='function')fn();else open.classList.remove('open');return true}
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;if(pmCloseTopModal()){e.preventDefault();return}if(pmActiveTab()!=='dashboard'){e.preventDefault();window.pmGoBack()}});
+
+window.showTab=function(name,navOpts={}){
   let key=String(name||'dashboard');if(key==='addTask')key='editTasks';
+  const current=pmActiveTab();
+  if(!navOpts.fromBack&&current&&current!==key){const st=window.pmNavigationStack;if(st[st.length-1]!==current)st.push(current);if(st.length>24)st.splice(0,st.length-24)}
   const cfg=(typeof PM_ROLES!=='undefined'?(PM_ROLES[pmCurrentRole]||PM_ROLES.viewer):null);
   if(cfg&&!cfg.tabs.includes(key))return statusLine('אין הרשאה לכרטיסייה זו.','error');
   if(key==='editTasks'&&!pmCan('settings'))return statusLine('אין הרשאה לניהול משימות.','error');
@@ -4052,6 +4148,7 @@ window.showTab=function(name){
   if(key==='initialization'&&!pmCan('initialize'))return statusLine('אתחול מערכת זמין ל-Admin בלבד.','error');
   if(key==='report'&&!pmCan('report'))return statusLine('דיווח טיפול אינו זמין בהרשאה שלך.','error');
   const ids={dashboard:'pmDashboard',planner:'pmPlanner',report:'pmReport',reports:'pmReports',history:'pmHistory',operatorChecks:'pmOperatorChecks',maintenanceChecks:'pmMaintenanceChecks',editTasks:'pmEditTasks',initialization:'pmInitialization',users:'pmUsers'};
+  window.pmCurrentMaintenanceTab=key;
   document.querySelectorAll('.pm-tab').forEach(b=>b.classList.toggle('active',b.dataset.pm===key));
   document.querySelectorAll('.pm-panel').forEach(p=>p.classList.toggle('active',p.id===ids[key]));
   const gf=$('pmV99GlobalFilter');if(gf)gf.classList.toggle('active',['dashboard','planner','report','reports'].includes(key));
@@ -4087,7 +4184,7 @@ window.fillPlanningMachines=function(){const sel=$('pmPlannerMachine');if(!sel)r
 window.fillReportMachines=function(){const sel=$('pmReportMachine');if(!sel)return;const dep=$('pmReportDepartment')?.value||'',wt=$('pmReportWorkType')?.value||'';if(typeof pmPopulateMachineSelect==='function'&&typeof pmCanonicalMachineOptions==='function')pmPopulateMachineSelect(sel,pmCanonicalMachineOptions({department:dep,workType:wt,scope:'execution'}),'כל המכונות');};
 
 /* ---------- boot ---------- */
-function boot(){if($('pmPlannerStart'))$('pmPlannerStart').value=tday();if($('pmDashboardAnchor'))$('pmDashboardAnchor').value=tday();if($('pmReportsAnchor'))$('pmReportsAnchor').value=tday();if($('pmPostponeDate'))$('pmPostponeDate').type='hidden';if($('pmPostponeSaveButton'))$('pmPostponeSaveButton').textContent='דחה בשבוע';try{renderDashboard();renderPlanner();renderReport();renderHistory()}catch(e){console.warn('maintenance consolidated boot',e)}}
+function boot(){if($('pmPlannerStart'))$('pmPlannerStart').value=tday();if($('pmDashboardAnchor'))$('pmDashboardAnchor').value=tday();if($('pmReportsAnchor'))$('pmReportsAnchor').value=tday();if($('pmPostponeDate'))$('pmPostponeDate').type='hidden';if($('pmPostponeSaveButton')){$('pmPostponeSaveButton').classList.add('pm-action-btn','pm-action-postpone');}try{renderDashboard();renderPlanner();renderReport();renderHistory()}catch(e){console.warn('maintenance consolidated boot',e)}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
 </script></body></html>
