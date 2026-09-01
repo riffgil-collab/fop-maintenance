@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta name="fop-build" content="20260831-v158-completed-kpi-report-drilldown"/>
+<meta name="fop-build" content="20260901-v159-canonical-demand-filter-sync"/>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
@@ -12131,6 +12131,164 @@ window.pmV156WOAutoLoad={build:'20260831-v156',input:'dailyHoursOnly',formula:'d
       completedKpiHandler:typeof window.pmV99OpenCompletedReport==='function'
     };
   };
+})();
+</script>
+
+<script id="fop-v159-canonical-demand-filter-sync">
+/* V159 — Planner Demand/Capacity must use the exact same canonical filtered work set as Planning.
+   Fixes a mismatch where the KPI could still count raw PM/WO records after the planner filter showed 0 work.
+   Capacity remains independent of work type/status; only Demand follows the selected filters. */
+(function(){
+  const $=id=>document.getElementById(id);
+  const iso=v=>{const m=String(v??'').match(/\d{4}-\d{2}-\d{2}/);return m?m[0]:''};
+  const norm=v=>String(v??'').trim().toLowerCase();
+  const fmt=n=>(Number(n||0)).toFixed(1);
+  const clamp=n=>Math.max(0,Math.min(100,Number(n||0)));
+  const tday=()=>typeof today==='function'?today():new Date().toISOString().slice(0,10);
+  const CLOSED=new Set(['completed','done','cancelled','canceled','בוצע','בוצעה','בוטל','בוטלה']);
+
+  function workDays(start,end){
+    if(!start||!end||end<start)return 0;
+    let n=0,d=new Date(start+'T12:00:00'),last=new Date(end+'T12:00:00'),guard=0;
+    while(d<=last&&guard++<3700){if(d.getDay()!==6)n++;d.setDate(d.getDate()+1)}
+    return n;
+  }
+  function maxDate(a,b){return !a?b:!b?a:(a>b?a:b)}
+  function minDate(a,b){return !a?b:!b?a:(a<b?a:b)}
+
+  function state(){
+    return {
+      period:(typeof pmPlanningPeriod!=='undefined'&&pmPlanningPeriod)||'week',
+      anchor:iso($('pmPlannerStart')?.value)||tday(),
+      department:$('pmPlannerDepartment')?.value||'',
+      machine:$('pmPlannerMachine')?.value||'',
+      trade:$('pmPlannerProfession')?.value||$('pmPlannerTrade')?.value||'',
+      workType:$('pmPlannerWorkType')?.value||'',
+      status:$('pmPlannerStatus')?.value||'open'
+    };
+  }
+  function bounds(o){
+    try{
+      const e=window.pmCanonicalForecast||window.fopUnifiedWorkSource;
+      const b=e?.periodBounds?.(o.period,o.anchor)||e?.bounds?.(o.period,o.anchor);
+      if(b?.start&&b?.end)return {start:iso(b.start),end:iso(b.end)};
+    }catch(_){ }
+    try{
+      if(typeof planningBounds==='function'){
+        const b=planningBounds();
+        if(b?.start&&b?.end)return {start:iso(b.start),end:iso(b.end)};
+      }
+    }catch(_){ }
+    const start=o.anchor,d=new Date(start+'T12:00:00');
+    if(o.period==='month')d.setMonth(d.getMonth()+1);
+    else if(o.period==='half')d.setMonth(d.getMonth()+6);
+    else if(o.period==='year')d.setFullYear(d.getFullYear()+1);
+    else d.setDate(d.getDate()+(o.period==='day'?0:6));
+    return {start,end:`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`};
+  }
+  function canonicalRows(o){
+    const e=window.pmCanonicalForecast||window.fopUnifiedWorkSource;
+    if(!e||typeof e.getWork!=='function')return [];
+    try{return e.getWork({...o})||[]}catch(err){console.warn('V159 canonical planner source',err);return []}
+  }
+  function pmAssigned(r){
+    const ps=norm(r?.plan?.status);
+    return ['planned','מתוכנן','מתוכננת'].includes(ps);
+  }
+  function woAssigned(r){
+    const w=r?.wo||r||{};
+    const st=norm(w?.status??r?.status);
+    return !!iso(w?.plannedDate??w?.planned_date??r?.plannedDate??r?.planned_date)&&!CLOSED.has(st);
+  }
+  function woMinutes(r,b){
+    const w=r?.wo||r||{};
+    const open=iso(r?.openDate??w?.openDate??w?.open_date??w?.createdAt??w?.created_at??r?.due);
+    const due=iso(r?.currentDue??w?.currentDue??w?.dueDate??w?.due_date??r?.due);
+    let daily=Number(r?.dailyHours??w?.dailyHours??w?.daily_hours);
+    if(!(daily>0)){
+      const total=Number((r?.duration??w?.duration)||0),baseDays=workDays(open,due);
+      if(total>0&&baseDays>0)daily=total/60/baseDays;
+    }
+    if(!(daily>0)||!open||open>b.end)return 0;
+    const s=maxDate(open,b.start);
+    let e=minDate(due||b.end,b.end);
+    // An unresolved WO whose current target has passed continues to consume its daily load.
+    if(due&&due<tday())e=b.end;
+    if(!e||e<s)return 0;
+    return daily*workDays(s,e)*60;
+  }
+  function jobsFrom(rows,b){
+    return rows.map(r=>{
+      const kind=String(r?.kind||'PM').toUpperCase();
+      const trade=String(r?.trade||r?.task?.trade||r?.wo?.trade||'').trim();
+      if(kind==='WO')return {kind:'WO',trade,minutes:woMinutes(r,b),assigned:woAssigned(r),row:r};
+      return {kind:'PM',trade,minutes:Math.max(0,Number((r?.duration??r?.task?.duration)||0)),assigned:pmAssigned(r),row:r};
+    });
+  }
+  function capacity(b,o){
+    const days=workDays(b.start,b.end),mech=Math.max(0,Number($('pmInitMechanics')?.value||0)),elec=Math.max(0,Number($('pmInitElectricians')?.value||0)),hpd=Math.max(0,Number($('pmPlanHoursPerDay')?.value||0));
+    const mechanic=mech*hpd*days,electrician=elec*hpd*days;
+    let total=mechanic+electrician;
+    if(o.trade==='מכונאי')total=mechanic;else if(o.trade==='חשמלאי')total=electrician;
+    return {days,mech,elec,hpd,mechanic,electrician,total};
+  }
+  function tone(p){return p>80?'red':p>60?'yellow':'green'}
+  function setTone(card,p){if(!card)return;card.classList.remove('tone-green','tone-yellow','tone-red');card.classList.add('tone-'+tone(p))}
+  function setTrade(card,pctEl,barEl,demandEl,capEl,demand,cap,filteredOut){
+    const p=cap?Math.round(demand/cap*100):(demand>0?999:0);
+    if(pctEl)pctEl.textContent=cap?`${p}%`:(demand>0?'אין קיבולת':'0%');
+    if(barEl)barEl.style.width=clamp(p)+'%';
+    if(demandEl)demandEl.textContent=fmt(demand);
+    if(capEl)capEl.textContent=fmt(cap);
+    setTone(card,p);card?.classList.toggle('is-filtered-out',!!filteredOut);
+  }
+  function render(){
+    const o=state(),b=bounds(o),rows=canonicalRows(o),jobs=jobsFrom(rows,b),cap=capacity(b,o);
+    const required=jobs.reduce((a,r)=>a+Number(r.minutes||0),0)/60;
+    const unassigned=jobs.filter(r=>!r.assigned).reduce((a,r)=>a+Number(r.minutes||0),0)/60;
+    const scheduled=Math.max(0,required-unassigned);
+    const util=cap.total?Math.round(required/cap.total*100):(required>0?999:0);
+    const mechDemand=jobs.filter(r=>r.trade==='מכונאי').reduce((a,r)=>a+Number(r.minutes||0),0)/60;
+    const elecDemand=jobs.filter(r=>r.trade==='חשמלאי').reduce((a,r)=>a+Number(r.minutes||0),0)/60;
+
+    if($('pmWorkRequiredHours'))$('pmWorkRequiredHours').textContent=fmt(required);
+    if($('pmWorkAvailableHours'))$('pmWorkAvailableHours').textContent=fmt(cap.total);
+    if($('pmWorkUnplannedHours'))$('pmWorkUnplannedHours').textContent=fmt(unassigned);
+    if($('pmWorkAvailableDetail'))$('pmWorkAvailableDetail').textContent=o.trade?`${cap.days} ימים · ${o.trade}`:`${cap.days} ימים · מכונאים + חשמלאים`;
+
+    const uc=$('pmWorkUtilizationCard');setTone(uc,util);
+    if($('pmWorkUtilizationPct'))$('pmWorkUtilizationPct').textContent=cap.total?`${util}%`:(required>0?'אין קיבולת':'0%');
+    if($('pmWorkUtilizationBar'))$('pmWorkUtilizationBar').style.width=clamp(util)+'%';
+    if($('pmWorkUtilizationState'))$('pmWorkUtilizationState').textContent=util>100?'עומס יתר':util>80?'גבוה':util>60?'בינוני':'תקין';
+    if($('pmWorkUtilizationDetail'))$('pmWorkUtilizationDetail').textContent=cap.total?`${fmt(required)} מתוך ${fmt(cap.total)} שעות`:'יש להגדיר קיבולת צוות';
+
+    setTrade($('pmWorkMechanicCard'),$('pmWorkMechanicPct'),$('pmWorkMechanicBar'),$('pmWorkMechanicDemand'),$('pmWorkMechanicCapacity'),mechDemand,cap.mechanic,o.trade==='חשמלאי');
+    setTrade($('pmWorkElectricianCard'),$('pmWorkElectricianPct'),$('pmWorkElectricianBar'),$('pmWorkElectricianDemand'),$('pmWorkElectricianCapacity'),elecDemand,cap.electrician,o.trade==='מכונאי');
+
+    // Summary and Demand now come from exactly the same canonical filtered rows.
+    if($('pmPlanRequired'))$('pmPlanRequired').textContent=String(rows.length);
+    if($('pmPlanScheduled'))$('pmPlanScheduled').textContent=String(jobs.filter(r=>r.assigned).length);
+    if($('pmPlanCoverage'))$('pmPlanCoverage').textContent=(rows.length?Math.round(jobs.filter(r=>r.assigned).length/rows.length*100):100)+'%';
+    if($('pmPlanHours'))$('pmPlanHours').textContent=fmt(scheduled);
+    const ct=$('pmPlanCapacityText');if(ct)ct.textContent=`${cap.days} ימי עבודה ללא שבת · מכונאים: ${fmt(cap.mechanic)} ש׳ (${cap.mech} × ${cap.hpd} ש׳/יום) · חשמלאים: ${fmt(cap.electrician)} ש׳ (${cap.elec} × ${cap.hpd} ש׳/יום).`;
+
+    window.pmV159DemandCapacityAudit={build:'20260901-v159-canonical-demand-filter-sync',source:'canonical getWork',bounds:b,filters:o,canonicalRows:rows.length,requiredHours:Number(fmt(required)),availableHours:Number(fmt(cap.total)),utilization:util,unassignedHours:Number(fmt(unassigned)),scheduledHours:Number(fmt(scheduled)),pmJobs:jobs.filter(r=>r.kind==='PM').length,woJobs:jobs.filter(r=>r.kind==='WO').length,mechanic:{demand:Number(fmt(mechDemand)),capacity:Number(fmt(cap.mechanic))},electrician:{demand:Number(fmt(elecDemand)),capacity:Number(fmt(cap.electrician))}};
+  }
+
+  window.pmV159RenderDemandCapacity=render;
+  window.pmV157RenderDemandCapacity=render;
+  const previous=window.renderPlanner;
+  window.renderPlanner=function(){
+    const result=typeof previous==='function'?previous.apply(this,arguments):undefined;
+    try{render()}catch(e){console.warn('V159 demand/capacity',e)}
+    return result;
+  };
+  try{renderPlanner=window.renderPlanner}catch(_){ }
+
+  ['pmPlannerWorkType','pmPlannerDepartment','pmPlannerMachine','pmPlannerTrade','pmPlannerProfession','pmPlannerStatus'].forEach(id=>{
+    $(id)?.addEventListener('change',()=>setTimeout(()=>{try{render()}catch(e){console.warn('V159 filter sync',e)}},0));
+  });
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(render,0));else setTimeout(render,0);
 })();
 </script>
 
