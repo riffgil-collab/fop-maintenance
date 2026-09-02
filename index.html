@@ -3,7 +3,7 @@
 <html dir="rtl" lang="he">
 <head>
 <meta charset="utf-8"/>
-<meta content="20260901-v160-wo-period-overlap-demand" name="fop-build"/>
+<meta content="20260902-cloud-load-fixed-final" name="fop-build"/>
 <meta content="no-cache, no-store, must-revalidate" http-equiv="Cache-Control"/>
 <meta content="no-cache" http-equiv="Pragma"/>
 <meta content="0" http-equiv="Expires"/>
@@ -1672,6 +1672,32 @@ function pmShowLogin(){
   if(bar) bar.style.display='none';
   if(overlay){overlay.style.display='flex';overlay.setAttribute('aria-hidden','false');}
 }
+function pmSetCloudLoadState(state='loading'){
+  const ids=['pmV17Open','pmV142WOOpen','pmV31Planned','pmV105Unassigned','pmV144Upcoming','pmV17Overdue','pmV99Completed','pmV97Postponements','pmV97OriginalCompliance'];
+  const value=state==='loading'?'…':'—';
+  ids.forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=value});
+  const dep=document.getElementById('pmDashboardDepartment');
+  if(dep && !dep.options.length){
+    const label=state==='loading'
+      ? ((window.pmCurrentLanguage?.()==='en')?'Loading data…':'טוען נתונים…')
+      : ((window.pmCurrentLanguage?.()==='en')?'Cloud load failed':'טעינת הנתונים נכשלה');
+    dep.innerHTML=`<option value="">${label}</option>`;
+  }
+}
+
+async function pmLoadCloudDeterministically(){
+  pmSetCloudLoadState('loading');
+  let ok=false;
+  try{ok=await loadCloudData();}catch(e){console.error('Initial cloud load failed',e);ok=false;}
+  // One bounded retry covers transient mobile/network/JWT timing without leaving a false-zero dashboard.
+  if(!ok){
+    await new Promise(r=>setTimeout(r,700));
+    try{ok=await loadCloudData();}catch(e){console.error('Cloud load retry failed',e);ok=false;}
+  }
+  if(!ok)pmSetCloudLoadState('error');
+  return ok;
+}
+
 async function pmShowApp(user){
   await pmLoadTenantConfig();
   const overlay=document.getElementById('pmAuthOverlay');
@@ -1690,12 +1716,20 @@ async function pmShowApp(user){
     return;
   }
   if(overlay){overlay.style.display='none';overlay.setAttribute('aria-hidden','true');}
-  if(shell)shell.style.display='';
+  // Keep the application shell hidden until the authoritative Supabase snapshot is ready.
+  // This prevents the initial static KPI value (0) from being mistaken for real data.
+  if(shell)shell.style.display='none';
   if(bar)bar.style.display='flex';
   const email=document.getElementById('pmAuthEmail');
   if(email)email.textContent=pmCurrentProfile?.full_name||user?.email||'';
   applyPMPermissions();
-  setTimeout(()=>loadCloudData(),0);
+  const cloudOk=await pmLoadCloudDeterministically();
+  if(shell)shell.style.display='';
+  if(!cloudOk){
+    statusLine((window.pmCurrentLanguage?.()==='en')
+      ? 'Cloud data could not be loaded. Refresh the page or sign in again.'
+      : 'טעינת הנתונים מהענן נכשלה. רענן את הדף או התחבר מחדש.','error');
+  }
 }
 document.addEventListener('DOMContentLoaded',()=>{
   pmLoadTenantConfig().catch(()=>{});
@@ -1896,6 +1930,8 @@ async function loadCloudData(){
       if(rows.length<pageSize) break;
     }
     tasks=allTaskRows.map(normalize);
+    // Keep the canonical maintenance core and any legacy readers on the same in-memory snapshot.
+    window.tasks=tasks;
     
     const classificationIssues=tasks.filter(t=>t.active!==false).filter(t=>{
       const type=taskTypeValue(t);
@@ -3853,7 +3889,7 @@ function rawPMCompletions(){return (Array.isArray(history)?history:[]).filter(h=
 function rawWOCompletions(){return allWOs().filter(w=>DONE.has(norm(w.status))).map(w=>{const date=iso(w.completedDate??w.completed_date);return date?{kind:'WO',state:'completed',id:w.id,date,department:w.department||'',machine:w.machine||'',description:w.description||'',frequency:'WO',trade:w.trade||'מכונאי',duration:Number(w.duration||0),reportedBy:w.completedBy||'',completionNotes:w.completionNotes||'',raw:w}:null}).filter(Boolean);}
 function reportCompletionRows(o){const w=backwardWindow(o.period||'week',o.anchor||tday()),wt=String(o.workType||''),activeIds=new Set((tasks||[]).filter(t=>t.active!==false).map(t=>String(t.id)));return [...(wt==='WO'?[]:rawPMCompletions()),...(wt==='PM'?[]:rawWOCompletions())].filter(r=>{if(r.kind==='PM'&&r.taskId&&!activeIds.has(String(r.taskId)))return false;return r.date>=w.start&&r.date<=w.end&&(!o.department||r.department===o.department)&&(!o.machine||r.machine===o.machine)&&(!o.trade||r.trade===o.trade)});}
 function originalCompliance(o){const relevant=(tasks||[]).filter(t=>isMaintenancePM(t)&&(!o.department||t.department===o.department)&&(!o.machine||t.machine===o.machine)&&(!o.trade||taskTrade(t)===o.trade)),ids=new Set(relevant.map(t=>String(t.id))),occ=new Map(),anchor=tday();for(const p of planRows()){if(!ids.has(planTaskId(p)))continue;const orig=planOriginalDue(p)||planDue(p);if(!orig||addDate(orig,6)>anchor)continue;const key=planTaskId(p)+'|'+orig,stamp=String(p.updatedAt??p.updated_at??p.createdAt??p.created_at??''),prev=occ.get(key);if(prev&&prev.stamp>stamp)continue;const done=DONE.has(planStatus(p)),doneDate=iso(p.completedDate??p.completed_date),ok=done&&doneDate&&doneDate<=addDate(orig,6);occ.set(key,{ok,stamp});}const a=[...occ.values()];return a.length?{score:Math.round(a.filter(x=>x.ok).length/a.length*100),ok:a.filter(x=>x.ok).length,total:a.length}:{score:null,ok:0,total:0};}
-window.renderDashboard=function(){const o=dashboardState();window.maintenanceDashboardState=o;if($('pmDashboardAnchor'))$('pmDashboardAnchor').value=tday();const pmBase={...o,workType:'PM'},pmOpen=getPM({...pmBase,status:'open'}),pmPlanned=getPM({...pmBase,status:'planned'}),pmWaiting=getPM({...pmBase,status:'waiting'}),pmOver=getPM({...pmBase,status:'overdue'}),pmPost=getPM({...pmBase,status:'postponed'}),pmUp=o.workType==='WO'?[]:getPM({...pmBase,status:'upcoming'}),woOpen=getWO({...o,workType:'WO',status:'open'}),done=reportCompletionRows({...o,status:'completed'});setText('pmV17Open',pmOpen.length);setText('pmV142WOOpen',woOpen.length);setText('pmV31Planned',pmPlanned.length);setText('pmV105Unassigned',pmWaiting.length);setText('pmV144Upcoming',pmUp.length);setText('pmV17Overdue',pmOver.length);setText('pmV99Completed',done.length);setText('pmV97Postponements',pmPost.length);setText('pmV3Waiting',pmWaiting.length);setText('pmV3Planned',pmPlanned.length);setText('pmV3Completed',done.filter(r=>r.kind==='PM').length);setText('pmV3Postponed',pmPost.length);setText('pmV3Overdue',pmOver.length);const overdueAssigned=pmOver.filter(r=>r.isAssigned).length;if($('pmV17OverdueDetail'))$('pmV17OverdueDetail').textContent=tx('dashboard.overdueAssigned',{count:overdueAssigned});const b=periodBounds(o.period,tday());if($('pmV144UpcomingDetail'))$('pmV144UpcomingDetail').textContent=tx('dashboard.upcomingRange',{start:fd(b.start),end:fd(b.end)});const bw=backwardWindow(o.period,tday());if($('pmV99CompletedDetail'))$('pmV99CompletedDetail').textContent=tx('dashboard.completedRange',{start:fd(bw.start),end:fd(bw.end)});const coverage=pmOpen.length?Math.round(pmPlanned.length/pmOpen.length*100):100;setText('pmV3Coverage',coverage+'%');setText('pmV3CoverageDetail',tx('dashboard.coverageDetail',{planned:pmPlanned.length,open:pmOpen.length}));if($('pmV3CoverageBar'))$('pmV3CoverageBar').style.width=Math.min(100,coverage)+'%';const health=$('pmV3Health');if(health){const noPlanYet=pmOpen.length>0&&pmPlanned.length===0&&done.filter(r=>r.kind==='PM').length===0&&pmPost.length===0;let tone='warn',status='';if(pmOpen.length===0){tone='good';status=tx('dashboard.healthNoRequirements')}else if(noPlanYet){tone='warn';status=tx('dashboard.healthPending')}else if(pmOver.length===0&&coverage>=80){tone='good';status=tx('dashboard.healthGood')}else if(pmOver.length<=10&&coverage>=60){tone='warn';status=tx('dashboard.healthWarn')}else{tone='bad';status=tx('dashboard.healthBad')}health.className='pm-v3-health '+tone;const strong=health.querySelector('strong'),label=health.querySelector('span');if(strong)strong.textContent=status;if(label)label.textContent=o.department?tx('dashboard.healthLabelDepartment'):tx('dashboard.healthLabelAll')}setText('pmV3BacklogTotal',pmOpen.length);setText('pmV3BacklogDetail',tx('dashboard.backlogDetail',{overdue:pmOver.length,waiting:pmWaiting.length}));const comp=originalCompliance(o);setText('pmV97OriginalCompliance',comp.score===null?'—':comp.score+'%');setText('pmV97OriginalComplianceDetail',comp.score===null?tx('dashboard.noMatureCompliance'):tx('dashboard.complianceDetail',{ok:comp.ok,total:comp.total}));setText('pmV3Execution',comp.score===null?'—':comp.score+'%');setText('pmV3ExecutionDetail',comp.score===null?tx('dashboard.noMatureExecution'):tx('dashboard.executionDetail',{ok:comp.ok,total:comp.total}));if($('pmV3ExecutionBar'))$('pmV3ExecutionBar').style.width=(comp.score||0)+'%';const chartRows=o.workType==='WO'?woOpen:o.workType==='PM'?pmOpen:[...pmOpen,...woOpen],trades={};for(const r of chartRows){trades[r.trade||tx('common.notDefined')]=(trades[r.trade||tx('common.notDefined')]||0)+Number(r.duration||0)/60}const mx=Math.max(1,...Object.values(trades)),tb=$('pmV17Trade');if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${escH(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${escH(tx('common.hoursShort',{value:v.toFixed(1)}))}</strong></div>`).join('')||`<div class="empty">${escH(tx('dashboard.noOpenLoad'))}</div>`;const types={PM:o.workType==='WO'?0:pmOpen.length,WO:o.workType==='PM'?0:woOpen.length},tt=$('pmV17Type'),tm=Math.max(1,...Object.values(types));if(tt)tt.innerHTML=Object.entries(types).map(([k,v])=>`<div class="pm-v17-bar"><span>${k}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/tm*100)}%"></div></div><strong>${v}</strong></div>`).join('');const att=[...pmOver,...pmWaiting].slice(0,12),ab=$('pmV17Attention');if(ab)ab.innerHTML=att.length?att.map(r=>`<div class="pm-v3-mini"><div><strong>${escH(r.machine)} — ${escH(r.description)}</strong><small>${escH(r.trade||'')} · ${escH(tx(r.state==='overdue'?'dashboard.attentionOverdue':'dashboard.attentionWaiting'))}</small></div><span class="tag ${r.state==='overdue'?'red':''}">${escH(tx(r.state==='overdue'?'dashboard.attentionOverdue':'dashboard.attentionWaiting'))}</span></div>`).join(''):`<div class="empty">${escH(tx('dashboard.noAttention'))}</div>`;renderTodayWorkPlan();renderUnplannedDashboard();};
+window.renderDashboard=function(){if(!pmCloudReady&&(!Array.isArray(tasks)||tasks.length===0)){try{pmSetCloudLoadState('loading')}catch(_){}return;}const o=dashboardState();window.maintenanceDashboardState=o;if($('pmDashboardAnchor'))$('pmDashboardAnchor').value=tday();const pmBase={...o,workType:'PM'},pmOpen=getPM({...pmBase,status:'open'}),pmPlanned=getPM({...pmBase,status:'planned'}),pmWaiting=getPM({...pmBase,status:'waiting'}),pmOver=getPM({...pmBase,status:'overdue'}),pmPost=getPM({...pmBase,status:'postponed'}),pmUp=o.workType==='WO'?[]:getPM({...pmBase,status:'upcoming'}),woOpen=getWO({...o,workType:'WO',status:'open'}),done=reportCompletionRows({...o,status:'completed'});setText('pmV17Open',pmOpen.length);setText('pmV142WOOpen',woOpen.length);setText('pmV31Planned',pmPlanned.length);setText('pmV105Unassigned',pmWaiting.length);setText('pmV144Upcoming',pmUp.length);setText('pmV17Overdue',pmOver.length);setText('pmV99Completed',done.length);setText('pmV97Postponements',pmPost.length);setText('pmV3Waiting',pmWaiting.length);setText('pmV3Planned',pmPlanned.length);setText('pmV3Completed',done.filter(r=>r.kind==='PM').length);setText('pmV3Postponed',pmPost.length);setText('pmV3Overdue',pmOver.length);const overdueAssigned=pmOver.filter(r=>r.isAssigned).length;if($('pmV17OverdueDetail'))$('pmV17OverdueDetail').textContent=tx('dashboard.overdueAssigned',{count:overdueAssigned});const b=periodBounds(o.period,tday());if($('pmV144UpcomingDetail'))$('pmV144UpcomingDetail').textContent=tx('dashboard.upcomingRange',{start:fd(b.start),end:fd(b.end)});const bw=backwardWindow(o.period,tday());if($('pmV99CompletedDetail'))$('pmV99CompletedDetail').textContent=tx('dashboard.completedRange',{start:fd(bw.start),end:fd(bw.end)});const coverage=pmOpen.length?Math.round(pmPlanned.length/pmOpen.length*100):100;setText('pmV3Coverage',coverage+'%');setText('pmV3CoverageDetail',tx('dashboard.coverageDetail',{planned:pmPlanned.length,open:pmOpen.length}));if($('pmV3CoverageBar'))$('pmV3CoverageBar').style.width=Math.min(100,coverage)+'%';const health=$('pmV3Health');if(health){const noPlanYet=pmOpen.length>0&&pmPlanned.length===0&&done.filter(r=>r.kind==='PM').length===0&&pmPost.length===0;let tone='warn',status='';if(pmOpen.length===0){tone='good';status=tx('dashboard.healthNoRequirements')}else if(noPlanYet){tone='warn';status=tx('dashboard.healthPending')}else if(pmOver.length===0&&coverage>=80){tone='good';status=tx('dashboard.healthGood')}else if(pmOver.length<=10&&coverage>=60){tone='warn';status=tx('dashboard.healthWarn')}else{tone='bad';status=tx('dashboard.healthBad')}health.className='pm-v3-health '+tone;const strong=health.querySelector('strong'),label=health.querySelector('span');if(strong)strong.textContent=status;if(label)label.textContent=o.department?tx('dashboard.healthLabelDepartment'):tx('dashboard.healthLabelAll')}setText('pmV3BacklogTotal',pmOpen.length);setText('pmV3BacklogDetail',tx('dashboard.backlogDetail',{overdue:pmOver.length,waiting:pmWaiting.length}));const comp=originalCompliance(o);setText('pmV97OriginalCompliance',comp.score===null?'—':comp.score+'%');setText('pmV97OriginalComplianceDetail',comp.score===null?tx('dashboard.noMatureCompliance'):tx('dashboard.complianceDetail',{ok:comp.ok,total:comp.total}));setText('pmV3Execution',comp.score===null?'—':comp.score+'%');setText('pmV3ExecutionDetail',comp.score===null?tx('dashboard.noMatureExecution'):tx('dashboard.executionDetail',{ok:comp.ok,total:comp.total}));if($('pmV3ExecutionBar'))$('pmV3ExecutionBar').style.width=(comp.score||0)+'%';const chartRows=o.workType==='WO'?woOpen:o.workType==='PM'?pmOpen:[...pmOpen,...woOpen],trades={};for(const r of chartRows){trades[r.trade||tx('common.notDefined')]=(trades[r.trade||tx('common.notDefined')]||0)+Number(r.duration||0)/60}const mx=Math.max(1,...Object.values(trades)),tb=$('pmV17Trade');if(tb)tb.innerHTML=Object.entries(trades).map(([k,v])=>`<div class="pm-v17-bar"><span>${escH(k)}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/mx*100)}%"></div></div><strong>${escH(tx('common.hoursShort',{value:v.toFixed(1)}))}</strong></div>`).join('')||`<div class="empty">${escH(tx('dashboard.noOpenLoad'))}</div>`;const types={PM:o.workType==='WO'?0:pmOpen.length,WO:o.workType==='PM'?0:woOpen.length},tt=$('pmV17Type'),tm=Math.max(1,...Object.values(types));if(tt)tt.innerHTML=Object.entries(types).map(([k,v])=>`<div class="pm-v17-bar"><span>${k}</span><div class="pm-v17-track"><div class="pm-v17-fill" style="width:${Math.round(v/tm*100)}%"></div></div><strong>${v}</strong></div>`).join('');const att=[...pmOver,...pmWaiting].slice(0,12),ab=$('pmV17Attention');if(ab)ab.innerHTML=att.length?att.map(r=>`<div class="pm-v3-mini"><div><strong>${escH(r.machine)} — ${escH(r.description)}</strong><small>${escH(r.trade||'')} · ${escH(tx(r.state==='overdue'?'dashboard.attentionOverdue':'dashboard.attentionWaiting'))}</small></div><span class="tag ${r.state==='overdue'?'red':''}">${escH(tx(r.state==='overdue'?'dashboard.attentionOverdue':'dashboard.attentionWaiting'))}</span></div>`).join(''):`<div class="empty">${escH(tx('dashboard.noAttention'))}</div>`;renderTodayWorkPlan();renderUnplannedDashboard();};
 window.renderTodayWorkPlan=function(){const pm=getPM({anchor:tday(),status:'planned',workType:'PM'}).filter(r=>r.assignmentDate===tday()),wo=getWO({anchor:tday(),status:'planned',workType:'WO'}).filter(r=>r.assignmentDate===tday()),a=[...pm,...wo],mins=a.reduce((s,r)=>s+Number(r.duration||0),0);setText('pmTodayPlanned',a.length);setText('pmTodayDone',0);setText('pmTodayPending',a.length);setText('pmTodayPlanHours',(mins/60).toFixed(1));const l=$('pmTodayPlanList');if(l)l.innerHTML=a.length?a.slice(0,8).map(r=>`<div class="pm-plan-mini-item"><div><strong>${escH(r.machine)}</strong><div>${escH(r.description)}</div></div><span>${escH(r.assignee||r.performer||'')}</span></div>`).join(''):`<div class="empty">${escH(tx('dashboard.noTodayPlan'))}</div>`;};
 window.renderUnplannedDashboard=function(){const o=dashboardState(),all=getWO({...o,workType:'WO',status:'open'}),urgent=all.filter(r=>['דחופה','משביתה'].includes(r.priority)),planned=all.filter(r=>r.isAssigned),done=reportCompletionRows({...o,workType:'WO'});setText('pmWOOpen',all.length);setText('pmWOUrgent',urgent.length);setText('pmWOPlanned',planned.length);setText('pmWODone',done.length);const el=$('pmWODashboardList');if(el)el.innerHTML=o.workType==='PM'?'':all.slice(0,5).map(r=>woCard(r.wo,'dashboard')).join('');};
 function copyDashToPlanner(){if($('pmPlannerStart'))$('pmPlannerStart').value=tday();if($('pmPlannerDepartment'))$('pmPlannerDepartment').value=$('pmDashboardDepartment')?.value||'';try{fillPlanningMachines()}catch(_){}if($('pmPlannerMachine'))$('pmPlannerMachine').value=$('pmDashboardMachine')?.value||'';if($('pmPlannerTrade'))$('pmPlannerTrade').value=$('pmDashboardTrade')?.value||'';}
@@ -3951,7 +3987,7 @@ window.showTab=function(name,navOpts={}){
 };
 
 window.maintenanceRefreshAll=function(){
-  try{fillMaintenanceSelect?.('pmDashboardDepartment',true)}catch(_){}
+  try{fillMaintenanceSelect?.('pmDashboardDepartment',true);const d=$('pmDashboardDepartment');if(d&&d.options.length===0)d.innerHTML=`<option value="">${tx('common.allDepartments')}</option>`}catch(_){}
   try{fillMaintenanceSelect?.('pmPlannerDepartment',true)}catch(_){}
   try{fillMaintenanceSelect?.('pmReportDepartment',true)}catch(_){}
   try{fillMaintenanceSelect?.('pmHistoryDepartment',true)}catch(_){}
@@ -3968,6 +4004,6 @@ window.fillReportMachines=function(){const sel=$('pmReportMachine');if(!sel)retu
 window.addEventListener('pm-language-changed',()=>{try{window.showTab(pmActiveTab(),{fromBack:true,languageRefresh:true})}catch(e){console.warn('language refresh',e)}});
 
 /* ---------- boot ---------- */
-function boot(){if($('pmPlannerStart'))$('pmPlannerStart').value=tday();if($('pmDashboardAnchor'))$('pmDashboardAnchor').value=tday();if($('pmReportsAnchor'))$('pmReportsAnchor').value=tday();if($('pmPostponeDate'))$('pmPostponeDate').type='hidden';if($('pmPostponeSaveButton')){$('pmPostponeSaveButton').classList.add('pm-action-btn','pm-action-postpone');}try{renderDashboard();renderPlanner();renderReport();renderHistory()}catch(e){console.warn('maintenance consolidated boot',e)}}
+function boot(){const st=document.getElementById('pmStatus');if(st&&!st.dataset.cloudRetry){st.dataset.cloudRetry='1';st.style.cursor='pointer';st.addEventListener('click',async()=>{if(pmCloudReady)return;const ok=await pmLoadCloudDeterministically();if(ok){try{window.maintenanceRefreshAll?.()}catch(_){}}});}if($('pmPlannerStart'))$('pmPlannerStart').value=tday();if($('pmDashboardAnchor'))$('pmDashboardAnchor').value=tday();if($('pmReportsAnchor'))$('pmReportsAnchor').value=tday();if($('pmPostponeDate'))$('pmPostponeDate').type='hidden';if($('pmPostponeSaveButton')){$('pmPostponeSaveButton').classList.add('pm-action-btn','pm-action-postpone');}try{renderDashboard();renderPlanner();renderReport();renderHistory()}catch(e){console.warn('maintenance consolidated boot',e)}}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();</script></body></html>
