@@ -1909,6 +1909,18 @@ function normalizeHistoryRow(h){
   };
 }
 
+function normalize(t){
+  return {
+    ...t,
+    machine:pmCanonicalMachineName(t?.machine||''),
+    lastDone:t?.lastDone??t?.last_done??null,
+    nextDue:t?.nextDue??t?.next_due??null,
+    taskType:t?.taskType??t?.task_type??null,
+    trade:t?.trade??null,
+    active:t?.active!==false
+  };
+}
+
 async function loadCloudData(){
   try{
     // Supabase/PostgREST commonly caps a single response at 1000 rows.
@@ -1982,8 +1994,21 @@ async function loadCloudData(){
     cloudDashboardTasks=tasks;
     cloudDashboardLoaded=true;
     pmCloudReady=true;
-    if(typeof window.maintenanceRefreshAll==='function') window.maintenanceRefreshAll();
-    const tc=maintenanceTradeCounts(); const completedWOReports=(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>String(w.status||'').trim().toLowerCase()==='completed').length; statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב: ${maintenanceTasks().length} עבודות אחזקה, ${maintenanceInspectionTasks().length} בדיקות אחזקה, ${operatorTasks().length} מפעיל · מקצוע: ${tc['מכונאי']} מכונאי / ${tc['חשמלאי']} חשמלאי · ${history.length+completedWOReports} דיווחי ביצוע (${history.length} PM + ${completedWOReports} WO).`,'success');
+
+    // Data loading and UI rendering are separate failure domains. A render problem must never
+    // be reported as a Supabase/cloud-load failure after the authoritative snapshot is ready.
+    try{
+      if(typeof window.maintenanceRefreshAll==='function') window.maintenanceRefreshAll();
+    }catch(renderErr){
+      console.error('Maintenance render after cloud load failed:',renderErr);
+    }
+    try{
+      const tc=maintenanceTradeCounts();
+      const completedWOReports=(Array.isArray(pmWorkOrders)?pmWorkOrders:[]).filter(w=>String(w.status||'').trim().toLowerCase()==='completed').length;
+      statusLine(`הנתונים נטענו מהענן — ${tasks.length} טיפולי אב: ${maintenanceTasks().length} עבודות אחזקה, ${maintenanceInspectionTasks().length} בדיקות אחזקה, ${operatorTasks().length} מפעיל · מקצוע: ${tc['מכונאי']} מכונאי / ${tc['חשמלאי']} חשמלאי · ${history.length+completedWOReports} דיווחי ביצוע (${history.length} PM + ${completedWOReports} WO).`,'success');
+    }catch(summaryErr){
+      console.warn('Cloud snapshot loaded; summary rendering failed:',summaryErr);
+    }
     return true;
   }catch(err){
     pmCloudReady=false;
